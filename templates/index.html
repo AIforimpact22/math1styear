@@ -12,8 +12,6 @@
       --muted:#9fb2c7;
       --accent:#7aa2ff;
       --ring: rgba(122,162,255,0.3);
-      --hl: #ffd54a; /* highlight core color */
-      --sub: #ff6b6b; /* subtract color for B in A\B */
     }
     *{ box-sizing: border-box; }
     html, body { height: 100%; }
@@ -71,6 +69,7 @@
     .chip .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; border:1px solid #0e1523; }
     .chip small{ color: var(--muted); }
 
+    /* Main two-column layout: left canvas + right sidebar; explanation sits under canvas */
     main{ display:grid; grid-template-columns: 1fr 360px; gap:16px; max-width: 1200px; margin: 12px auto; padding: 0 16px 16px; }
     @media (max-width: 980px){ main{ grid-template-columns: 1fr; } }
 
@@ -81,14 +80,13 @@
     }
     .canvas-hint{
       position:absolute; right:12px; top:12px; z-index:5;
-      background: rgba(18,24,33,0.75); border:1px solid #233040; padding:6px 8px; border-radius:10px; color:var(--muted);
+      background: rgba(18,24,33,0.75); border:1px solid #233040; padding:6px 8px; border-radius:10px; color:#cfd8e3;
     }
     .hl-chip{
       position:absolute; left:12px; bottom:12px; z-index:6;
       background: rgba(18,24,33,0.9); border:1px solid #705e20; padding:8px 10px; border-radius:10px;
       box-shadow: 0 0 0 2px rgba(255,213,74,0.2) inset;
-      color:#ffeaa0; font-weight:600;
-      max-width: calc(100% - 24px);
+      color:#ffeaa0; font-weight:600; max-width: calc(100% - 24px);
     }
     canvas{ width:100%; height:66vh; display:block; }
 
@@ -96,6 +94,7 @@
       background: var(--card);
       border:1px solid #233040; border-radius:14px; padding:12px;
       display:flex; flex-direction:column; gap:12px; min-height: 66vh;
+      grid-row: span 2; /* keep sidebar spanning both rows */
     }
     aside h2{ font-size:14px; margin:0 0 6px; color:#cbd7ea; }
 
@@ -134,6 +133,25 @@
     .kbd{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; color:#cbd7ea; }
     .help-list{ margin:6px 0 0 18px; color:var(--muted); }
     .help-list li{ margin:2px 0; }
+
+    /* Explanation card (text response below canvas) */
+    .explain-card{
+      background: var(--card);
+      border:1px solid #233040; border-radius:14px; padding:12px; min-height: 140px;
+    }
+    .explain-head{
+      display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:8px;
+    }
+    .explain-head .badge{
+      display:inline-flex; gap:6px; align-items:center; padding:4px 8px; border-radius:999px;
+      background:#0d1320; border:1px solid #263243; font-size:12px; color:#9fb2c7;
+    }
+    .explain-head code{
+      background:#0d1320; border:1px solid #263243; padding:2px 6px; border-radius:6px; color:#a9c3ff;
+    }
+    .explain-body{ color:#d7e6ff; }
+    .exp-list{ margin:8px 0 0 18px; }
+    .exp-list li{ margin:2px 0; }
   </style>
 </head>
 <body>
@@ -155,7 +173,7 @@
         </span>
       </div>
     </div>
-    <h2>ABDULHAQ Hawkar — Set Theory</h2>
+    <h2>ABDULHAQ Hawkar — Set Theory (Slide 2)</h2>
 
     <!-- Controls -->
     <div class="controls" aria-label="Simulation controls">
@@ -171,6 +189,7 @@
 </header>
 
 <main>
+  <!-- Left column, row 1 -->
   <section class="canvas-card" aria-label="Universe canvas">
     <div class="canvas-head">
       <span class="badge">Universe: <strong id="uName">…</strong></span>
@@ -183,6 +202,7 @@
     <canvas id="venn" role="img" aria-label="Interactive Venn canvas"></canvas>
   </section>
 
+  <!-- Right column, spans both rows -->
   <aside>
     <div>
       <h2>Sets</h2>
@@ -201,6 +221,7 @@
           <thead>
             <tr id="theadRow">
               <th>Element</th>
+              <!-- set names added dynamically -->
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
@@ -212,6 +233,23 @@
       </ul>
     </div>
   </aside>
+
+  <!-- Left column, row 2: Text explanation panel -->
+  <section class="explain-card" aria-live="polite" aria-label="Text explanation for selected region">
+    <div class="explain-head">
+      <span class="badge">Selected region</span>
+      <code id="expExpr">—</code>
+      <span class="pill" id="expCount">(0 elements)</span>
+    </div>
+    <div class="explain-body" id="expText">
+      Click a region in the right panel to see a description and the elements that belong to it.
+      In this geology context, sets represent rock categories; an item belongs to a set if its label lies inside that circle.
+    </div>
+    <div class="explain-body" id="expElements" style="display:none;">
+      <strong>Elements in region:</strong>
+      <ul class="exp-list" id="expList"></ul>
+    </div>
+  </section>
 </main>
 
 <script>
@@ -237,6 +275,12 @@
   const canvas = document.getElementById("venn");
   const ctx = canvas.getContext("2d");
   const hlChip = document.getElementById("hlChip");
+  const expExpr = document.getElementById("expExpr");
+  const expCount = document.getElementById("expCount");
+  const expText = document.getElementById("expText");
+  const expElemsBlock = document.getElementById("expElements");
+  const expList = document.getElementById("expList");
+
   const state = {
     universe: {name:"", width:1200, height:750},
     sets: [],
@@ -332,14 +376,51 @@
     return { perElement: per, countsByMask: counts, singles, pairs, diffs, triples, total };
   }
 
-  // ---------- Helpers for highlight ----------
+  // ---------- Region logic ----------
+  function prettyExpr(kind, idx){
+    const id = (i) => state.sets[i]?.id || "?";
+    if (kind==='single') return `${id(idx[0])}`;
+    if (kind==='pair') return `${id(idx[0])} ∩ ${id(idx[1])}`;
+    if (kind==='diff') return `${id(idx[0])} \\ ${id(idx[1])}`;
+    if (kind==='triple') return `${id(idx[0])} ∩ ${id(idx[1])} ∩ ${id(idx[2])}`;
+    if (kind==='outside') return `Outside all sets`;
+    if (kind==='all') return `Union (all sets)`;
+    return '—';
+  }
+
+  function countForHighlight(kind, idx, counts, total){
+    if (!kind) return 0;
+    const n = state.sets.length;
+    if (kind==='outside') return counts[0];
+    if (kind==='all') return total - counts[0];
+    let sum=0;
+    for (let m=0;m<counts.length;m++){
+      if (kind==='single'){ if (m & (1<<idx[0])) sum += counts[m]; }
+      else if (kind==='pair'){ const need=(1<<idx[0])|(1<<idx[1]); if ((m & need) === need) sum += counts[m]; }
+      else if (kind==='diff'){ if ((m & (1<<idx[0])) && !(m & (1<<idx[1]))) sum += counts[m]; }
+      else if (kind==='triple'){ const need=(1<<idx[0])|(1<<idx[1])|(1<<idx[2]); if ((m & need) === need) sum += counts[m]; }
+    }
+    return sum;
+  }
+
+  function elementInRegion(maskBits, kind, idx){
+    if (kind==='outside') return maskBits === 0;
+    if (kind==='all') return maskBits !== 0;
+    if (kind==='single') return (maskBits & (1<<idx[0])) !== 0;
+    if (kind==='pair') return (maskBits & (1<<idx[0])) && (maskBits & (1<<idx[1]));
+    if (kind==='diff') return (maskBits & (1<<idx[0])) && !(maskBits & (1<<idx[1]));
+    if (kind==='triple') return (maskBits & (1<<idx[0])) && (maskBits & (1<<idx[1])) && (maskBits & (1<<idx[2]));
+    return false;
+  }
+
+  // ---------- Mask for strong highlight ----------
   function makeMask(kind, indices){
     if (!kind) return null;
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const mask = document.createElement('canvas');
     mask.width = canvas.width; mask.height = canvas.height;
     const m = mask.getContext('2d');
-    m.setTransform(dpr,0,0,dpr,0,0); // draw in CSS pixels
+    m.setTransform(dpr,0,0,dpr,0,0);
     m.clearRect(0,0,canvas.clientWidth, canvas.clientHeight);
     m.fillStyle = "#000";
     const fillCircle = (i) => {
@@ -370,41 +451,6 @@
       for (let i=0;i<state.sets.length;i++){ fillCircle(i); } // union
     }
     return mask;
-  }
-
-  function prettyExpr(kind, idx){
-    const id = (i) => state.sets[i]?.id || "?";
-    if (kind==='single') return `${id(idx[0])}`;
-    if (kind==='pair') return `${id(idx[0])} ∩ ${id(idx[1])}`;
-    if (kind==='diff') return `${id(idx[0])} \\ ${id(idx[1])}`;
-    if (kind==='triple') return `${id(idx[0])} ∩ ${id(idx[1])} ∩ ${id(idx[2])}`;
-    if (kind==='outside') return `Outside all sets`;
-    if (kind==='all') return `Union (all sets)`;
-    return '';
-  }
-
-  function countForHighlight(kind, idx, counts, total){
-    const n = state.sets.length;
-    if (kind==='outside') return counts[0];
-    if (kind==='all') return total - counts[0];
-    let sum=0;
-    for (let m=0;m<counts.length;m++){
-      if (kind==='single'){ if (m & (1<<idx[0])) sum += counts[m]; }
-      else if (kind==='pair'){ const need=(1<<idx[0])|(1<<idx[1]); if ((m & need) === need) sum += counts[m]; }
-      else if (kind==='diff'){ if ((m & (1<<idx[0])) && !(m & (1<<idx[1]))) sum += counts[m]; }
-      else if (kind==='triple'){ const need=(1<<idx[0])|(1<<idx[1])|(1<<idx[2]); if ((m & need) === need) sum += counts[m]; }
-    }
-    return sum;
-  }
-
-  function elementInRegion(maskBits, kind, idx){
-    if (kind==='outside') return maskBits === 0;
-    if (kind==='all') return maskBits !== 0;
-    if (kind==='single') return (maskBits & (1<<idx[0])) !== 0;
-    if (kind==='pair') return (maskBits & (1<<idx[0])) && (maskBits & (1<<idx[1]));
-    if (kind==='diff') return (maskBits & (1<<idx[0])) && !(maskBits & (1<<idx[1]));
-    if (kind==='triple') return (maskBits & (1<<idx[0])) && (maskBits & (1<<idx[1])) && (maskBits & (1<<idx[2]));
-    return false;
   }
 
   // ---------- Drawing ----------
@@ -468,9 +514,13 @@
       }
     }
 
-    // Strong region highlight overlay (last to be very visible)
+    // Strong region highlight overlay + update explanation
     if (state.highlight){
       drawStrongHighlight(state.highlight, mem);
+      updateExplain(state.highlight, mem);
+    } else {
+      clearHighlightChip();
+      // Keep default explanation if no selection
     }
   }
 
@@ -495,23 +545,19 @@
     ctx.fillRect(0,0,w,h);
     if (mask){
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.drawImage(mask, 0, 0, canvas.width, canvas.height, 0, 0, w, h); // carve region
+      ctx.drawImage(mask, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
     }
     ctx.restore();
 
-    // 2) Colorize region strongly + glow
+    // 2) Colorize region + glow
     if (mask){
-      // Color core
       ctx.save();
       ctx.drawImage(mask, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
       ctx.globalCompositeOperation = 'source-in';
-      let core = 'rgba(255,213,74,0.38)';
-      if (hl.kind === 'diff') core = 'rgba(255,213,74,0.38)'; // keep gold for A\B body
-      ctx.fillStyle = core;
+      ctx.fillStyle = 'rgba(255,213,74,0.38)'; // gold core
       ctx.fillRect(0,0,w,h);
       ctx.restore();
 
-      // Glow
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       ctx.shadowColor = 'rgba(255,213,74,0.85)';
@@ -525,7 +571,7 @@
     const ids = hl.indices || [];
     if (hl.kind !== 'outside'){
       if (hl.kind === 'diff'){
-        // A gets gold, B gets subtract red
+        // A gets gold, B gets soft red
         const [a,b] = ids;
         if (Number.isInteger(a)) strokeSet(a, 'rgba(255,213,74,0.95)', 4.5);
         if (Number.isInteger(b)) strokeSet(b, 'rgba(255,107,107,0.95)', 4.0);
@@ -555,13 +601,13 @@
       const ex = pxX(e.x), ey = pxY(e.y);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = (hl.kind==='diff') ? 'rgba(255,213,74,0.85)' : 'rgba(255,213,74,0.85)';
+      ctx.fillStyle = 'rgba(255,213,74,0.85)';
       ctx.beginPath(); ctx.arc(ex, ey, 12, 0, Math.PI*2); ctx.closePath();
       ctx.fill();
       ctx.restore();
     }
 
-    // 5) Label chip
+    // 5) Label chip on canvas
     const expr = prettyExpr(hl.kind, hl.indices);
     const count = countForHighlight(hl.kind, hl.indices, mem.countsByMask, mem.total);
     hlChip.style.display = 'block';
@@ -570,7 +616,50 @@
 
   function clearHighlightChip(){ hlChip.style.display = 'none'; }
 
-  function requestDraw(){ state.needsDraw = true; }
+  // ---------- Explanation panel (text response below canvas) ----------
+  function updateExplain(hl, mem){
+    const expr = prettyExpr(hl.kind, hl.indices);
+    const count = countForHighlight(hl.kind, hl.indices, mem.countsByMask, mem.total);
+
+    expExpr.textContent = expr;
+    expCount.textContent = `(${count} element${count===1?'':'s'})`;
+
+    // Build list of element labels in region
+    const items = [];
+    for (let i=0; i<state.elements.length; i++){
+      if (elementInRegion(mem.perElement[i], hl.kind, hl.indices)){
+        items.push(state.elements[i].label);
+      }
+    }
+    expList.innerHTML = items.map(t => `<li>${t}</li>`).join("") || `<li><em>None</em></li>`;
+    expElemsBlock.style.display = 'block';
+
+    // Contextual text
+    const name = (i) => state.sets[i]?.name || `Set ${i+1}`;
+    const id = (i) => state.sets[i]?.id || `S${i+1}`;
+
+    let desc = "";
+    if (hl.kind === 'single'){
+      desc = `Elements inside **${name(hl.indices[0])}** (${id(hl.indices[0])}). This includes any item located within that circle regardless of other sets.`;
+    } else if (hl.kind === 'pair'){
+      desc = `Elements common to both **${name(hl.indices[0])}** (${id(hl.indices[0])}) and **${name(hl.indices[1])}** (${id(hl.indices[1])}); i.e., the intersection **${id(hl.indices[0])} ∩ ${id(hl.indices[1])}**.`;
+    } else if (hl.kind === 'diff'){
+      desc = `Elements in **${name(hl.indices[0])}** (${id(hl.indices[0])}) but *not* in **${name(hl.indices[1])}** (${id(hl.indices[1])}); this is the set difference **${id(hl.indices[0])} \\ ${id(hl.indices[1])}**.`;
+    } else if (hl.kind === 'triple'){
+      desc = `Elements that belong to all three sets **${name(hl.indices[0])}**, **${name(hl.indices[1])}**, and **${name(hl.indices[2])}**; i.e., the triple intersection.`;
+    } else if (hl.kind === 'outside'){
+      const unionIds = state.sets.map((_,i)=>state.sets[i].id).join(" ∪ ");
+      desc = `Elements **outside all sets**, i.e., in the complement **U \\ (${unionIds})**.`;
+    } else if (hl.kind === 'all'){
+      const unionNames = state.sets.map(s=>`${s.name} (${s.id})`).join(", ");
+      desc = `Elements in the **union of all sets** (${unionNames}).`;
+    }
+
+    // Geology reminder
+    desc += ` In geology terms, sets reflect rock categories or processes; a label is a member if it lies inside that set's circle.`;
+
+    expText.innerHTML = desc;
+  }
 
   // ---------- UI builders ----------
   function rebuildSetChips(){
@@ -622,14 +711,14 @@
                        state.highlight.kind === kind &&
                        JSON.stringify(state.highlight.indices) === JSON.stringify(indices);
           state.highlight = same ? null : {kind, indices};
-          // Mark selected row
+          // Row selection visual
           document.querySelectorAll(".summary .row").forEach(el => el.classList.remove("selected"));
           if (!same) row.classList.add("selected");
-          if (same) clearHighlightChip();
+          if (same) { clearHighlightChip(); }
           requestDraw();
         });
       } else { row.style.cursor = "default"; }
-      // Maintain selected styling if needed
+      // Maintain selected styling on rebuild
       if (state.highlight && state.highlight.kind === kind &&
           JSON.stringify(state.highlight.indices) === JSON.stringify(indices)){
         row.classList.add("selected");
@@ -780,6 +869,11 @@
       state.highlight = null;
       document.querySelectorAll(".summary .row").forEach(el => el.classList.remove("selected"));
       clearHighlightChip();
+      // Reset text panel to default
+      expExpr.textContent = "—";
+      expCount.textContent = "(0 elements)";
+      expText.innerHTML = "Click a region in the right panel to see a description and the elements that belong to it. In this geology context, sets represent rock categories; an item belongs to a set if its label lies inside that circle.";
+      expElemsBlock.style.display = 'none';
       requestDraw();
     }
   });
@@ -813,6 +907,7 @@
   }
 
   // ---------- Animation loop ----------
+  function requestDraw(){ state.needsDraw = true; }
   function loop(){
     if (state.needsDraw){
       draw();
