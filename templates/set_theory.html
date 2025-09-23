@@ -2,31 +2,33 @@
 
 {% block controls %}
 <div class="controls" aria-label="Simulation controls">
-  <button id="btnReset" class="btn">Reset</button>
+  <button id="btnNewPuzzle" class="btn">New Puzzle</button>
   <button id="btnSave" class="btn">Save JSON</button>
   <label class="btn" for="fileLoad">Load JSON</label>
   <input id="fileLoad" type="file" accept="application/json" />
   <label class="switch btn"><input id="lockSets" type="checkbox" /> Lock Sets</label>
   <label class="switch btn"><input id="lockElements" type="checkbox" /> Lock Elements</label>
-  <label class="switch btn"><input id="showLabels" type="checkbox" checked /> Show Element Labels</label>
+  <label class="switch btn"><input id="showLabels" type="checkbox" checked /> Show Labels</label>
 </div>
 {% endblock %}
 
 {% block content %}
-<!-- Left column, row 1 -->
 <section class="canvas-card" aria-label="Universe canvas">
   <div class="canvas-head">
     <span class="badge">Universe: <strong id="uName">…</strong></span>
-    <span class="kbd">Tip:</span><span class="pill">Drag sets &amp; elements • Wheel over a set to resize</span>
+    <div class="score" aria-live="polite">
+      <span id="scoreText">Score: 0/0 (0%)</span>
+      <div class="bar"><div id="scoreFill" class="fill"></div></div>
+    </div>
+    <span class="kbd">Tip:</span><span class="pill">Drag sets &amp; minerals • Wheel on a set to resize</span>
   </div>
   <div class="canvas-hint">
-    <span class="pill">Click any row to highlight region • Press <span class="kbd">Esc</span> to clear</span>
+    <span class="pill">Click any row to highlight • Press <span class="kbd">Esc</span> to clear</span>
   </div>
   <div id="hlChip" class="hl-chip" style="display:none;"></div>
   <canvas id="venn" role="img" aria-label="Interactive Venn canvas"></canvas>
 </section>
 
-<!-- Right column, spans both rows -->
 <aside>
   <div>
     <h2>Sets</h2>
@@ -35,7 +37,7 @@
 
   <div class="summary" id="regions">
     <h2>Regions &amp; Intersections</h2>
-    <!-- Filled dynamically -->
+    <!-- filled dynamically -->
   </div>
 
   <div>
@@ -44,21 +46,21 @@
       <table aria-label="elements membership table">
         <thead>
           <tr id="theadRow">
-            <th>Element</th>
-            <!-- set names added dynamically -->
+            <th>Mineral</th>
+            <th>Status</th>
+            <!-- set names appended dynamically -->
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
     <ul class="help-list">
-      <li>Drag mineral labels to reposition. Membership is geometric: a label is in a set if it falls inside that circle.</li>
-      <li>Click any row in “Regions &amp; Intersections” to spotlight that region; press <span class="kbd">Esc</span> to clear.</li>
+      <li>Place sets so that minerals end up inside their correct categories. The score rises as memberships match the answer key.</li>
+      <li>Use <strong>New Puzzle</strong> for a fresh scramble.</li>
     </ul>
   </div>
 </aside>
 
-<!-- Left column, row 2: Text explanation panel -->
 <section class="explain-card" aria-live="polite" aria-label="Text explanation for selected region">
   <div class="explain-head">
     <span class="badge">Selected region</span>
@@ -66,8 +68,7 @@
     <span class="pill" id="expCount">(0 elements)</span>
   </div>
   <div class="explain-body" id="expText">
-    Click a region in the right panel to see a description and the elements that belong to it.
-    In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.
+    Click a region to spotlight it. In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.
   </div>
   <div class="explain-body" id="expElements" style="display:none;">
     <strong>Elements in region:</strong>
@@ -95,11 +96,22 @@
     return rgbToHex({r:Math.round(r/n), g:Math.round(g/n), b:Math.round(b/n)});
   };
   const hexToRgba = (hex, a) => { const {r,g,b} = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; };
+  const sameSet = (A, B) => {
+    if (!A || !B) return (!A || A.length===0) && (!B || B.length===0);
+    if (A.length !== B.length) return false;
+    const a = [...A].sort().join("|");
+    const b = [...B].sort().join("|");
+    return a === b;
+  };
 
   // ---------- State ----------
   const canvas = document.getElementById("venn");
   const ctx = canvas.getContext("2d");
   const hlChip = document.getElementById("hlChip");
+
+  const scoreText = document.getElementById("scoreText");
+  const scoreFill = document.getElementById("scoreFill");
+
   const expExpr = document.getElementById("expExpr");
   const expCount = document.getElementById("expCount");
   const expText = document.getElementById("expText");
@@ -110,10 +122,11 @@
     universe: {name:"", width:1200, height:750},
     sets: [],
     elements: [],
+    answerKey: {},      // { element_id: [set_ids...] }
+    solution: null,     // optional: for peek/reveal if needed
     drag: null,
-    needsDraw: true,
-    // kinds: 'single'|'pair'|'diff'|'triple'|'outside'|'all'|'union'
-    highlight: null
+    highlight: null,    // {kind:'single'|'pair'|'diff'|'triple'|'outside'|'all'|'union', indices:[...]}
+    needsDraw: true
   };
 
   // ---------- Responsive canvas ----------
@@ -131,7 +144,7 @@
   const nX  = px => clamp(px / canvas.clientWidth, 0, 1);
   const nY  = py => clamp(py / canvas.clientHeight, 0, 1);
 
-  // ---------- Hit test ----------
+  // ---------- Pick ----------
   function pickAt(px,py){
     for (let i=state.elements.length-1; i>=0; --i){
       const e = state.elements[i];
@@ -144,7 +157,7 @@
     return null;
   }
 
-  // ---------- Membership & tallies ----------
+  // ---------- Membership ----------
   function memberships(){
     const n = state.sets.length;
     const counts = new Uint32Array(1<<n);
@@ -164,8 +177,6 @@
     }
 
     const total = state.elements.length;
-
-    // Singles: inside set i (regardless of others)
     const singles = new Array(n).fill(0);
     for (let i=0;i<n;i++){
       let sum=0;
@@ -173,7 +184,6 @@
       singles[i]=sum;
     }
 
-    // Pairs: intersections (A ∩ B)
     const pairs = [];
     for (let i=0;i<n;i++) for (let j=i+1;j<n;j++){
       let sum=0, need=(1<<i)|(1<<j);
@@ -181,7 +191,6 @@
       pairs.push({i,j,count:sum});
     }
 
-    // Differences: A \ B
     const diffs = [];
     for (let i=0;i<n;i++){
       for (let j=0;j<n;j++){
@@ -194,7 +203,6 @@
       }
     }
 
-    // Unions (pairwise): A ∪ B
     const unions2 = [];
     for (let i=0;i<n;i++) for (let j=i+1;j<n;j++){
       let sum=0, need=(1<<i)|(1<<j);
@@ -202,7 +210,6 @@
       unions2.push({i,j,count:sum});
     }
 
-    // Triples: intersections (A ∩ B ∩ C)
     const triples = [];
     if (n>=3){
       for (let i=0;i<n;i++) for (let j=i+1;j<n;j++) for (let k=j+1;k<n;k++){
@@ -219,13 +226,13 @@
   function prettyExpr(kind, idx){
     const id = (i) => state.sets[i]?.id || "?";
     if (kind==='single') return `${id(idx[0])}`;
-    if (kind==='pair')   return `${id(idx[0])} ∩ ${id[idx[1])}`;
+    if (kind==='pair')   return `${id(idx[0])} ∩ ${id(idx[1])}`;
     if (kind==='diff')   return `${id(idx[0])} \\ ${id(idx[1])}`;
     if (kind==='union'){
       const parts = idx.map(i => id(i)).join(" ∪ ");
       return parts || "Union";
     }
-    if (kind==='triple') return `${id(idx[0])} ∩ ${id[idx[1])} ∩ ${id[idx[2])}`;
+    if (kind==='triple') return `${id(idx[0])} ∩ ${id(idx[1])} ∩ ${id(idx[2])}`;
     if (kind==='outside') return `Outside all sets`;
     if (kind==='all') return `Union (all sets)`;
     return '—';
@@ -257,7 +264,7 @@
     return false;
   }
 
-  // ---------- Mask for highlight ----------
+  // ---------- Masks for strong highlight ----------
   function makeMask(kind, indices){
     if (!kind) return null;
     const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -278,7 +285,7 @@
       fillCircle(indices[0]);
       m.globalCompositeOperation = 'destination-in';
       fillCircle(indices[1]);
-    } else if (kind === 'diff'){ // A\B
+    } else if (kind === 'diff'){
       fillCircle(indices[0]);
       m.globalCompositeOperation = 'destination-out';
       fillCircle(indices[1]);
@@ -292,17 +299,121 @@
       m.globalCompositeOperation = 'destination-out';
       for (let i=0;i<state.sets.length;i++){ fillCircle(i); }
     } else if (kind === 'union'){
-      // Union of listed indices
       m.globalCompositeOperation = 'source-over';
       indices.forEach(i => fillCircle(i));
     } else if (kind === 'all'){
-      // Union of all sets
       for (let i=0;i<state.sets.length;i++){ fillCircle(i); }
     }
     return mask;
   }
 
+  // ---------- Score ----------
+  function uiUpdateScore(correct, total){
+    const pct = total ? Math.round(100 * correct / total) : 0;
+    scoreText.textContent = `Score: ${correct}/${total} (${pct}%)`;
+    scoreFill.style.width = `${pct}%`;
+  }
+
+  function computeScore(mem){
+    const idByIndex = state.sets.map(s => s.id);
+    let correct = 0;
+    for (let ei=0; ei<state.elements.length; ei++){
+      const e = state.elements[ei];
+      const mask = mem.perElement[ei];
+      const got = [];
+      for (let si=0; si<state.sets.length; si++){
+        if (mask & (1<<si)) got.push(idByIndex[si]);
+      }
+      const want = state.answerKey[e.id] || [];
+      if (sameSet(got, want)) correct += 1;
+    }
+    uiUpdateScore(correct, state.elements.length);
+    return correct;
+  }
+
   // ---------- Drawing ----------
+  function roundRect(ctx, x, y, w, h, r){
+    const rr = Math.min(r, Math.min(w,h)/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y, x+w,y+h, rr);
+    ctx.arcTo(x+w,y+h, x,y+h, rr);
+    ctx.arcTo(x,y+h, x,y, rr);
+    ctx.arcTo(x,y, x+w,y, rr);
+    ctx.closePath();
+  }
+
+  function drawStrongHighlight(hl, mem){
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const mask = makeMask(hl.kind, hl.indices);
+
+    // Dim
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(0,0,w,h);
+    if (mask){
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.drawImage(mask, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
+    }
+    ctx.restore();
+
+    // Colorize + glow
+    if (mask){
+      ctx.save();
+      ctx.drawImage(mask, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = 'rgba(255,213,74,0.38)';
+      ctx.fillRect(0,0,w,h);
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.shadowColor = 'rgba(255,213,74,0.85)';
+      ctx.shadowBlur = 22;
+      ctx.globalAlpha = 0.6;
+      ctx.drawImage(mask, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
+      ctx.restore();
+    }
+
+    // Outline involved sets
+    const ids = hl.indices || [];
+    if (hl.kind !== 'outside'){
+      const color = ids.length ? mixColors(ids.map(i => state.sets[i].color)) : "#ffd54a";
+      ids.forEach(i => {
+        const s = state.sets[i];
+        ctx.save();
+        ctx.lineWidth = 4.5;
+        ctx.strokeStyle = hexToRgba(color, 0.95);
+        ctx.shadowColor = hexToRgba(color, 0.95);
+        ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.arc(pxX(s.x), pxY(s.y), s.r*S(), 0, Math.PI*2); ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+
+    // Halo elements in region
+    for (let ei=0; ei<state.elements.length; ei++){
+      if (!elementInRegion(mem.perElement[ei], hl.kind, hl.indices)) continue;
+      const e = state.elements[ei];
+      const ex = pxX(e.x), ey = pxY(e.y);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255,213,74,0.85)';
+      ctx.beginPath(); ctx.arc(ex, ey, 12, 0, Math.PI*2); ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Label chip
+    const expr = prettyExpr(hl.kind, hl.indices);
+    const count = countForHighlight(hl.kind, hl.indices, mem.countsByMask, mem.total);
+    hlChip.style.display = 'block';
+    hlChip.textContent = `${expr} — ${count} element${count===1?'':'s'}`;
+  }
+
+  function clearHighlightChip(){ hlChip.style.display = 'none'; }
+
   function draw(){
     state.needsDraw = false;
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -320,18 +431,15 @@
     // Sets
     for (const s of state.sets){
       const cx = pxX(s.x), cy = pxY(s.y), r = s.r * S();
-
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.closePath();
       ctx.fillStyle = hexToRgba(s.color, 0.17); ctx.fill();
-
       ctx.lineWidth = 2.0; ctx.strokeStyle = s.color; ctx.stroke();
 
-      // Title badge
       ctx.font = "600 14px system-ui, -apple-system, Segoe UI, Roboto, Arial";
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       const text = s.name;
       const tw = ctx.measureText(text).width + 12, th = 22;
-      ctx.fillStyle = hexToRgba("#0d1320", 0.85);
+      ctx.fillStyle = "rgba(13,19,32,0.85)";
       roundRect(ctx, cx - tw/2, cy - th/2, tw, th, 9); ctx.fill();
       ctx.fillStyle = "#cfe0ff"; ctx.fillText(text, cx, cy+0.5);
     }
@@ -363,7 +471,10 @@
       }
     }
 
-    // Highlight + explanation
+    // Live score
+    computeScore(mem);
+
+    // Region overlay
     if (state.highlight){
       drawStrongHighlight(state.highlight, mem);
       updateExplain(state.highlight, mem);
@@ -372,102 +483,12 @@
     }
   }
 
-  function roundRect(ctx, x, y, w, h, r){
-    const rr = Math.min(r, Math.min(w,h)/2);
-    ctx.beginPath();
-    ctx.moveTo(x+rr,y);
-    ctx.arcTo(x+w,y, x+w,y+h, rr);
-    ctx.arcTo(x+w,y+h, x,y+h, rr);
-    ctx.arcTo(x,y+h, x,y, rr);
-    ctx.arcTo(x,y, x+w,y, rr);
-    ctx.closePath();
-  }
+  function requestDraw(){ state.needsDraw = true; }
 
-  function drawStrongHighlight(hl, mem){
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    const mask = makeMask(hl.kind, hl.indices);
-
-    // Dim everything
-    ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.55)";
-    ctx.fillRect(0,0,w,h);
-    if (mask){
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.drawImage(mask, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
-    }
-    ctx.restore();
-
-    // Colorize region + glow
-    if (mask){
-      ctx.save();
-      ctx.drawImage(mask, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
-      ctx.globalCompositeOperation = 'source-in';
-      ctx.fillStyle = 'rgba(255,213,74,0.38)'; // gold core
-      ctx.fillRect(0,0,w,h);
-      ctx.restore();
-
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.shadowColor = 'rgba(255,213,74,0.85)';
-      ctx.shadowBlur = 22;
-      ctx.globalAlpha = 0.6;
-      ctx.drawImage(mask, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
-      ctx.restore();
-    }
-
-    // Emphasize involved set boundaries
-    const ids = hl.indices || [];
-    if (hl.kind !== 'outside'){
-      if (hl.kind === 'diff'){
-        const [a,b] = ids;
-        if (Number.isInteger(a)) strokeSet(a, 'rgba(255,213,74,0.95)', 4.5);
-        if (Number.isInteger(b)) strokeSet(b, 'rgba(255,107,107,0.95)', 4.0);
-      } else {
-        const color = ids.length ? mixColors(ids.map(i => state.sets[i].color)) : "#ffd54a";
-        ids.forEach(i => strokeSet(i, hexToRgba(color, 0.95), 4.5));
-      }
-    }
-    function strokeSet(i, color, width){
-      const s = state.sets[i];
-      if (!s) return;
-      ctx.save();
-      ctx.lineWidth = width;
-      ctx.strokeStyle = color;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
-      ctx.beginPath(); ctx.arc(pxX(s.x), pxY(s.y), s.r*S(), 0, Math.PI*2); ctx.closePath();
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // Halo elements in region
-    const per = mem.perElement;
-    for (let ei=0; ei<state.elements.length; ei++){
-      if (!elementInRegion(per[ei], hl.kind, hl.indices)) continue;
-      const e = state.elements[ei];
-      const ex = pxX(e.x), ey = pxY(e.y);
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = 'rgba(255,213,74,0.85)';
-      ctx.beginPath(); ctx.arc(ex, ey, 12, 0, Math.PI*2); ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // On-canvas label
-    const expr = prettyExpr(hl.kind, hl.indices);
-    const count = countForHighlight(hl.kind, hl.indices, mem.countsByMask, mem.total);
-    hlChip.style.display = 'block';
-    hlChip.textContent = `${expr} — ${count} element${count===1?'':'s'}`;
-  }
-
-  function clearHighlightChip(){ hlChip.style.display = 'none'; }
-
-  // ---------- Explanation panel ----------
+  // ---------- Explanation ----------
   function updateExplain(hl, mem){
     const expr = prettyExpr(hl.kind, hl.indices);
     const count = countForHighlight(hl.kind, hl.indices, mem.countsByMask, mem.total);
-
     expExpr.textContent = expr;
     expCount.textContent = `(${count} element${count===1?'':'s'})`;
 
@@ -487,20 +508,20 @@
     if (hl.kind === 'single'){
       desc = `Minerals inside **${name(hl.indices[0])}** (${id(hl.indices[0])}).`;
     } else if (hl.kind === 'pair'){
-      desc = `Minerals common to **${name(hl.indices[0])}** (${id(hl.indices[0])}) and **${name(hl.indices[1])}** (${id(hl.indices[1])}); intersection **${id(hl.indices[0])} ∩ ${id(hl.indices[1])}**.`;
+      desc = `Minerals common to **${name(hl.indices[0])}** (${id(hl.indices[0])}) and **${name(hl.indices[1])}** (${id(hl.indices[1])}) — intersection **${id(hl.indices[0])} ∩ ${id(hl.indices[1])}**.`;
     } else if (hl.kind === 'diff'){
-      desc = `Minerals in **${name(hl.indices[0])}** (${id(hl.indices[0])}) but not in **${name(hl.indices[1])}** (${id(hl.indices[1])}); difference **${id(hl.indices[0])} \\ ${id(hl.indices[1])}**.`;
+      desc = `Minerals in **${name(hl.indices[0])}** (${id(hl.indices[0])}) but not in **${name(hl.indices[1])}** (${id(hl.indices[1])}) — difference **${id(hl.indices[0])} \\ ${id(hl.indices[1])}**.`;
     } else if (hl.kind === 'union'){
-      const list = hl.indices.map(i => `${name(i)} (${id(i)})`).join(" or ");
-      desc = `Minerals in **${list}** — union **${prettyExpr('union', hl.indices)}** (membership in any of the listed sets qualifies).`;
+      const human = hl.indices.map(i => `${name(i)} (${id(i)})`).join(" or ");
+      desc = `Minerals in **${human}** — union **${prettyExpr('union', hl.indices)}**.`;
     } else if (hl.kind === 'triple'){
-      desc = `Minerals that belong to all three sets **${name(hl.indices[0])}**, **${name(hl.indices[1])}**, **${name(hl.indices[2])}**; triple intersection.`;
+      desc = `Minerals belonging to all three sets — triple intersection.`;
     } else if (hl.kind === 'outside'){
       const unionIds = state.sets.map(s=>s.id).join(" ∪ ");
-      desc = `Minerals **outside all sets**, i.e., in the complement **U \\ (${unionIds})**.`;
+      desc = `Minerals outside all sets, i.e., complement **U \\ (${unionIds})**.`;
     } else if (hl.kind === 'all'){
       const unionNames = state.sets.map(s=>`${s.name} (${s.id})`).join(", ");
-      desc = `Minerals in the **union of all sets** (${unionNames}).`;
+      desc = `Minerals in the union of all sets (${unionNames}).`;
     }
     desc += ` A mineral is a member if its label lies inside that set’s circle.`;
     expText.innerHTML = desc;
@@ -519,7 +540,7 @@
     });
 
     const theadRowEl = document.getElementById("theadRow");
-    while (theadRowEl.children.length > 1) theadRowEl.removeChild(theadRowEl.lastChild);
+    while (theadRowEl.children.length > 2) theadRowEl.removeChild(theadRowEl.lastChild);
     state.sets.forEach(s => {
       const th = document.createElement("th");
       th.textContent = s.name;
@@ -570,9 +591,8 @@
 
     // Totals
     addSubhead("Totals");
-    addRow(`<span class="badge">Total elements</span>`, total, null, []);              // not clickable
-    addRow(`<span class="badge">Outside all sets</span>`, outside, "outside", []);    // clickable
-    // Union of ALL sets (clickable)
+    addRow(`<span class="badge">Total minerals</span>`, total, null, []);
+    addRow(`<span class="badge">Outside all sets</span>`, outside, "outside", []);
     addRow(`<span class="badge">Union (all sets)</span>`, total - outside, "all", []);
 
     // Singles
@@ -582,7 +602,7 @@
       addRow(`<span class="badge"><span class="dot" style="background:${s.color}"></span>${s.name}</span>`, cnt, "single", [i]);
     });
 
-    // Intersections (pairs)
+    // Intersections
     if (pairs.length){
       addSubhead("Intersections (A ∩ B)");
       pairs.forEach(({i,j,count}) => {
@@ -597,14 +617,12 @@
       addSubhead("Differences (A \\ B)");
       diffs.forEach(({i,j,count}) => {
         const a = state.sets[i], b = state.sets[j];
-        addRow(
-          `<span class="dot" style="background:${a.color}"></span><code>${a.id} \\ ${b.id}</code>`,
-          count, "diff", [i,j]
-        );
+        addRow(`<span class="dot" style="background:${a.color}"></span><code>${a.id} \\ ${b.id}</code>`,
+               count, "diff", [i,j]);
       });
     }
 
-    // Unions (pairs)
+    // Unions
     if (unions2.length){
       addSubhead("Unions (A ∪ B)");
       unions2.forEach(({i,j,count}) => {
@@ -627,23 +645,37 @@
     // Elements table
     const tbodyEl = document.getElementById("tbody");
     tbodyEl.innerHTML = "";
+    const idByIndex = state.sets.map(s => s.id);
+
     state.elements.forEach((e, idx) => {
       const tr = document.createElement("tr");
+
       const name = document.createElement("td");
       name.textContent = e.label;
       tr.appendChild(name);
 
+      // status cell
+      const mask = perElement[idx];
+      const got = [];
+      for (let si=0; si<n; si++) if (mask & (1<<si)) got.push(idByIndex[si]);
+      const want = state.answerKey[e.id] || [];
+      const ok = sameSet(got, want);
+      const tdStatus = document.createElement("td");
+      tdStatus.innerHTML = ok ? `<span class="ok">✓</span>` : `<span class="bad">✗</span>`;
+      tr.appendChild(tdStatus);
+
+      // membership cells
       for (let si=0; si<n; si++){
         const td = document.createElement("td");
         td.className = "k";
-        td.textContent = (perElement[idx] & (1<<si)) ? "✓" : "—";
+        td.textContent = (mask & (1<<si)) ? "✓" : "—";
         tr.appendChild(td);
       }
       tbodyEl.appendChild(tr);
     });
   }
 
-  // ---------- Interaction ----------
+  // ---------- Interactions ----------
   function onPointerDown(ev){
     const rect = canvas.getBoundingClientRect();
     const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
@@ -704,7 +736,7 @@
     const factor = (ev.deltaY < 0) ? 1.05 : 0.95;
     s.r = clamp(s.r * factor, 0.06, 0.5);
 
-    // Keep circle fully inside
+    // keep inside bounds
     const rpx = s.r * S();
     const minX = rpx / canvas.clientWidth;
     const maxX = 1 - minX;
@@ -717,28 +749,31 @@
     ev.preventDefault();
   }
 
-  // Keyboard: Esc to clear highlight
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && state.highlight){
       state.highlight = null;
       document.querySelectorAll(".summary .row").forEach(el => el.classList.remove("selected"));
       clearHighlightChip();
-      // Reset text panel
       expExpr.textContent = "—";
       expCount.textContent = "(0 elements)";
-      expText.innerHTML = "Click a region in the right panel to see a description and the elements that belong to it. In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.";
+      expText.innerHTML = "Click a region to spotlight it. In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.";
       expElemsBlock.style.display = 'none';
       requestDraw();
     }
   });
 
-  // ---------- Save/Load/Reset ----------
+  // ---------- Save/Load/Puzzle ----------
   function exportJSON(){
-    const data = { universe: state.universe, sets: state.sets, elements: state.elements };
+    const data = {
+      universe: state.universe,
+      sets: state.sets,
+      elements: state.elements,
+      answer_key: state.answerKey
+    };
     const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "minerals_sets.json";
+    a.download = "set_theory_puzzle.json";
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -748,20 +783,31 @@
     state.universe = obj.universe;
     state.sets = obj.sets;
     state.elements = obj.elements;
+    state.answerKey = obj.answer_key || {};
     document.getElementById("uName").textContent = state.universe.name || "Universe (U)";
     rebuildSetChips();
     requestDraw();
     updateRegionsAndTable();
   }
 
-  async function resetToDefault(){
-    const res = await fetch("/api/default");
+  async function newPuzzle(){
+    const seed = Date.now(); // new scramble each time
+    const res = await fetch(`/api/puzzle?seed=${seed}`);
     const data = await res.json();
-    loadJSON(data);
+    state.universe = data.universe;
+    state.sets = data.sets;
+    state.elements = data.elements;
+    state.answerKey = data.answer_key || {};
+    state.solution = data.solution || null;
+    document.getElementById("uName").textContent = state.universe.name || "Universe (U)";
+    document.querySelectorAll(".summary .row").forEach(el => el.classList.remove("selected"));
+    state.highlight = null;
+    rebuildSetChips();
+    requestDraw();
+    updateRegionsAndTable();
   }
 
   // ---------- Animation loop ----------
-  function requestDraw(){ state.needsDraw = true; }
   function loop(){
     if (state.needsDraw){
       draw();
@@ -770,7 +816,7 @@
     requestAnimationFrame(loop);
   }
 
-  // ---------- Events ----------
+  // ---------- Wire up ----------
   window.addEventListener("resize", resizeCanvas);
   canvas.addEventListener("pointerdown", onPointerDown);
   window.addEventListener("pointermove", onPointerMove);
@@ -778,7 +824,6 @@
   canvas.addEventListener("wheel", onWheel, {passive:false});
 
   document.getElementById("btnSave").addEventListener("click", exportJSON);
-  document.getElementById("btnReset").addEventListener("click", resetToDefault);
   document.getElementById("fileLoad").addEventListener("change", (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -789,12 +834,13 @@
     };
     reader.readAsText(f);
   });
+  document.getElementById("btnNewPuzzle").addEventListener("click", newPuzzle);
   document.getElementById("showLabels").addEventListener("change", requestDraw);
 
   // ---------- Boot ----------
   (async function boot(){
     resizeCanvas();
-    await resetToDefault();
+    await newPuzzle();   // start in scrambled puzzle mode
     loop();
   })();
 })();

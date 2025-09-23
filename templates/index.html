@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Geology Set Theory Simulator</title>
+  <title>Geology Set Theory — Game Mode</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root{
@@ -10,8 +10,8 @@
       --card:#121821;
       --ink:#e8f0ff;
       --muted:#9fb2c7;
-      --accent:#7aa2ff;
-      --ring: rgba(122,162,255,0.3);
+      --good:#34d399;
+      --bad:#ef4444;
     }
     *{ box-sizing: border-box; }
     html, body { height: 100%; }
@@ -22,7 +22,6 @@
       font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
 
-    /* ---- Header (University of Szeged block) ---- */
     header{
       position: sticky; top: 0; z-index: 20;
       background: linear-gradient(135deg, #101828 0%, #0b0f14 60%);
@@ -40,9 +39,8 @@
       width: fit-content;
     }
     .title h1{ font-size:18px; line-height:1.25; margin:0; font-weight:700; color:#dbe6ff; }
-    header h2{
-      margin:10px 0 8px; font-size:16px; font-weight:600; color:#cbd7ea;
-    }
+    header h2{ margin:10px 0 6px; font-size:16px; font-weight:600; color:#cbd7ea; }
+
     .logo-row{ display:flex; align-items:center; gap:10px; }
     .logo-chip{
       display:inline-flex; align-items:center; justify-content:center;
@@ -51,13 +49,25 @@
     }
     .logo-chip img{ display:block; height:34px; width:auto; }
 
-    /* Controls row under header (injected by child template) */
+    .byline{
+      margin: 0 0 8px;
+      color: #a9b8cc;
+      font-size: 12px;
+    }
+    .byline a{
+      color: #cfe0ff;
+      text-decoration: none;
+      border-bottom: 1px dashed #2a3a52;
+    }
+    .byline a:hover{ color:#ffffff; border-bottom-color:#5f7aa1; }
+
+    /* Controls placeholder (child template injects its own buttons) */
     .controls{
       display:flex; gap:8px; flex-wrap:wrap; align-items:center;
       margin-top: 6px;
     }
 
-    /* ---- Buttons, chips, layout ---- */
+    /* Buttons, chips */
     .btn, .chip, label.switch{
       display:inline-flex; align-items:center; gap:8px;
       background: #17202b; color: var(--ink); border:1px solid #233040;
@@ -72,13 +82,13 @@
       display:inline-flex; padding:2px 6px; border-radius:999px; border:1px solid #223045; background:#0e1523; font-size:11px; color:#a7b8cc;
     }
 
-    /* Main two-column layout: left canvas + right sidebar; explanation sits under canvas */
+    /* Layout */
     main{ display:grid; grid-template-columns: 1fr 360px; gap:16px; max-width: 1200px; margin: 12px auto; padding: 0 16px 16px; }
     @media (max-width: 980px){ main{ grid-template-columns: 1fr; } }
 
     .canvas-card{ position: relative; background: var(--card); border:1px solid #233040; border-radius:14px; overflow:hidden; }
     .canvas-head{
-      position:absolute; left:12px; top:12px; display:flex; gap:8px; align-items:center; z-index:5;
+      position:absolute; left:12px; top:12px; display:flex; gap:10px; align-items:center; z-index:5;
       background: rgba(18,24,33,0.75); border:1px solid #233040; padding:6px 8px; border-radius:10px;
     }
     .canvas-hint{
@@ -93,11 +103,21 @@
     }
     canvas{ width:100%; height:66vh; display:block; }
 
+    /* Score block (green loading) */
+    .score{
+      display:flex; align-items:center; gap:8px;
+      padding:2px 6px; border-radius:10px; background: rgba(14,21,35,0.6); border:1px solid #223045;
+    }
+    .score .bar{
+      width:160px; height:8px; border:1px solid #263243; background:#0e1523; border-radius:999px; overflow:hidden;
+    }
+    .score .fill{ height:100%; width:0%; background: linear-gradient(90deg, #16a34a, #22c55e); }
+
     aside{
       background: var(--card);
       border:1px solid #233040; border-radius:14px; padding:12px;
       display:flex; flex-direction:column; gap:12px; min-height: 66vh;
-      grid-row: span 2; /* keep sidebar spanning both rows */
+      grid-row: span 2;
     }
     aside h2{ font-size:14px; margin:0 0 6px; color:#cbd7ea; }
 
@@ -112,46 +132,29 @@
     .summary .row code{
       background:#0d1320; border:1px solid #263243; padding:2px 6px; border-radius:6px; color:#a9c3ff;
     }
-    .row.subhead{
-      cursor:default; background:#0d1320; border:1px solid #263243;
-      color:#9fb2c7; font-weight:600; justify-content:flex-start;
-    }
-    .row.selected{
-      border-color: rgba(255,213,74,0.9);
-      background: rgba(255,213,74,0.10);
-    }
+    .row.subhead{ cursor:default; background:#0d1320; border:1px solid #263243; color:#9fb2c7; font-weight:600; justify-content:flex-start; }
+    .row.selected{ border-color: rgba(255,213,74,0.9); background: rgba(255,213,74,0.10); }
     .k{ text-align:center; font-variant-numeric: tabular-nums; color:#cfe0ff; }
 
-    table{
-      width:100%; border-collapse: collapse; border:1px solid #233040; border-radius: 10px; overflow:hidden;
-    }
-    thead th{
-      background:#0d1320; color:#9fb2c7; font-weight:600; font-size:12px; padding:8px; text-align:left; border-bottom:1px solid #233040;
-    }
-    tbody td{
-      border-bottom:1px solid #1e2a3a; padding:6px 8px; font-size:13px;
-      white-space:nowrap; text-overflow:ellipsis; overflow:hidden;
-    }
+    table{ width:100%; border-collapse: collapse; border:1px solid #233040; border-radius: 10px; overflow:hidden; }
+    thead th{ background:#0d1320; color:#9fb2c7; font-weight:600; font-size:12px; padding:8px; text-align:left; border-bottom:1px solid #233040; }
+    tbody td{ border-bottom:1px solid #1e2a3a; padding:6px 8px; font-size:13px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
     tbody tr:hover{ background:#0f141c; }
+
+    .ok{ color: var(--good); font-weight: 700; }
+    .bad{ color: var(--bad); font-weight: 700; }
+
     .kbd{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; color:#cbd7ea; }
     .help-list{ margin:6px 0 0 18px; color:var(--muted); }
     .help-list li{ margin:2px 0; }
 
-    /* Explanation card (text response below canvas) */
     .explain-card{
       background: var(--card);
       border:1px solid #233040; border-radius:14px; padding:12px; min-height: 140px;
     }
-    .explain-head{
-      display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:8px;
-    }
-    .explain-head .badge{
-      display:inline-flex; gap:6px; align-items:center; padding:4px 8px; border-radius:999px;
-      background:#0d1320; border:1px solid #263243; font-size:12px; color:#9fb2c7;
-    }
-    .explain-head code{
-      background:#0d1320; border:1px solid #263243; padding:2px 6px; border-radius:6px; color:#a9c3ff;
-    }
+    .explain-head{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:8px; }
+    .explain-head .badge{ display:inline-flex; gap:6px; align-items:center; padding:4px 8px; border-radius:999px; background:#0d1320; border:1px solid #263243; font-size:12px; color:#9fb2c7; }
+    .explain-head code{ background:#0d1320; border:1px solid #263243; padding:2px 6px; border-radius:6px; color:#a9c3ff; }
     .explain-body{ color:#d7e6ff; }
     .exp-list{ margin:8px 0 0 18px; }
     .exp-list li{ margin:2px 0; }
@@ -176,9 +179,16 @@
         </span>
       </div>
     </div>
-    <h2>ABDULHAQ Hawkar — Set Theory (Slide 2)</h2>
 
-    <!-- Controls block (injected by set_theory.html) -->
+    <!-- Header title without "Slide 2" -->
+    <h2>Set Theory Game</h2>
+
+    <!-- Byline with LinkedIn -->
+    <div class="byline">
+      By <a href="https://www.linkedin.com/in/habdulhaq/" target="_blank" rel="noopener noreferrer">ABDULHAQ Hawkar</a>
+    </div>
+
+    <!-- Controls block (child template injects its own buttons; Save/Load/Choose file removed in child) -->
     {% block controls %}{% endblock %}
   </div>
 </header>
