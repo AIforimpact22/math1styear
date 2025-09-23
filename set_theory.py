@@ -22,8 +22,13 @@ class ElementDef:
     y: float
 
 def default_state() -> Dict[str, Any]:
+    """
+    Universe + three sets (Igneous, Sedimentary, Metamorphic).
+    Elements now use a diverse list of MINERALS instead of rocks.
+    Positions are normalized so the UI is responsive.
+    """
     universe = {
-        "name": "Lithosphere Materials (U)",
+        "name": "Lithosphere Minerals (U)",
         "width": 1200,
         "height": 750
     }
@@ -34,31 +39,48 @@ def default_state() -> Dict[str, Any]:
         SetDef(id="M", name="Metamorphic",  color="#34d399", x=0.50, y=0.34, r=0.23),
     ]
 
+    # --- Minerals dataset (approx positions to seed interesting memberships)
     elements: List[ElementDef] = [
-        # Igneous
-        ElementDef("basalt", "Basalt", 0.31, 0.64),
-        ElementDef("granite", "Granite", 0.36, 0.62),
-        ElementDef("obsidian", "Obsidian", 0.30, 0.52),
-        ElementDef("rhyolite", "Rhyolite", 0.40, 0.46),
-        ElementDef("diorite", "Diorite", 0.34, 0.66),
-        # Sedimentary
-        ElementDef("limestone", "Limestone", 0.70, 0.58),
-        ElementDef("sandstone", "Sandstone", 0.66, 0.62),
-        ElementDef("shale", "Shale", 0.65, 0.48),
-        ElementDef("conglomerate", "Conglomerate", 0.72, 0.52),
-        ElementDef("greywacke", "Greywacke", 0.63, 0.62),
-        ElementDef("fossil_lime", "Fossiliferous Limestone", 0.68, 0.60),
-        ElementDef("chert", "Chert", 0.68, 0.44),
-        ElementDef("breccia", "Breccia", 0.66, 0.56),
-        # Metamorphic
-        ElementDef("marble", "Marble", 0.52, 0.26),
-        ElementDef("slate", "Slate", 0.54, 0.40),
-        ElementDef("gneiss", "Gneiss", 0.44, 0.28),
-        ElementDef("quartzite", "Quartzite", 0.56, 0.44),
-        # Cross‑category examples
-        ElementDef("tuff", "Tuff (Pyroclastic)", 0.50, 0.58),  # I ∩ S
-        ElementDef("migmatite", "Migmatite", 0.44, 0.42),      # I ∩ M
-        ElementDef("skarn", "Skarn", 0.48, 0.38),              # I ∩ M
+        # Igneous-dominant minerals (inside I)
+        ElementDef("olivine",      "Olivine",               0.31, 0.62),
+        ElementDef("pyroxene",     "Pyroxene",              0.36, 0.64),
+        ElementDef("plagioclase",  "Plagioclase Feldspar",  0.34, 0.52),
+        ElementDef("amphibole",    "Amphibole",             0.34, 0.66),
+        ElementDef("biotite",      "Biotite",               0.40, 0.58),
+        ElementDef("ilmenite",     "Ilmenite",              0.32, 0.56),
+
+        # Sedimentary-dominant minerals (inside S)
+        ElementDef("gypsum",       "Gypsum",                0.70, 0.54),
+        ElementDef("halite",       "Halite",                0.72, 0.56),
+        ElementDef("kaolinite",    "Kaolinite",             0.65, 0.48),
+        ElementDef("opal",         "Opal",                  0.68, 0.52),
+        ElementDef("galena",       "Galena",                0.70, 0.60),
+        ElementDef("hematite",     "Hematite",              0.64, 0.50),
+
+        # Metamorphic-dominant minerals (inside M)
+        ElementDef("garnet",       "Garnet",                0.50, 0.28),
+        ElementDef("kyanite",      "Kyanite",               0.46, 0.30),
+        ElementDef("staurolite",   "Staurolite",            0.54, 0.34),
+        ElementDef("sillimanite",  "Sillimanite",           0.56, 0.30),
+        ElementDef("chlorite",     "Chlorite",              0.48, 0.28),
+        ElementDef("graphite",     "Graphite",              0.44, 0.32),
+
+        # Intersections
+        # I ∩ S
+        ElementDef("zeolite",      "Zeolite",               0.50, 0.60),
+
+        # I ∩ M
+        ElementDef("serpentine",   "Serpentine",            0.43, 0.40),
+        ElementDef("hornblende",   "Hornblende",            0.46, 0.38),
+        ElementDef("muscovite",    "Muscovite",             0.42, 0.42),
+
+        # S ∩ M
+        ElementDef("calcite",      "Calcite",               0.60, 0.46),
+        ElementDef("dolomite",     "Dolomite",              0.58, 0.44),
+        ElementDef("talc",         "Talc",                  0.60, 0.40),
+
+        # I ∩ S ∩ M (triple)
+        ElementDef("quartz",       "Quartz",                0.50, 0.46),
     ]
 
     return {
@@ -69,7 +91,6 @@ def default_state() -> Dict[str, Any]:
 
 @set_theory_bp.route("/")
 def home():
-    # Render the interactive page
     return render_template("set_theory.html")
 
 @set_theory_bp.route("/api/default")
