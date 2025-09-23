@@ -28,15 +28,11 @@
       border-bottom: 1px solid #1f2a36;
     }
     .wrap{ max-width: 1200px; margin: 0 auto; padding: 12px 16px; }
-    .header-top{
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 16px; flex-wrap: wrap;
-    }
+    .header-top{ display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
     .title{ display:flex; flex-direction:column; gap:6px; min-width: 260px; }
     .title .badge{
       display:inline-flex; gap:6px; align-items:center; padding:4px 8px; border-radius:999px;
-      background:#0d1320; border:1px solid #263243; font-size:12px; color:#9fb2c7;
-      width: fit-content;
+      background:#0d1320; border:1px solid #263243; font-size:12px; color:#9fb2c7; width: fit-content;
     }
     .title h1{ font-size:18px; line-height:1.25; margin:0; font-weight:700; color:#dbe6ff; }
     header h2{ margin:10px 0 6px; font-size:16px; font-weight:600; color:#cbd7ea; }
@@ -44,30 +40,16 @@
     .logo-row{ display:flex; align-items:center; gap:10px; }
     .logo-chip{
       display:inline-flex; align-items:center; justify-content:center;
-      background:#0d1320; border:1px solid #263243; border-radius:10px;
-      padding:6px 8px;
+      background:#0d1320; border:1px solid #263243; border-radius:10px; padding:6px 8px;
     }
     .logo-chip img{ display:block; height:34px; width:auto; }
 
-    .byline{
-      margin: 0 0 8px;
-      color: #a9b8cc;
-      font-size: 12px;
-    }
-    .byline a{
-      color: #cfe0ff;
-      text-decoration: none;
-      border-bottom: 1px dashed #2a3a52;
-    }
+    .byline{ margin: 0 0 8px; color: #a9b8cc; font-size: 12px; }
+    .byline a{ color: #cfe0ff; text-decoration: none; border-bottom: 1px dashed #2a3a52; }
     .byline a:hover{ color:#ffffff; border-bottom-color:#5f7aa1; }
 
-    /* Controls placeholder (child template injects its own buttons) */
-    .controls{
-      display:flex; gap:8px; flex-wrap:wrap; align-items:center;
-      margin-top: 6px;
-    }
+    .controls{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top: 6px; }
 
-    /* Buttons, chips */
     .btn, .chip, label.switch{
       display:inline-flex; align-items:center; gap:8px;
       background: #17202b; color: var(--ink); border:1px solid #233040;
@@ -78,31 +60,19 @@
     .chip{ font-size:12px; padding:6px 8px; border-radius:999px; }
     .chip .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; border:1px solid #0e1523; }
     .chip small{ color: var(--muted); }
-    .pill{
-      display:inline-flex; padding:2px 6px; border-radius:999px; border:1px solid #223045; background:#0e1523; font-size:11px; color:#a7b8cc;
-    }
+    .pill{ display:inline-flex; padding:2px 6px; border-radius:999px; border:1px solid #223045; background:#0e1523; font-size:11px; color:#a7b8cc; }
 
-    /* Layout: remove vertical gap between rows */
+    /* Grid with no vertical gap between canvas and explanation */
     main{
       display:grid;
       grid-template-columns: minmax(0,1fr) 360px;
-      column-gap: 16px;   /* keep column spacing */
-      row-gap: 0;         /* remove the empty vertical gap */
+      column-gap: 16px;
+      row-gap: 0;
       max-width: 1200px; margin: 12px auto; padding: 0 16px 16px;
     }
-    @media (max-width: 980px){
-      main{ grid-template-columns: 1fr; }
-    }
+    @media (max-width: 980px){ main{ grid-template-columns: 1fr; } }
 
     .canvas-card{ position: relative; background: var(--card); border:1px solid #233040; border-radius:14px; overflow:hidden; }
-    .canvas-head{
-      position:absolute; left:12px; top:12px; display:flex; gap:10px; align-items:center; z-index:5;
-      background: rgba(18,24,33,0.75); border:1px solid #233040; padding:6px 8px; border-radius:10px;
-    }
-    .canvas-hint{
-      position:absolute; right:12px; top:12px; z-index:5;
-      background: rgba(18,24,33,0.75); border:1px solid #233040; padding:6px 8px; border-radius:10px; color:#cfd8e3;
-    }
     .hl-chip{
       position:absolute; left:12px; bottom:12px; z-index:6;
       background: rgba(18,24,33,0.9); border:1px solid #705e20; padding:8px 10px; border-radius:10px;
@@ -115,18 +85,18 @@
     .score{
       display:flex; align-items:center; gap:8px;
       padding:2px 6px; border-radius:10px; background: rgba(14,21,35,0.6); border:1px solid #223045;
+      margin-top: 6px;
     }
     .score .bar{
       width:160px; height:8px; border:1px solid #263243; background:#0e1523; border-radius:999px; overflow:hidden;
     }
     .score .fill{ height:100%; width:0%; background: linear-gradient(90deg, #16a34a, #22c55e); }
 
-    /* Sidebar: don't span rows; no min-height to avoid forcing row heights */
+    /* Sidebar */
     aside{
       background: var(--card);
       border:1px solid #233040; border-radius:14px; padding:12px;
-      display:flex; flex-direction:column; gap:12px;
-      align-self: start; /* keep at the top of its grid cell */
+      display:flex; flex-direction:column; gap:12px; align-self: start;
     }
     aside h2{ font-size:14px; margin:0 0 6px; color:#cbd7ea; }
 
@@ -138,9 +108,7 @@
     }
     .summary .row:hover{ background:#0f141c; }
     .summary .row .lhs{ display:flex; align-items:center; gap:8px; }
-    .summary .row code{
-      background:#0d1320; border:1px solid #263243; padding:2px 6px; border-radius:6px; color:#a9c3ff;
-    }
+    .summary .row code{ background:#0d1320; border:1px solid #263243; padding:2px 6px; border-radius:6px; color:#a9c3ff; }
     .row.subhead{ cursor:default; background:#0d1320; border:1px solid #263243; color:#9fb2c7; font-weight:600; justify-content:flex-start; }
     .row.selected{ border-color: rgba(255,213,74,0.9); background: rgba(255,213,74,0.10); }
     .k{ text-align:center; font-variant-numeric: tabular-nums; color:#cfe0ff; }
@@ -154,16 +122,10 @@
     .bad{ color: var(--bad); font-weight: 700; }
 
     .kbd{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; color:#cbd7ea; }
-    .help-list{ margin:6px 0 0 18px; color:var(--muted); }
-    .help-list li{ margin:2px 0; }
 
     .explain-card{
       background: var(--card);
       border:1px solid #233040; border-radius:14px; padding:12px; min-height: 140px;
-      /* Optional: visually fuse with the canvas-card above
-         Uncomment if you want a single connected card look:
-         margin-top:-1px; border-top-left-radius:0; border-top-right-radius:0;
-      */
     }
     .explain-head{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:8px; }
     .explain-head .badge{ display:inline-flex; gap:6px; align-items:center; padding:4px 8px; border-radius:999px; background:#0d1320; border:1px solid #263243; font-size:12px; color:#9fb2c7; }
@@ -171,6 +133,9 @@
     .explain-body{ color:#d7e6ff; }
     .exp-list{ margin:8px 0 0 18px; }
     .exp-list li{ margin:2px 0; }
+
+    /* Sets panel mini styles */
+    .sets-top .tips{ color: var(--muted); font-size: 12px; line-height: 1.45; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -183,24 +148,20 @@
       </div>
       <div class="logo-row" aria-label="Department and University logos">
         <span class="logo-chip" title="Department logo">
-          <img src="https://geosci.u-szeged.hu/site/upload/2024/10/logo_v2_2_64x55.png"
-               alt="Department of Atmospheric and Geospatial Data Science logo" />
+          <img src="https://geosci.u-szeged.hu/site/upload/2024/10/logo_v2_2_64x55.png" alt="Department of Atmospheric and Geospatial Data Science logo" />
         </span>
         <span class="logo-chip" title="SZTE logo">
-          <img src="https://u-szeged.hu/site/design3/img/szte_logo_en.jpg"
-               alt="University of Szeged logo (English)" />
+          <img src="https://u-szeged.hu/site/design3/img/szte_logo_en.jpg" alt="University of Szeged logo (English)" />
         </span>
       </div>
     </div>
 
     <h2>Set Theory Game</h2>
 
-    <!-- Byline with LinkedIn -->
     <div class="byline">
       By <a href="https://www.linkedin.com/in/habdulhaq/" target="_blank" rel="noopener noreferrer">ABDULHAQ Hawkar</a>
     </div>
 
-    <!-- Controls block (child template injects its own buttons) -->
     {% block controls %}{% endblock %}
   </div>
 </header>
