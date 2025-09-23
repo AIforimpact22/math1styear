@@ -3,9 +3,6 @@
 {% block controls %}
 <div class="controls" aria-label="Simulation controls">
   <button id="btnNewPuzzle" class="btn">New Puzzle</button>
-  <button id="btnSave" class="btn">Save JSON</button>
-  <label class="btn" for="fileLoad">Load JSON</label>
-  <input id="fileLoad" type="file" accept="application/json" />
   <label class="switch btn"><input id="lockSets" type="checkbox" /> Lock Sets</label>
   <label class="switch btn"><input id="lockElements" type="checkbox" /> Lock Elements</label>
   <label class="switch btn"><input id="showLabels" type="checkbox" checked /> Show Labels</label>
@@ -14,17 +11,35 @@
 
 {% block content %}
 <section class="canvas-card" aria-label="Universe canvas">
+  <!-- Top-left head: Universe & score -->
   <div class="canvas-head">
     <span class="badge">Universe: <strong id="uName">…</strong></span>
-    <div class="score" aria-live="polite">
+    <div class="score" aria-live="polite" style="margin-left:6px;">
       <span id="scoreText">Score: 0/0 (0%)</span>
       <div class="bar"><div id="scoreFill" class="fill"></div></div>
     </div>
-    <span class="kbd">Tip:</span><span class="pill">Drag sets &amp; minerals • Wheel on a set to resize</span>
+    <span class="kbd" style="margin-left:6px;">Tip:</span><span class="pill">Drag sets &amp; minerals • Wheel on a set to resize</span>
   </div>
+
+  <!-- Top-right hint -->
   <div class="canvas-hint">
     <span class="pill">Click any row to highlight • Press <span class="kbd">Esc</span> to clear</span>
   </div>
+
+  <!-- TOP info bar (dynamic explanation) -->
+  <div class="info-bar" id="infoBar" aria-live="polite">
+    <div>
+      <code id="expExpr">—</code>
+      <span class="pill" id="expCount">(0 elements)</span>
+    </div>
+    <div class="info-text" id="expText">
+      Click a region to spotlight it. In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.
+    </div>
+    <div class="info-list" id="expElements" style="display:none;">
+      <!-- tags injected -->
+    </div>
+  </div>
+
   <div id="hlChip" class="hl-chip" style="display:none;"></div>
   <canvas id="venn" role="img" aria-label="Interactive Venn canvas"></canvas>
 </section>
@@ -60,21 +75,6 @@
     </ul>
   </div>
 </aside>
-
-<section class="explain-card" aria-live="polite" aria-label="Text explanation for selected region">
-  <div class="explain-head">
-    <span class="badge">Selected region</span>
-    <code id="expExpr">—</code>
-    <span class="pill" id="expCount">(0 elements)</span>
-  </div>
-  <div class="explain-body" id="expText">
-    Click a region to spotlight it. In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.
-  </div>
-  <div class="explain-body" id="expElements" style="display:none;">
-    <strong>Elements in region:</strong>
-    <ul class="exp-list" id="expList"></ul>
-  </div>
-</section>
 {% endblock %}
 
 {% block scripts %}
@@ -83,53 +83,37 @@
   // ---------- Utilities ----------
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const dist = (x1,y1,x2,y2) => Math.hypot(x1-x2, y1-y2);
-  const hexToRgb = (hex) => {
-    const h = hex.replace("#","").trim();
-    const n = parseInt(h.length === 3 ? h.split("").map(c=>c+c).join("") : h, 16);
-    return {r:(n>>16)&255, g:(n>>8)&255, b:n&255};
-  };
+  const hexToRgb = (hex) => { const h = hex.replace("#","").trim(); const n = parseInt(h.length===3? h.split("").map(c=>c+c).join(""):h,16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; };
   const rgbToHex = ({r,g,b}) => "#" + [r,g,b].map(v => v.toString(16).padStart(2,"0")).join("");
-  const mixColors = (hexes) => {
-    if (!hexes.length) return "#95a3b8";
-    let r=0,g=0,b=0; hexes.forEach(h=>{ const c=hexToRgb(h); r+=c.r; g+=c.g; b+=c.b; });
-    const n = hexes.length;
-    return rgbToHex({r:Math.round(r/n), g:Math.round(g/n), b:Math.round(b/n)});
-  };
+  const mixColors = (hexes) => { if (!hexes.length) return "#95a3b8"; let r=0,g=0,b=0; hexes.forEach(h=>{ const c=hexToRgb(h); r+=c.r; g+=c.g; b+=c.b; }); const n=hexes.length; return rgbToHex({r:Math.round(r/n),g:Math.round(g/n),b:Math.round(b/n)}); };
   const hexToRgba = (hex, a) => { const {r,g,b} = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; };
-  const sameSet = (A, B) => {
-    if (!A || !B) return (!A || A.length===0) && (!B || B.length===0);
-    if (A.length !== B.length) return false;
-    const a = [...A].sort().join("|");
-    const b = [...B].sort().join("|");
-    return a === b;
-  };
+  const sameSet = (A,B) => { if (!A||!B) return (!A||A.length===0)&&(!B||B.length===0); if (A.length!==B.length) return false; return [...A].sort().join("|") === [...B].sort().join("|"); };
 
   // ---------- State ----------
   const canvas = document.getElementById("venn");
   const ctx = canvas.getContext("2d");
   const hlChip = document.getElementById("hlChip");
-
   const scoreText = document.getElementById("scoreText");
   const scoreFill = document.getElementById("scoreFill");
 
+  // Info bar refs (moved to top)
   const expExpr = document.getElementById("expExpr");
   const expCount = document.getElementById("expCount");
   const expText = document.getElementById("expText");
-  const expElemsBlock = document.getElementById("expElements");
-  const expList = document.getElementById("expList");
+  const expListWrap = document.getElementById("expElements");
 
   const state = {
     universe: {name:"", width:1200, height:750},
     sets: [],
     elements: [],
-    answerKey: {},      // { element_id: [set_ids...] }
-    solution: null,     // optional: for peek/reveal if needed
+    answerKey: {},
+    solution: null,
     drag: null,
-    highlight: null,    // {kind:'single'|'pair'|'diff'|'triple'|'outside'|'all'|'union', indices:[...]}
+    highlight: null,
     needsDraw: true
   };
 
-  // ---------- Responsive canvas ----------
+  // ---------- Geometry helpers ----------
   function resizeCanvas(){
     const rect = canvas.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -141,10 +125,10 @@
   const S = () => Math.min(canvas.clientWidth, canvas.clientHeight);
   const pxX = nx => nx * canvas.clientWidth;
   const pxY = ny => ny * canvas.clientHeight;
-  const nX  = px => clamp(px / canvas.clientWidth, 0, 1);
-  const nY  = py => clamp(py / canvas.clientHeight, 0, 1);
+  const nX  = px => Math.max(0, Math.min(1, px / canvas.clientWidth));
+  const nY  = py => Math.max(0, Math.min(1, py / canvas.clientHeight));
 
-  // ---------- Pick ----------
+  // ---------- Picking ----------
   function pickAt(px,py){
     for (let i=state.elements.length-1; i>=0; --i){
       const e = state.elements[i];
@@ -222,16 +206,13 @@
     return { perElement: per, countsByMask: counts, singles, pairs, diffs, unions2, triples, total };
   }
 
-  // ---------- Region logic ----------
+  // ---------- Regions ----------
   function prettyExpr(kind, idx){
     const id = (i) => state.sets[i]?.id || "?";
     if (kind==='single') return `${id(idx[0])}`;
     if (kind==='pair')   return `${id(idx[0])} ∩ ${id(idx[1])}`;
     if (kind==='diff')   return `${id(idx[0])} \\ ${id(idx[1])}`;
-    if (kind==='union'){
-      const parts = idx.map(i => id(i)).join(" ∪ ");
-      return parts || "Union";
-    }
+    if (kind==='union'){ const parts = idx.map(i => id(i)).join(" ∪ "); return parts || "Union"; }
     if (kind==='triple') return `${id(idx[0])} ∩ ${id(idx[1])} ∩ ${id(idx[2])}`;
     if (kind==='outside') return `Outside all sets`;
     if (kind==='all') return `Union (all sets)`;
@@ -264,7 +245,7 @@
     return false;
   }
 
-  // ---------- Masks for strong highlight ----------
+  // ---------- Masks ----------
   function makeMask(kind, indices){
     if (!kind) return null;
     const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -274,36 +255,15 @@
     m.setTransform(dpr,0,0,dpr,0,0);
     m.clearRect(0,0,canvas.clientWidth, canvas.clientHeight);
     m.fillStyle = "#000";
-    const fillCircle = (i) => {
-      const s = state.sets[i];
-      m.beginPath(); m.arc(pxX(s.x), pxY(s.y), s.r*S(), 0, Math.PI*2); m.closePath(); m.fill();
-    };
+    const fillCircle = (i) => { const s = state.sets[i]; m.beginPath(); m.arc(pxX(s.x), pxY(s.y), s.r*S(), 0, Math.PI*2); m.closePath(); m.fill(); };
 
-    if (kind === 'single'){
-      fillCircle(indices[0]);
-    } else if (kind === 'pair'){
-      fillCircle(indices[0]);
-      m.globalCompositeOperation = 'destination-in';
-      fillCircle(indices[1]);
-    } else if (kind === 'diff'){
-      fillCircle(indices[0]);
-      m.globalCompositeOperation = 'destination-out';
-      fillCircle(indices[1]);
-    } else if (kind === 'triple'){
-      fillCircle(indices[0]);
-      m.globalCompositeOperation = 'destination-in';
-      fillCircle(indices[1]);
-      fillCircle(indices[2]);
-    } else if (kind === 'outside'){
-      m.fillRect(0,0,canvas.clientWidth, canvas.clientHeight);
-      m.globalCompositeOperation = 'destination-out';
-      for (let i=0;i<state.sets.length;i++){ fillCircle(i); }
-    } else if (kind === 'union'){
-      m.globalCompositeOperation = 'source-over';
-      indices.forEach(i => fillCircle(i));
-    } else if (kind === 'all'){
-      for (let i=0;i<state.sets.length;i++){ fillCircle(i); }
-    }
+    if (kind === 'single'){ fillCircle(indices[0]); }
+    else if (kind === 'pair'){ fillCircle(indices[0]); m.globalCompositeOperation = 'destination-in'; fillCircle(indices[1]); }
+    else if (kind === 'diff'){ fillCircle(indices[0]); m.globalCompositeOperation = 'destination-out'; fillCircle(indices[1]); }
+    else if (kind === 'triple'){ fillCircle(indices[0]); m.globalCompositeOperation = 'destination-in'; fillCircle(indices[1]); fillCircle(indices[2]); }
+    else if (kind === 'outside'){ m.fillRect(0,0,canvas.clientWidth, canvas.clientHeight); m.globalCompositeOperation = 'destination-out'; for (let i=0;i<state.sets.length;i++) fillCircle(i); }
+    else if (kind === 'union'){ m.globalCompositeOperation = 'source-over'; indices.forEach(i => fillCircle(i)); }
+    else if (kind === 'all'){ for (let i=0;i<state.sets.length;i++) fillCircle(i); }
     return mask;
   }
 
@@ -311,7 +271,7 @@
   function uiUpdateScore(correct, total){
     const pct = total ? Math.round(100 * correct / total) : 0;
     scoreText.textContent = `Score: ${correct}/${total} (${pct}%)`;
-    scoreFill.style.width = `${pct}%`;
+    scoreFill.style.width = `${pct}%`; // green loading bar
   }
 
   function computeScore(mem){
@@ -321,9 +281,7 @@
       const e = state.elements[ei];
       const mask = mem.perElement[ei];
       const got = [];
-      for (let si=0; si<state.sets.length; si++){
-        if (mask & (1<<si)) got.push(idByIndex[si]);
-      }
+      for (let si=0; si<state.sets.length; si++) if (mask & (1<<si)) got.push(idByIndex[si]);
       const want = state.answerKey[e.id] || [];
       if (sameSet(got, want)) correct += 1;
     }
@@ -331,7 +289,7 @@
     return correct;
   }
 
-  // ---------- Drawing ----------
+  // ---------- Draw ----------
   function roundRect(ctx, x, y, w, h, r){
     const rr = Math.min(r, Math.min(w,h)/2);
     ctx.beginPath();
@@ -347,7 +305,7 @@
     const w = canvas.clientWidth, h = canvas.clientHeight;
     const mask = makeMask(hl.kind, hl.indices);
 
-    // Dim
+    // Dim background
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.fillRect(0,0,w,h);
@@ -392,7 +350,7 @@
       });
     }
 
-    // Halo elements in region
+    // Halo elements
     for (let ei=0; ei<state.elements.length; ei++){
       if (!elementInRegion(mem.perElement[ei], hl.kind, hl.indices)) continue;
       const e = state.elements[ei];
@@ -405,7 +363,7 @@
       ctx.restore();
     }
 
-    // Label chip
+    // On-canvas chip
     const expr = prettyExpr(hl.kind, hl.indices);
     const count = countForHighlight(hl.kind, hl.indices, mem.countsByMask, mem.total);
     hlChip.style.display = 'block';
@@ -444,7 +402,7 @@
       ctx.fillStyle = "#cfe0ff"; ctx.fillText(text, cx, cy+0.5);
     }
 
-    // Elements (minerals)
+    // Elements
     const mem = memberships();
     for (let ei=0; ei<state.elements.length; ei++){
       const e = state.elements[ei];
@@ -471,54 +429,66 @@
       }
     }
 
-    // Live score
+    // Score update
     computeScore(mem);
 
-    // Region overlay
+    // Overlay highlight
     if (state.highlight){
       drawStrongHighlight(state.highlight, mem);
-      updateExplain(state.highlight, mem);
+      updateInfo(state.highlight, mem);
     } else {
       clearHighlightChip();
+      // show default text if nothing selected
+      defaultInfo();
     }
   }
 
   function requestDraw(){ state.needsDraw = true; }
 
-  // ---------- Explanation ----------
-  function updateExplain(hl, mem){
+  // ---------- Info bar (top) ----------
+  function defaultInfo(){
+    expExpr.textContent = "—";
+    expCount.textContent = "(0 elements)";
+    expText.innerHTML = "Click a region to spotlight it. In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.";
+    expListWrap.style.display = "none";
+    expListWrap.innerHTML = "";
+  }
+
+  function updateInfo(hl, mem){
     const expr = prettyExpr(hl.kind, hl.indices);
     const count = countForHighlight(hl.kind, hl.indices, mem.countsByMask, mem.total);
+
     expExpr.textContent = expr;
     expCount.textContent = `(${count} element${count===1?'':'s'})`;
 
+    // Build chips list
     const items = [];
     for (let i=0; i<state.elements.length; i++){
       if (elementInRegion(mem.perElement[i], hl.kind, hl.indices)){
         items.push(state.elements[i].label);
       }
     }
-    expList.innerHTML = items.map(t => `<li>${t}</li>`).join("") || `<li><em>None</em></li>`;
-    expElemsBlock.style.display = 'block';
+    expListWrap.innerHTML = items.map(t => `<span class="tag">${t}</span>`).join("");
+    expListWrap.style.display = items.length ? "flex" : "none";
 
+    // Contextual text
     const name = (i) => state.sets[i]?.name || `Set ${i+1}`;
     const id   = (i) => state.sets[i]?.id   || `S${i+1}`;
-
     let desc = "";
     if (hl.kind === 'single'){
-      desc = `Minerals inside **${name(hl.indices[0])}** (${id(hl.indices[0])}).`;
+      desc = `Minerals inside <strong>${name(hl.indices[0])}</strong> (${id(hl.indices[0])}).`;
     } else if (hl.kind === 'pair'){
-      desc = `Minerals common to **${name(hl.indices[0])}** (${id(hl.indices[0])}) and **${name(hl.indices[1])}** (${id(hl.indices[1])}) — intersection **${id(hl.indices[0])} ∩ ${id(hl.indices[1])}**.`;
+      desc = `Minerals common to <strong>${name(hl.indices[0])}</strong> and <strong>${name(hl.indices[1])}</strong> — ${id(hl.indices[0])} ∩ ${id(hl.indices[1])}.`;
     } else if (hl.kind === 'diff'){
-      desc = `Minerals in **${name(hl.indices[0])}** (${id(hl.indices[0])}) but not in **${name(hl.indices[1])}** (${id(hl.indices[1])}) — difference **${id(hl.indices[0])} \\ ${id(hl.indices[1])}**.`;
+      desc = `Minerals in <strong>${name(hl.indices[0])}</strong> but not in <strong>${name(hl.indices[1])}</strong> — ${id(hl.indices[0])} \\ ${id(hl.indices[1])}.`;
     } else if (hl.kind === 'union'){
       const human = hl.indices.map(i => `${name(i)} (${id(i)})`).join(" or ");
-      desc = `Minerals in **${human}** — union **${prettyExpr('union', hl.indices)}**.`;
+      desc = `Minerals in ${human} — union.`;
     } else if (hl.kind === 'triple'){
       desc = `Minerals belonging to all three sets — triple intersection.`;
     } else if (hl.kind === 'outside'){
       const unionIds = state.sets.map(s=>s.id).join(" ∪ ");
-      desc = `Minerals outside all sets, i.e., complement **U \\ (${unionIds})**.`;
+      desc = `Minerals outside all sets, i.e., complement U \\ (${unionIds}).`;
     } else if (hl.kind === 'all'){
       const unionNames = state.sets.map(s=>`${s.name} (${s.id})`).join(", ");
       desc = `Minerals in the union of all sets (${unionNames}).`;
@@ -539,6 +509,7 @@
       setsChipsEl.appendChild(chip);
     });
 
+    // Table header
     const theadRowEl = document.getElementById("theadRow");
     while (theadRowEl.children.length > 2) theadRowEl.removeChild(theadRowEl.lastChild);
     state.sets.forEach(s => {
@@ -712,12 +683,11 @@
       const maxX = 1 - minX;
       const minY = rpx / canvas.clientHeight;
       const maxY = 1 - minY;
-      s.x = clamp(nx, minX, maxX);
-      s.y = clamp(ny, minY, maxY);
+      s.x = Math.max(minX, Math.min(maxX, nx));
+      s.y = Math.max(minY, Math.min(maxY, ny));
     } else {
       const e = state.elements[state.drag.index];
-      e.x = clamp(nx, 0, 1);
-      e.y = clamp(ny, 0, 1);
+      e.x = nx; e.y = ny;
     }
     requestDraw();
     ev.preventDefault();
@@ -734,7 +704,7 @@
 
     const s = state.sets[pick.index];
     const factor = (ev.deltaY < 0) ? 1.05 : 0.95;
-    s.r = clamp(s.r * factor, 0.06, 0.5);
+    s.r = Math.max(0.06, Math.min(0.5, s.r * factor));
 
     // keep inside bounds
     const rpx = s.r * S();
@@ -742,8 +712,8 @@
     const maxX = 1 - minX;
     const minY = rpx / canvas.clientHeight;
     const maxY = 1 - minY;
-    s.x = clamp(s.x, minX, maxX);
-    s.y = clamp(s.y, minY, maxY);
+    s.x = Math.max(minX, Math.min(maxX, s.x));
+    s.y = Math.max(minY, Math.min(maxY, s.y));
 
     requestDraw();
     ev.preventDefault();
@@ -754,44 +724,14 @@
       state.highlight = null;
       document.querySelectorAll(".summary .row").forEach(el => el.classList.remove("selected"));
       clearHighlightChip();
-      expExpr.textContent = "—";
-      expCount.textContent = "(0 elements)";
-      expText.innerHTML = "Click a region to spotlight it. In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.";
-      expElemsBlock.style.display = 'none';
+      defaultInfo();
       requestDraw();
     }
   });
 
-  // ---------- Save/Load/Puzzle ----------
-  function exportJSON(){
-    const data = {
-      universe: state.universe,
-      sets: state.sets,
-      elements: state.elements,
-      answer_key: state.answerKey
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "set_theory_puzzle.json";
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  function loadJSON(obj){
-    if (!obj || !obj.universe || !obj.sets || !obj.elements) return;
-    state.universe = obj.universe;
-    state.sets = obj.sets;
-    state.elements = obj.elements;
-    state.answerKey = obj.answer_key || {};
-    document.getElementById("uName").textContent = state.universe.name || "Universe (U)";
-    rebuildSetChips();
-    requestDraw();
-    updateRegionsAndTable();
-  }
-
+  // ---------- Puzzle I/O ----------
   async function newPuzzle(){
-    const seed = Date.now(); // new scramble each time
+    const seed = Date.now();
     const res = await fetch(`/api/puzzle?seed=${seed}`);
     const data = await res.json();
     state.universe = data.universe;
@@ -800,14 +740,16 @@
     state.answerKey = data.answer_key || {};
     state.solution = data.solution || null;
     document.getElementById("uName").textContent = state.universe.name || "Universe (U)";
+
     document.querySelectorAll(".summary .row").forEach(el => el.classList.remove("selected"));
     state.highlight = null;
     rebuildSetChips();
+    defaultInfo();
     requestDraw();
     updateRegionsAndTable();
   }
 
-  // ---------- Animation loop ----------
+  // ---------- Loop ----------
   function loop(){
     if (state.needsDraw){
       draw();
@@ -823,24 +765,13 @@
   window.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("wheel", onWheel, {passive:false});
 
-  document.getElementById("btnSave").addEventListener("click", exportJSON);
-  document.getElementById("fileLoad").addEventListener("change", (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try { loadJSON(JSON.parse(String(reader.result))); }
-      catch(err){ alert("Invalid JSON file"); }
-    };
-    reader.readAsText(f);
-  });
   document.getElementById("btnNewPuzzle").addEventListener("click", newPuzzle);
   document.getElementById("showLabels").addEventListener("change", requestDraw);
 
   // ---------- Boot ----------
   (async function boot(){
     resizeCanvas();
-    await newPuzzle();   // start in scrambled puzzle mode
+    await newPuzzle();
     loop();
   })();
 })();
