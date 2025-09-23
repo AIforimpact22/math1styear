@@ -11,22 +11,66 @@
 {% endblock %}
 
 {% block content %}
-<section class="canvas-card" aria-label="Universe canvas">
-  <div class="canvas-head">
-    <span class="badge">Universe: <strong id="uName">…</strong></span>
-    <div class="score" aria-live="polite">
-      <span id="scoreText">Score: 0/0 (0%)</span>
-      <div class="bar"><div id="scoreFill" class="fill"></div></div>
-    </div>
-    <span class="kbd">Tip:</span><span class="pill">Drag sets &amp; minerals • Wheel on a set to resize</span>
-  </div>
-  <div class="canvas-hint">
-    <span class="pill">Click any row to highlight • Press <span class="kbd">Esc</span> to clear</span>
-  </div>
-  <div id="hlChip" class="hl-chip" style="display:none;"></div>
-  <canvas id="venn" role="img" aria-label="Interactive Venn canvas"></canvas>
-</section>
+<!-- Gap fix: stack canvas + explanation in one grid cell -->
+<style>
+  /* Force zero vertical gap even if the base template has a row gap */
+  main { row-gap: 0 !important; }
 
+  /* Left column stacks the two sections with no gap between them */
+  .stage-stack { display: grid; row-gap: 0; }
+
+  /* Visually fuse the two cards */
+  .stage-stack .canvas-card {
+    margin: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .stage-stack .explain-card {
+    margin: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-top: 0; /* remove seam line */
+  }
+
+  /* Make sure the sidebar doesn't force tall rows */
+  main aside { grid-row: auto !important; align-self: start; }
+</style>
+
+<div class="stage-stack">
+  <section class="canvas-card" aria-label="Universe canvas">
+    <div class="canvas-head">
+      <span class="badge">Universe: <strong id="uName">…</strong></span>
+      <div class="score" aria-live="polite">
+        <span id="scoreText">Score: 0/0 (0%)</span>
+        <div class="bar"><div id="scoreFill" class="fill"></div></div>
+      </div>
+      <span class="kbd">Tip:</span><span class="pill">Drag sets &amp; minerals • Wheel on a set to resize</span>
+    </div>
+    <div class="canvas-hint">
+      <span class="pill">Click any row to highlight • Press <span class="kbd">Esc</span> to clear</span>
+    </div>
+    <div id="hlChip" class="hl-chip" style="display:none;"></div>
+    <canvas id="venn" role="img" aria-label="Interactive Venn canvas"></canvas>
+  </section>
+
+  <!-- Text explanation sits directly under the stage (no gap) -->
+  <section class="explain-card" aria-live="polite" aria-label="Text explanation for selected region">
+    <div class="explain-head">
+      <span class="badge">Selected region</span>
+      <code id="expExpr">—</code>
+      <span class="pill" id="expCount">(0 elements)</span>
+    </div>
+    <div class="explain-body" id="expText">
+      Click a region to spotlight it. In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.
+    </div>
+    <div class="explain-body" id="expElements" style="display:none;">
+      <strong>Elements in region:</strong>
+      <ul class="exp-list" id="expList"></ul>
+    </div>
+  </section>
+</div>
+
+<!-- Sidebar remains in the right column -->
 <aside>
   <div>
     <h2>Sets</h2>
@@ -58,21 +102,6 @@
     </ul>
   </div>
 </aside>
-
-<section class="explain-card" aria-live="polite" aria-label="Text explanation for selected region">
-  <div class="explain-head">
-    <span class="badge">Selected region</span>
-    <code id="expExpr">—</code>
-    <span class="pill" id="expCount">(0 elements)</span>
-  </div>
-  <div class="explain-body" id="expText">
-    Click a region to spotlight it. In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.
-  </div>
-  <div class="explain-body" id="expElements" style="display:none;">
-    <strong>Elements in region:</strong>
-    <ul class="exp-list" id="expList"></ul>
-  </div>
-</section>
 {% endblock %}
 
 {% block scripts %}
@@ -427,6 +456,7 @@
     ctx.restore();
 
     // Sets
+    const mem = memberships(); // compute early so labels can reflect memberships if needed
     for (const s of state.sets){
       const cx = pxX(s.x), cy = pxY(s.y), r = s.r * S();
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.closePath();
@@ -443,7 +473,6 @@
     }
 
     // Elements (minerals)
-    const mem = memberships();
     for (let ei=0; ei<state.elements.length; ei++){
       const e = state.elements[ei];
       const ex = pxX(e.x), ey = pxY(e.y);
@@ -760,22 +789,7 @@
     }
   });
 
-  // ---------- Save/Load/Puzzle ----------
-  function exportJSON(){
-    const data = {
-      universe: state.universe,
-      sets: state.sets,
-      elements: state.elements,
-      answer_key: state.answerKey
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "set_theory_puzzle.json";
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
+  // ---------- Load Puzzle / File ----------
   function loadJSON(obj){
     if (!obj || !obj.universe || !obj.sets || !obj.elements) return;
     state.universe = obj.universe;
@@ -821,17 +835,21 @@
   window.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("wheel", onWheel, {passive:false});
 
-  document.getElementById("btnSave").addEventListener("click", exportJSON);
-  document.getElementById("fileLoad").addEventListener("change", (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try { loadJSON(JSON.parse(String(reader.result))); }
-      catch(err){ alert("Invalid JSON file"); }
-    };
-    reader.readAsText(f);
-  });
+  // No btnSave here; avoid null refs
+  const fileLoad = document.getElementById("fileLoad");
+  if (fileLoad) {
+    fileLoad.addEventListener("change", (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try { loadJSON(JSON.parse(String(reader.result))); }
+        catch(err){ alert("Invalid JSON file"); }
+      };
+      reader.readAsText(f);
+    });
+  }
+
   document.getElementById("btnNewPuzzle").addEventListener("click", newPuzzle);
   document.getElementById("showLabels").addEventListener("change", requestDraw);
 
