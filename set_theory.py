@@ -8,7 +8,6 @@ from flask import Blueprint, render_template, jsonify, request
 
 set_theory_bp = Blueprint("set_theory", __name__)
 
-
 # -----------------------------
 # Data models
 # -----------------------------
@@ -19,7 +18,7 @@ class SetDef:
     color: str   # hex color
     x: float     # normalized [0..1]
     y: float     # normalized [0..1]
-    r: float     # radius (normalized w.r.t. min(width,height))
+    r: float     # radius (normalized vs min(width,height))
 
 @dataclass
 class ElementDef:
@@ -28,12 +27,11 @@ class ElementDef:
     x: float
     y: float
 
-
 # -----------------------------
 # Canonical "solution" geometry
 # -----------------------------
 def solution_state() -> Dict[str, Any]:
-    """The correct arrangement (used to compute the answer key)."""
+    """Correct arrangement (used to compute the answer key)."""
     universe = {
         "name": "Lithosphere Minerals (U)",
         "width": 1200,
@@ -46,7 +44,6 @@ def solution_state() -> Dict[str, Any]:
         SetDef(id="M", name="Metamorphic",  color="#34d399", x=0.50, y=0.34, r=0.23),
     ]
 
-    # Mineral dataset (positions chosen to yield meaningful memberships)
     elements: List[ElementDef] = [
         # Igneous-dominant
         ElementDef("olivine",      "Olivine",               0.31, 0.62),
@@ -91,7 +88,6 @@ def solution_state() -> Dict[str, Any]:
         "elements": [asdict(e) for e in elements]
     }
 
-
 # -----------------------------
 # Helpers: membership & answer key
 # -----------------------------
@@ -101,12 +97,7 @@ def _in_circle(ex: float, ey: float, cx: float, cy: float, r: float) -> bool:
 def compute_answer_key(universe: Dict[str, Any],
                        sets: List[Dict[str, Any]],
                        elements: List[Dict[str, Any]]) -> Dict[str, List[str]]:
-    """
-    Mirrors the canvas logic:
-    - element, set centers are normalized to width/height
-    - radius is scaled by S = min(width,height)
-    Returns: { element_id: sorted [set_ids] }
-    """
+    """Returns { element_id: sorted [set_ids] } based on the solution geometry."""
     W = float(universe.get("width", 1200))
     H = float(universe.get("height", 750))
     S = min(W, H)
@@ -123,12 +114,10 @@ def compute_answer_key(universe: Dict[str, Any],
         key[e["id"]] = member_ids
     return key
 
-
 # -----------------------------
 # Puzzle scramble
 # -----------------------------
 def _inside_bounds(x: float, y: float, r: float) -> Tuple[float, float]:
-    """Clamp center to keep the entire circle within the [0,1]x[0,1] box in normalized coords."""
     pad = r + 0.02
     return (
         min(max(x, pad), 1 - pad),
@@ -136,18 +125,12 @@ def _inside_bounds(x: float, y: float, r: float) -> Tuple[float, float]:
     )
 
 def scramble_state(sol: Dict[str, Any], seed: int | None = None) -> Dict[str, Any]:
-    """
-    Produce a scrambled puzzle (wrong positions) from the solution layout.
-    - Sets are moved to corner-ish areas (plus jitter)
-    - Elements are scattered randomly
-    The answer key is computed from the *solution*, not from the scramble.
-    """
+    """Scramble sets and mineral labels to create a puzzle."""
     rng = random.Random(seed)
     universe = sol["universe"]
     sets_sol = [SetDef(**s) for s in sol["sets"]]
     elements_sol = [ElementDef(**e) for e in sol["elements"]]
 
-    # Corner-ish target positions for scramble (intentionally "wrong")
     corner_targets = [(0.22, 0.22), (0.78, 0.24), (0.50, 0.80)]
     rng.shuffle(corner_targets)
 
@@ -157,7 +140,6 @@ def scramble_state(sol: Dict[str, Any], seed: int | None = None) -> Dict[str, An
         jx = rng.uniform(-0.05, 0.05)
         jy = rng.uniform(-0.05, 0.05)
         nx, ny = _inside_bounds(tx + jx, ty + jy, s.r)
-        # radius minor jitter
         nr = max(0.08, min(0.45, s.r * rng.uniform(0.95, 1.05)))
         sets_scrambled.append(replace(s, x=nx, y=ny, r=nr))
 
@@ -173,7 +155,6 @@ def scramble_state(sol: Dict[str, Any], seed: int | None = None) -> Dict[str, An
         "elements": [asdict(e) for e in elements_scrambled]
     }
 
-
 # -----------------------------
 # Routes
 # -----------------------------
@@ -183,15 +164,10 @@ def home():
 
 @set_theory_bp.route("/api/default")
 def api_default():
-    """Return the canonical solution (for power users who want to view it)."""
     return jsonify(solution_state())
 
 @set_theory_bp.route("/api/puzzle")
 def api_puzzle():
-    """
-    Return a scrambled puzzle + an answer key computed from the solution.
-    Optional query: ?seed=12345 for deterministic scramble.
-    """
     sol = solution_state()
     seed_q = request.args.get("seed")
     try:
@@ -207,7 +183,6 @@ def api_puzzle():
         "sets": puzzle["sets"],
         "elements": puzzle["elements"],
         "answer_key": answer_key,
-        # Include solution as a convenience (not mandatory for the game)
         "solution": {
             "sets": sol["sets"],
             "elements": sol["elements"]
