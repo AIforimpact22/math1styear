@@ -62,7 +62,6 @@
     .chip small{ color: var(--muted); }
     .pill{ display:inline-flex; padding:2px 6px; border-radius:999px; border:1px solid #223045; background:#0e1523; font-size:11px; color:#a7b8cc; }
 
-    /* Grid with no vertical gap between canvas and explanation */
     main{
       display:grid;
       grid-template-columns: minmax(0,1fr) 360px;
@@ -92,7 +91,6 @@
     }
     .score .fill{ height:100%; width:0%; background: linear-gradient(90deg, #16a34a, #22c55e); }
 
-    /* Sidebar */
     aside{
       background: var(--card);
       border:1px solid #233040; border-radius:14px; padding:12px;
@@ -134,7 +132,7 @@
     .exp-list{ margin:8px 0 0 18px; }
     .exp-list li{ margin:2px 0; }
 
-    /* Sets panel mini styles */
+    /* Small helper styles that function page uses */
     .sets-top .tips{ color: var(--muted); font-size: 12px; line-height: 1.45; margin-top: 6px; }
   </style>
 </head>
@@ -156,7 +154,8 @@
       </div>
     </div>
 
-    <h2>Set Theory Game</h2>
+    <!-- Page-specific title -->
+    <h2>{% block page_title %}Set Theory Game{% endblock %}</h2>
 
     <div class="byline">
       By <a href="https://www.linkedin.com/in/habdulhaq/" target="_blank" rel="noopener noreferrer">ABDULHAQ Hawkar</a>
