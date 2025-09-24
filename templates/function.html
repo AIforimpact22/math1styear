@@ -1,87 +1,55 @@
 {% extends "index.html" %}
-{% block page_title %}Function Fundamentals Game{% endblock %}
+{% block page_title %}Function Basics Game (Simple){% endblock %}
 
 {% block controls %}
 <div class="controls" aria-label="Function game controls">
-  <button id="btnNewFunc" class="btn">New Function Puzzle</button>
-  <button id="btnClearMap" class="btn">Clear Map</button>
-  <button id="btnInvert" class="btn">Invert Map</button>
-  <label class="switch btn"><input id="lockLinks" type="checkbox" /> Lock Links</label>
+  <button id="btnNew" class="btn">New Puzzle</button>
+  <button id="btnReset" class="btn">Reset Choices</button>
+  <button id="btnReveal" class="btn">Reveal Solution</button>
 </div>
 {% endblock %}
 
 {% block content %}
-<section class="canvas-card" aria-label="Function mapping board">
-  <!-- The board uses HTML + SVG for clickable mappings -->
+<section class="canvas-card" aria-label="Function mapping table">
   <style>
-    .board{ position:relative; display:flex; gap:24px; padding:12px; min-height: 52vh; }
-    .col{ flex:1; }
-    .col h3{ margin:6px 0 8px; color:#cbd7ea; font-size:14px; }
-    .slots{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
-    .slot{
-      position:relative; display:flex; align-items:center; justify-content:space-between; gap:8px;
-      background:#0f141c; border:1px solid #233040; padding:8px 10px; border-radius:10px;
-      cursor:pointer; user-select:none;
+    .simple-board{ padding:12px; }
+    .simple-board table{ width:100%; border-collapse:collapse; border:1px solid #233040; border-radius:12px; overflow:hidden; }
+    .simple-board thead th{ background:#0d1320; color:#9fb2c7; padding:8px; text-align:left; font-size:12px; }
+    .simple-board tbody td{ padding:8px; border-bottom:1px solid #1e2a3a; }
+    .simple-board tr:last-child td{ border-bottom:none; }
+    .arrow{ text-align:center; color:#9fb2c7; width:60px; }
+    select.mapping{
+      width:100%; padding:6px 8px; border-radius:8px; border:1px solid #233040; background:#0f141c; color:#e6f0ff;
     }
-    .slot:hover{ border-color:#2b3a4f; background:#0c1219; }
-    .slot.selected{ outline:2px solid #7aa2ff; }
-    .slot .tag{ font-size:12px; color:#9fb2c7; }
-    .slot .name{ font-weight:600; color:#e3ecff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-    .board svg#mapSvg{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
-    .link{ fill:none; stroke:#7aa2ff; stroke-width:2.5px; opacity:0.9; }
-    .link.collide{ stroke:#ef8a8a; }
-    .link.good{ stroke:#34d399; }
-
-    .board-legend{
-      display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:8px 12px; border-top:1px solid #233040;
-      background:rgba(18,24,33,0.6);
-    }
-    .legend-chip{ display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#a7b8cc; }
-    .legend-dot{ width:12px; height:3px; background:#7aa2ff; display:inline-block; }
-    .legend-dot.collide{ background:#ef8a8a; }
-    .legend-dot.good{ background:#34d399; }
-
-    /* Sidebar top-block style reused from your Set page */
-    .sets-top .badge{ display:inline-flex; gap:6px; align-items:center; padding:4px 8px; border-radius:999px;
-      background:#0d1320; border:1px solid #263243; font-size:12px; color:#9fb2c7; width:fit-content; }
-
-    /* Property chips */
-    .props{ display:flex; flex-wrap:wrap; gap:6px; }
-    .prop-chip{
-      display:inline-flex; align-items:center; gap:6px; padding:4px 8px;
-      border-radius:999px; background:#0e1523; border:1px solid #223045; color:#cfe0ff; font-size:12px;
-    }
-    .prop-chip.good{ border-color:#1f6f4f; background:#11281f; color:#a8f0c4; }
-    .prop-chip.bad{ border-color:#5a2831; background:#2a1115; color:#ffb4bf; }
+    select.mapping:focus{ outline:2px solid #7aa2ff; border-color:#2b3a4f; }
+    .dup{ border-color:#8a2a2a !important; background:#2a1515 !important; }
+    .good{ color:#34d399; font-weight:700; }
+    .bad{ color:#ef4444; font-weight:700; }
   </style>
 
-  <div class="board" id="board">
-    <svg id="mapSvg" aria-hidden="true"></svg>
-
-    <div class="col">
-      <h3 id="domTitle">Domain D</h3>
-      <ul id="domainList" class="slots"></ul>
+  <div class="simple-board">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40%">Rock Sample (Domain D)</th>
+          <th class="arrow">f</th>
+          <th style="width:48%">Mineral Signature (Codomain E)</th>
+          <th style="width:12%">✓</th>
+        </tr>
+      </thead>
+      <tbody id="mapBody">
+        <!-- rows are injected here -->
+      </tbody>
+    </table>
+    <div class="board-legend" style="display:flex; gap:10px; align-items:center; padding-top:8px;">
+      <span class="pill">Goal: Make the mapping a <strong>bijection</strong> (1‑1 and onto) → then it is invertible.</span>
     </div>
-
-    <div class="col">
-      <h3 id="codTitle">Codomain E</h3>
-      <ul id="codomainList" class="slots"></ul>
-    </div>
-  </div>
-
-  <div class="board-legend">
-    <span class="legend-chip"><span class="legend-dot"></span> link</span>
-    <span class="legend-chip"><span class="legend-dot collide"></span> collision (not injective)</span>
-    <span class="legend-chip"><span class="legend-dot good"></span> bijection link</span>
   </div>
 </section>
 
 <aside>
   <div>
-    <h2>Function Lab (Geology)</h2>
-
-    <!-- Universe + Score + Tips moved here (as requested pattern) -->
+    <h2>Function (Geology)</h2>
     <div class="sets-top">
       <div class="badge">Universe: <strong id="uName">…</strong></div>
 
@@ -90,61 +58,42 @@
         <div class="bar"><div id="scoreFill" class="fill"></div></div>
       </div>
 
-      <div class="tips">
+      <div class="tips" style="margin-top:6px;">
         <div class="pill" style="margin-bottom:6px;">Tip</div>
-        <div>Click a sample on the left, then a signature on the right to connect.</div>
-        <div>Your goal: make the mapping a <em>bijection</em> (1‑to‑1 and onto) — then it’s invertible.</div>
+        <div>Pick exactly one signature for each sample (function).</div>
+        <div>No two samples should share a signature (injective).</div>
+        <div>Every signature is used at least once (surjective).</div>
       </div>
     </div>
   </div>
 
   <div>
-    <h2>Status & Properties</h2>
-    <div class="props" id="propChips">
-      <!-- Filled by JS: Function? Injective? Surjective? Bijection/Invertible? -->
+    <h2>Status</h2>
+    <div id="props" class="summary" style="gap:6px;">
+      <!-- Filled by JS -->
     </div>
   </div>
 
   <div>
-    <h2>About (quick)</h2>
+    <h2>Definitions (quick)</h2>
     <ul class="help-list">
-      <li><strong>Függvény</strong>: minden D‑beli elemhez pontosan egy E‑beli elemet rendel.</li>
-      <li><strong>Invertálható</strong>: ha a függvény 1‑1 és <em>szürjektív</em> — ekkor az inverz is függvény (bijekció).</li>
-      <li><strong>Ekvivalens halmazok</strong>: ha van köztük 1‑1 megfeleltetés (bijekció).</li>
-      <li><strong>Megszámlálható</strong>: ha elemei sorozatba rendezhetők (pl. <code>ℕ</code>, páros számok <code>g(n)=2n</code>, páratlanok <code>h(n)=2n+1</code>).</li>
+      <li><strong>Függvény</strong> (Function): minden D‑beli elemhez pontosan egy E‑beli elem tartozik.</li>
+      <li><strong>Injektív</strong> (1‑1): különböző D‑elemek különböző E‑elemekhez mennek.</li>
+      <li><strong>Szürjektív</strong> (Onto): minden E‑elemhez jut legalább egy D‑elem.</li>
+      <li><strong>Bijekció</strong>: egyszerre injektív és szürjektív ⇒ <em>invertálható</em>.</li>
+      <li><strong>Ekvivalens halmazok</strong>: létezik köztük 1‑1 hozzárendelés (bijekció).</li>
     </ul>
   </div>
 </aside>
 
-<section class="explain-card" aria-live="polite" aria-label="Countability lab and quiz">
+<section class="explain-card" aria-live="polite" aria-label="Explanation">
   <div class="explain-head">
-    <span class="badge">Countability Lab</span>
-    <code>f(n)=n+1</code>
-    <code>g(n)=2n</code>
-    <code>h(n)=2n+1</code>
+    <span class="badge">Explanation</span>
   </div>
-
-  <div class="explain-body" style="margin-bottom:10px;">
-    <label>n: <input id="nRange" type="range" min="0" max="20" value="0" style="vertical-align:middle;"></label>
-    <span class="pill">n = <strong id="nVal">0</strong></span>
-    <span class="pill">f(n) = <strong id="fVal">1</strong></span>
-    <span class="pill">g(n) = <strong id="gVal">0</strong></span>
-    <span class="pill">h(n) = <strong id="hVal">1</strong></span>
-  </div>
-
-  <div class="explain-head">
-    <span class="badge">Quick Quiz (5)</span>
-    <span id="quizStat" class="pill">(0/5 correct)</span>
-  </div>
-  <div id="quizQ" class="explain-body" style="margin-bottom:8px;">
-    <!-- Filled by JS -->
-  </div>
-  <div class="explain-body" id="quizBtns">
-    <button class="btn" id="ansF">Rule f(n)=n+1</button>
-    <button class="btn" id="ansG">Rule g(n)=2n</button>
-    <button class="btn" id="ansH">Rule h(n)=2n+1</button>
-    <button class="btn" id="quizNext" style="display:none;">Next Quiz</button>
-    <button class="btn" id="quizReset" style="display:none;">New Quiz</button>
+  <div class="explain-body" id="explain">
+    Domain D = rock samples (Basalt, Granite, Limestone, Gneiss).  
+    Codomain E = mineral signatures (Olivine‑rich, Feldspar‑dominant, Calcite‑dominant, Quartz‑rich).  
+    Choose one signature for each sample. When your mapping is <strong>bijective</strong>, it’s invertible, so we can define the inverse \(f^{-1}\) that maps each signature back to its unique sample.
   </div>
 </section>
 {% endblock %}
@@ -152,361 +101,182 @@
 {% block scripts %}
 <script>
 (() => {
-  // ---------- State ----------
+  // ------- State -------
   const state = {
     universeName: "",
-    domainName: "Domain D",
-    codomainName: "Codomain E",
-    domain: [],     // [{id,label}]
-    codomain: [],   // [{id,label}]
-    mapping: {},    // D -> E (object: { S1: "C3", ... })
-    solution: [],   // [["S1","C1"], ...] (not required for scoring, but kept)
-    view: "D2E",    // or "E2D" when inverted
-    lockLinks: false,
-
-    // Score pieces
-    quizMax: 5,
-    quizAnswered: 0,
-    quizCorrect: 0
+    domain: [],
+    codomain: [],
+    solution: {},     // {S1:"C1",...}
+    mapping: {},      // {S1:"C2",...} (user choices; "" means none)
   };
 
-  // ---------- Elements ----------
+  // ------- Elements -------
   const uName = document.getElementById("uName");
-  const domList = document.getElementById("domainList");
-  const codList = document.getElementById("codomainList");
-  const domTitle = document.getElementById("domTitle");
-  const codTitle = document.getElementById("codTitle");
-  const board = document.getElementById("board");
-  const svg = document.getElementById("mapSvg");
-
-  const propChips = document.getElementById("propChips");
+  const mapBody = document.getElementById("mapBody");
+  const props = document.getElementById("props");
   const scoreText = document.getElementById("scoreText");
   const scoreFill = document.getElementById("scoreFill");
 
-  const nRange = document.getElementById("nRange");
-  const nVal = document.getElementById("nVal");
-  const fVal = document.getElementById("fVal");
-  const gVal = document.getElementById("gVal");
-  const hVal = document.getElementById("hVal");
-  const quizQ = document.getElementById("quizQ");
-  const quizStat = document.getElementById("quizStat");
-  const ansF = document.getElementById("ansF");
-  const ansG = document.getElementById("ansG");
-  const ansH = document.getElementById("ansH");
-  const quizNext = document.getElementById("quizNext");
-  const quizReset = document.getElementById("quizReset");
+  // ------- Helpers -------
+  const toMap = (pairs) => Object.fromEntries(pairs);
+  const unique = (arr) => Array.from(new Set(arr));
 
-  let selectedDomain = null;
-
-  // ---------- Fetch puzzle ----------
-  async function loadPuzzle() {
-    const seed = Date.now();
-    const res = await fetch(`/function/api/puzzle?seed=${seed}`);
-    const data = await res.json();
-
-    state.universeName = data.universe?.name || "Functions in Geology (D → E)";
-    state.domainName = data.universe?.domain_name || "Domain D";
-    state.codomainName = data.universe?.codomain_name || "Codomain E";
-    state.domain = data.domain || [];
-    state.codomain = data.codomain || [];
-    state.solution = data.solution_pairs || [];
-
-    // Start with the deliberately "bad" mapping
-    state.mapping = {};
-    (data.initial_pairs || []).forEach(([d, c]) => state.mapping[d] = c);
-    state.view = "D2E";
-    uName.textContent = state.universeName;
-
-    buildColumns();
-    drawLinks();
-    updatePropertiesAndScore();
-  }
-
-  // ---------- Build the two columns ----------
-  function buildColumns() {
-    domTitle.textContent = (state.view === "D2E") ? state.domainName : state.codomainName + " (as domain for g)";
-    codTitle.textContent = (state.view === "D2E") ? state.codomainName : "Back to " + state.domainName;
-
-    domList.innerHTML = "";
-    codList.innerHTML = "";
-
-    const leftItems = (state.view === "D2E") ? state.domain : state.codomain;
-    const rightItems = (state.view === "D2E") ? state.codomain : state.domain;
-
-    leftItems.forEach(item => {
-      const li = document.createElement("li");
-      li.className = "slot";
-      li.dataset.id = item.id;
-      li.innerHTML = `<span class="tag">${state.view==="D2E" ? "D" : "E"}</span><span class="name">${item.label}</span>`;
-      li.addEventListener("click", () => {
-        if (state.lockLinks) return;
-        selectDomain(li);
-      });
-      domList.appendChild(li);
-    });
-
-    rightItems.forEach(item => {
-      const li = document.createElement("li");
-      li.className = "slot";
-      li.dataset.id = item.id;
-      li.innerHTML = `<span class="name">${item.label}</span><span class="tag">${state.view==="D2E" ? "E" : "D"}</span>`;
-      li.addEventListener("click", () => {
-        if (state.lockLinks) return;
-        if (!selectedDomain) return;
-        connect(selectedDomain.dataset.id, item.dataset.id);
-      });
-      codList.appendChild(li);
-    });
-  }
-
-  function selectDomain(li){
-    document.querySelectorAll(".slot.selected").forEach(el => el.classList.remove("selected"));
-    if (selectedDomain && selectedDomain === li) { selectedDomain = null; return; }
-    selectedDomain = li;
-    li.classList.add("selected");
-  }
-
-  // Map left id -> right id according to current view
-  function connect(leftId, rightId){
-    if (state.view === "D2E") {
-      state.mapping[leftId] = rightId;
-    } else {
-      // In E2D view, we are logically setting inverse map; convert back
-      // i.e., g(y)=x  => f(x)=y
-      // left is codomain-id, right is domain-id
-      const y = leftId, x = rightId;
-      // find original x-id and y-id are flipped
-      // We must set f(x)=y
-      state.mapping[x] = y;
-    }
-    selectedDomain = null;
-    document.querySelectorAll(".slot.selected").forEach(el => el.classList.remove("selected"));
-    drawLinks();
-    updatePropertiesAndScore();
-  }
-
-  // ---------- Draw SVG links ----------
-  function drawLinks(){
-    // Clear
-    while (svg.firstChild) svg.removeChild(svg.firstChild);
-
-    const leftList = domList.querySelectorAll(".slot");
-    const rightList = codList.querySelectorAll(".slot");
-    if (!leftList.length || !rightList.length) return;
-
-    const leftIndex = {};
-    const rightIndex = {};
-    leftList.forEach(li => leftIndex[li.dataset.id] = li);
-    rightList.forEach(li => rightIndex[li.dataset.id] = li);
-
-    // Build a map of which right nodes are targeted (to detect collisions)
-    const usage = {};
-    const pairs = [];
-    if (state.view === "D2E"){
-      for (const [d,c] of Object.entries(state.mapping)){
-        if (!leftIndex[d] || !rightIndex[c]) continue;
-        usage[c] = (usage[c]||0)+1;
-        pairs.push([d,c]);
-      }
-    } else {
-      // Draw inverse visually in E2D by flipping
-      for (const [x,y] of Object.entries(state.mapping)){
-        if (!leftIndex[y] || !rightIndex[x]) continue; // left are E, right are D
-        usage[x] = (usage[x]||0)+1;
-        pairs.push([y,x]); // left(E)=y -> right(D)=x
-      }
-    }
-
-    const boardRect = board.getBoundingClientRect();
-
-    const pathFor = (fromEl, toEl) => {
-      const a = fromEl.getBoundingClientRect();
-      const b = toEl.getBoundingClientRect();
-      const x1 = (a.right - boardRect.left);
-      const y1 = (a.top + a.height/2) - boardRect.top;
-      const x2 = (b.left  - boardRect.left);
-      const y2 = (b.top + b.height/2) - boardRect.top;
-      const dx = Math.max(60, Math.abs(x2 - x1) * 0.4);
-      return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
-    };
-
-    pairs.forEach(([L, R]) => {
-      const fromEl = leftIndex[L];
-      const toEl = rightIndex[R];
-      if (!fromEl || !toEl) return;
-
-      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      p.setAttribute("class", "link");
-      p.setAttribute("d", pathFor(fromEl, toEl));
-
-      // collision coloring (not injective)
-      const target = (state.view === "D2E") ? R : R; // usage counted on right ids
-      if (usage[target] > 1) p.classList.add("collide");
-
-      // green if mapping is currently bijection and this link is part of it
-      if (isBijection()) p.classList.add("good");
-
-      svg.appendChild(p);
-    });
-  }
-
-  // ---------- Properties & Score ----------
   function isFunction(){
-    // Every left item must have exactly one mapped target
-    const leftItems = (state.view === "D2E") ? state.domain : state.codomain;
-    for (const it of leftItems){
-      if (!(it.id in currentLeftToRight())) return false;
-    }
-    return true;
+    // every domain item has exactly one non-empty image
+    return state.domain.every(d => state.mapping[d.id] && state.mapping[d.id] !== "");
   }
   function isInjective(){
-    const map = currentLeftToRight();
-    const counts = {};
-    for (const k in map){ counts[map[k]] = (counts[map[k]]||0)+1; }
-    return Object.values(counts).every(c => c === 1);
+    const images = state.domain.map(d => state.mapping[d.id]).filter(Boolean);
+    return images.length === unique(images).length;
   }
   function isSurjective(){
-    const rightItems = (state.view === "D2E") ? state.codomain : state.domain;
-    const map = currentLeftToRight();
-    const used = new Set(Object.values(map));
-    return rightItems.every(it => used.has(it.id));
+    const images = new Set(state.domain.map(d => state.mapping[d.id]).filter(Boolean));
+    return state.codomain.every(c => images.has(c.id));
   }
-  function isBijection(){ return isFunction() && isInjective() && isSurjective(); }
+  const isBijection = () => isFunction() && isInjective() && isSurjective();
 
-  function currentLeftToRight(){
-    // Returns object mapping current left column ids -> right column ids
-    if (state.view === "D2E") return {...state.mapping};
-    // E2D view: invert mapping (y->x) from state.mapping (x->y)
-    const inv = {};
-    for (const [x,y] of Object.entries(state.mapping)) inv[y] = x;
-    return inv;
+  function correctCount(){
+    let ok = 0;
+    for (const d of state.domain){
+      if (state.mapping[d.id] && state.mapping[d.id] === state.solution[d.id]) ok++;
+    }
+    return ok;
   }
 
-  function updatePropertiesAndScore(){
-    // Property chips
-    const yes = (t) => `<span class="prop-chip good">✓ ${t}</span>`;
-    const no  = (t) => `<span class="prop-chip bad">✗ ${t}</span>`;
-    propChips.innerHTML = [
-      isFunction() ? yes("Function (each left has 1 image)") : no("Function (each left has 1 image)"),
-      isInjective() ? yes("Injective (1–1)") : no("Injective (1–1)"),
-      isSurjective() ? yes("Surjective (onto)") : no("Surjective (onto)"),
-      isBijection() ? yes("Bijection ⇒ Invertible") : no("Bijection ⇒ Invertible"),
-    ].join(" ");
-
-    // Score: mapping points + quiz points
-    const leftItems = (state.view === "D2E") ? state.domain : state.codomain;
-    const assigned = Object.keys(currentLeftToRight()).length;
-    const maxMap = leftItems.length + 4; // +2 injective +2 surjective
-    const mapPts = assigned + (isInjective()?2:0) + (isSurjective()?2:0);
-
-    const quizPts = state.quizCorrect;
-    const quizMax = state.quizMax;
-
-    const total = mapPts + quizPts;
-    const totalMax = maxMap + quizMax;
-
-    const pct = totalMax ? Math.round(100 * total / totalMax) : 0;
-    scoreText.textContent = `Score: ${total}/${totalMax} (${pct}%)`;
+  function updateScore(){
+    const total = state.domain.length;
+    const ok = correctCount();
+    const pct = total ? Math.round(100 * ok / total) : 0;
+    scoreText.textContent = `Score: ${ok}/${total} (${pct}%)`;
     scoreFill.style.width = `${pct}%`;
   }
 
-  // ---------- Controls ----------
-  document.getElementById("btnNewFunc").addEventListener("click", async () => {
-    await loadPuzzle();
-    resetQuiz();
-  });
-  document.getElementById("btnClearMap").addEventListener("click", () => {
+  function updateProps(){
+    const badge = (good, text) => {
+      const cls = good ? "row selected" : "row";
+      const tick = good ? `<span class="ok">✓</span>` : `<span class="bad">✗</span>`;
+      const el = document.createElement("div");
+      el.className = cls;
+      el.innerHTML = `<div class="lhs">${tick} ${text}</div>`;
+      return el;
+    };
+    props.innerHTML = "";
+    props.appendChild(badge(isFunction(),  "Function: each sample has exactly one signature"));
+    props.appendChild(badge(isInjective(),"Injective (1–1): no two samples share a signature"));
+    props.appendChild(badge(isSurjective(),"Surjective (onto): every signature is used"));
+    props.appendChild(badge(isBijection(),"Bijection ⇒ invertible"));
+  }
+
+  function markDuplicates(){
+    // highlight selects that collide on same codomain (violates injective)
+    const vals = {};
+    document.querySelectorAll("select.mapping").forEach(sel => {
+      const v = sel.value;
+      sel.classList.remove("dup");
+      if (!v) return;
+      vals[v] = (vals[v] || []);
+      vals[v].push(sel);
+    });
+    Object.values(vals).forEach(list => {
+      if (list.length > 1) list.forEach(sel => sel.classList.add("dup"));
+    });
+  }
+
+  function rebuildTable(){
+    mapBody.innerHTML = "";
+    state.domain.forEach((d, idx) => {
+      const tr = document.createElement("tr");
+
+      const tdL = document.createElement("td");
+      tdL.textContent = d.label;
+      tr.appendChild(tdL);
+
+      const tdArrow = document.createElement("td");
+      tdArrow.className = "arrow";
+      tdArrow.textContent = "→";
+      tr.appendChild(tdArrow);
+
+      const tdR = document.createElement("td");
+      const sel = document.createElement("select");
+      sel.className = "mapping";
+      sel.id = `sel_${d.id}`;
+      // options
+      const opt0 = document.createElement("option");
+      opt0.value = ""; opt0.textContent = "— choose —";
+      sel.appendChild(opt0);
+      state.codomain.forEach(c => {
+        const o = document.createElement("option");
+        o.value = c.id; o.textContent = c.label;
+        sel.appendChild(o);
+      });
+      // initial value
+      sel.value = state.mapping[d.id] || "";
+      sel.addEventListener("change", () => {
+        state.mapping[d.id] = sel.value;
+        // live updates
+        tdOk.innerHTML = (sel.value && sel.value === state.solution[d.id]) ? `<span class="good">✓</span>` : "—";
+        markDuplicates();
+        updateProps();
+        updateScore();
+      });
+      tdR.appendChild(sel);
+      tr.appendChild(tdR);
+
+      const tdOk = document.createElement("td");
+      tdOk.className = "k";
+      tdOk.innerHTML = (sel.value && sel.value === state.solution[d.id]) ? `<span class="good">✓</span>` : "—";
+      tr.appendChild(tdOk);
+
+      mapBody.appendChild(tr);
+    });
+
+    markDuplicates();
+  }
+
+  // ------- Controls -------
+  async function loadPuzzle(){
+    const res = await fetch("/function/api/puzzle");
+    const data = await res.json();
+    state.universeName = data.universe?.name || "Functions in Geology (D → E)";
+    state.domain = data.domain || [];
+    state.codomain = data.codomain || [];
+    state.solution = toMap(data.solution_pairs || []);
     state.mapping = {};
-    drawLinks();
-    updatePropertiesAndScore();
-  });
-  document.getElementById("btnInvert").addEventListener("click", () => {
-    if (!isBijection()){
-      alert("Map is not bijection, so it has no inverse function.");
-      return;
+    (data.initial_pairs || []).forEach(([d, c]) => { state.mapping[d] = c || ""; });
+
+    uName.textContent = state.universeName;
+    rebuildTable();
+    updateProps();
+    updateScore();
+  }
+
+  function resetChoices(){
+    for (const d of state.domain) state.mapping[d.id] = "";
+    document.querySelectorAll("select.mapping").forEach(sel => sel.value = "");
+    rebuildTable();
+    updateProps();
+    updateScore();
+  }
+
+  function revealSolution(){
+    for (const d of state.domain) {
+      const v = state.solution[d.id] || "";
+      state.mapping[d.id] = v;
+      const sel = document.getElementById(`sel_${d.id}`);
+      if (sel) sel.value = v;
     }
-    // Swap view
-    state.view = (state.view === "D2E") ? "E2D" : "D2E";
-    buildColumns();
-    drawLinks();
-    updatePropertiesAndScore();
-  });
-  document.getElementById("lockLinks").addEventListener("change", (e) => {
-    state.lockLinks = e.target.checked;
-  });
-
-  window.addEventListener("resize", () => {
-    drawLinks();
-  });
-
-  // ---------- Countability Lab ----------
-  function updateN(){
-    const n = parseInt(nRange.value, 10);
-    nVal.textContent = String(n);
-    fVal.textContent = String(n+1);
-    gVal.textContent = String(2*n);
-    hVal.textContent = String(2*n+1);
-  }
-  nRange.addEventListener("input", updateN);
-
-  // ---------- Quiz ----------
-  let currentQ = null; // {n, y, rule: 'f'|'g'|'h'}
-  function randomInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
-
-  function makeQuestion(){
-    const n = randomInt(0, 20);
-    const ruleIdx = randomInt(0,2);
-    const rule = ['f','g','h'][ruleIdx];
-    const y = rule==='f' ? (n+1) : (rule==='g' ? 2*n : 2*n+1);
-    return { n, y, rule };
+    rebuildTable();
+    updateProps();
+    updateScore();
   }
 
-  function showQuestion(){
-    if (state.quizAnswered >= state.quizMax) {
-      quizQ.innerHTML = `<em>Quiz complete.</em>`;
-      quizNext.style.display = "none";
-      quizReset.style.display = "inline-flex";
-      return;
-    }
-    currentQ = makeQuestion();
-    quizQ.innerHTML = `Which rule produced the pair <code>(${currentQ.n} → ${currentQ.y})</code>?`;
-    quizNext.style.display = "none";
-    quizReset.style.display = "none";
-  }
+  document.getElementById("btnNew").addEventListener("click", loadPuzzle);
+  document.getElementById("btnReset").addEventListener("click", resetChoices);
+  document.getElementById("btnReveal").addEventListener("click", revealSolution);
 
-  function answer(rule){
-    if (!currentQ) return;
-    const correct = (rule === currentQ.rule);
-    if (correct) state.quizCorrect += 1;
-    state.quizAnswered += 1;
-    quizStat.textContent = `(${state.quizCorrect}/${state.quizMax} correct)`;
-    updatePropertiesAndScore();
-    if (state.quizAnswered < state.quizMax){
-      quizNext.style.display = "inline-flex";
-    } else {
-      quizReset.style.display = "inline-flex";
-    }
-  }
-
-  ansF.addEventListener("click", () => answer('f'));
-  ansG.addEventListener("click", () => answer('g'));
-  ansH.addEventListener("click", () => answer('h'));
-  quizNext.addEventListener("click", showQuestion);
-  quizReset.addEventListener("click", resetQuiz);
-
-  function resetQuiz(){
-    state.quizAnswered = 0;
-    state.quizCorrect = 0;
-    quizStat.textContent = `(${state.quizCorrect}/${state.quizMax} correct)`;
-    showQuestion();
-    updatePropertiesAndScore();
-  }
-
-  // ---------- Boot ----------
+  // ------- Boot -------
   (async function boot(){
     await loadPuzzle();
-    updateN();
-    resetQuiz();
   })();
 })();
 </script>
