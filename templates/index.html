@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Geology Set Theory — Game Mode</title>
+  <title>{% block head_title %}Geology Learning Games{% endblock %}</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root{
@@ -12,6 +12,9 @@
       --muted:#9fb2c7;
       --good:#34d399;
       --bad:#ef4444;
+      --ring:#334155;
+      --hover:#0f141c;
+      --accent:#7aa2ff;
     }
     *{ box-sizing: border-box; }
     html, body { height: 100%; }
@@ -28,7 +31,9 @@
       border-bottom: 1px solid #1f2a36;
     }
     .wrap{ max-width: 1200px; margin: 0 auto; padding: 12px 16px; }
-    .header-top{ display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .header-top{
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
     .title{ display:flex; flex-direction:column; gap:6px; min-width: 260px; }
     .title .badge{
       display:inline-flex; gap:6px; align-items:center; padding:4px 8px; border-radius:999px;
@@ -54,6 +59,7 @@
       display:inline-flex; align-items:center; gap:8px;
       background: #17202b; color: var(--ink); border:1px solid #233040;
       padding: 8px 10px; border-radius:10px; cursor:pointer; user-select:none;
+      text-decoration:none;
     }
     .btn:hover{ border-color:#2b3a4f; background:#0f141c; }
     .btn:active{ transform: translateY(1px); }
@@ -62,6 +68,7 @@
     .chip small{ color: var(--muted); }
     .pill{ display:inline-flex; padding:2px 6px; border-radius:999px; border:1px solid #223045; background:#0e1523; font-size:11px; color:#a7b8cc; }
 
+    /* Shared page grid used by feature pages */
     main{
       display:grid;
       grid-template-columns: minmax(0,1fr) 360px;
@@ -80,7 +87,7 @@
     }
     canvas{ width:100%; height:66vh; display:block; }
 
-    /* Score block (green loading) */
+    /* Score block (kept for feature pages) */
     .score{
       display:flex; align-items:center; gap:8px;
       padding:2px 6px; border-radius:10px; background: rgba(14,21,35,0.6); border:1px solid #223045;
@@ -132,8 +139,36 @@
     .exp-list{ margin:8px 0 0 18px; }
     .exp-list li{ margin:2px 0; }
 
-    /* Small helper styles that function page uses */
-    .sets-top .tips{ color: var(--muted); font-size: 12px; line-height: 1.45; margin-top: 6px; }
+    /* Landing grid (default content of this template) */
+    .landing{
+      max-width: 1200px;
+      margin: 16px auto 24px;
+      padding: 0 16px 16px;
+    }
+    .tiles{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    @media (max-width: 720px){
+      .tiles{ grid-template-columns: 1fr; }
+    }
+    .tile{
+      display:flex; flex-direction:column; justify-content:space-between;
+      background: var(--card); border:1px solid #233040; border-radius:14px;
+      padding:16px; text-decoration:none; color:inherit;
+      transition: border-color .15s ease, transform .1s ease, background .15s ease;
+      min-height: 160px;
+    }
+    .tile:hover{ background: var(--hover); border-color: var(--ring); transform: translateY(-1px); }
+    .tile h3{ margin: 0 0 10px; font-size: 18px; color:#e4ecff; }
+    .tile p{ margin: 0 0 12px; color:#a9b8cc; }
+    .tile .go{
+      align-self:flex-start;
+      display:inline-flex; gap:8px; align-items:center;
+      background:#0e1523; border:1px solid #223045; border-radius:10px; padding:8px 10px; color:#cfe0ff;
+    }
+    .tile .go span{ font-size:12px; opacity:.9; }
   </style>
 </head>
 <body>
@@ -154,8 +189,8 @@
       </div>
     </div>
 
-    <!-- Page-specific title -->
-    <h2>{% block page_title %}Set Theory Game{% endblock %}</h2>
+    <!-- Page title can be overridden by child pages -->
+    <h2>{% block page_title %}Geology Learning Games{% endblock %}</h2>
 
     <div class="byline">
       By <a href="https://www.linkedin.com/in/habdulhaq/" target="_blank" rel="noopener noreferrer">ABDULHAQ Hawkar</a>
@@ -165,6 +200,28 @@
   </div>
 </header>
 
+{# -------- DEFAULT LANDING CONTENT (shown when rendering this template directly) -------- #}
+<section class="landing">
+  <div class="tiles">
+    <a class="tile" href="/sets">
+      <div>
+        <h3>Set Theory</h3>
+        <p>Drag circles & minerals to explore unions, intersections, differences, and complements in a geology context.</p>
+      </div>
+      <div class="go">Open Set Theory <span>→</span></div>
+    </a>
+
+    <a class="tile" href="/function">
+      <div>
+        <h3>Functions</h3>
+        <p>Build a bijection between rock samples and mineral signatures; learn about invertibility & countability.</p>
+      </div>
+      <div class="go">Open Functions <span>→</span></div>
+    </a>
+  </div>
+</section>
+
+{# -------- FEATURE PAGE LAYOUT (only used by child templates) -------- #}
 <main>
   {% block content %}{% endblock %}
 </main>
