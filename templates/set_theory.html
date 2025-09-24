@@ -21,7 +21,7 @@
   <div>
     <h2>Sets</h2>
 
-    <!-- Moved labels: Universe + Score + Tips live here -->
+    <!-- Universe + Score + Tips live here -->
     <div class="sets-top">
       <div class="badge">Universe: <strong id="uName">…</strong></div>
 
@@ -128,7 +128,7 @@
     answerKey: {},
     solution: null,
     drag: null,
-    highlight: null, // {kind:'single'|'pair'|'diff'|'triple'|'outside'|'all'|'union', indices:[...]}
+    highlight: null, // {kind:'single'|'pair'|'diff'|'sym'|'triple'|'outside'|'all'|'union', indices:[...]}
     needsDraw: true
   };
 
@@ -207,6 +207,17 @@
       }
     }
 
+    const syms = []; // NEW: symmetric differences (A Δ B)
+    for (let i=0;i<n;i++) for (let j=i+1;j<n;j++){
+      let sum=0;
+      for (let m=0;m<counts.length;m++){
+        const a = (m & (1<<i)) !== 0;
+        const b = (m & (1<<j)) !== 0;
+        if (a ^ b) sum += counts[m];
+      }
+      syms.push({i,j,count:sum});
+    }
+
     const unions2 = [];
     for (let i=0;i<n;i++) for (let j=i+1;j<n;j++){
       let sum=0, need=(1<<i)|(1<<j);
@@ -223,7 +234,7 @@
       }
     }
 
-    return { perElement: per, countsByMask: counts, singles, pairs, diffs, unions2, triples, total };
+    return { perElement: per, countsByMask: counts, singles, pairs, diffs, syms, unions2, triples, total };
   }
 
   // ---------- Region logic ----------
@@ -232,6 +243,7 @@
     if (kind==='single') return `${id(idx[0])}`;
     if (kind==='pair')   return `${id(idx[0])} ∩ ${id(idx[1])}`;
     if (kind==='diff')   return `${id(idx[0])} \\ ${id(idx[1])}`;
+    if (kind==='sym')    return `${id(idx[0])} Δ ${id(idx[1])}`; // NEW
     if (kind==='union'){
       const parts = idx.map(i => id(i)).join(" ∪ ");
       return parts || "Union";
@@ -251,6 +263,11 @@
       if (kind==='single'){ if (m & (1<<idx[0])) sum += counts[m]; }
       else if (kind==='pair'){ const need=(1<<idx[0])|(1<<idx[1]); if ((m & need) === need) sum += counts[m]; }
       else if (kind==='diff'){ if ((m & (1<<idx[0])) && !(m & (1<<idx[1]))) sum += counts[m]; }
+      else if (kind==='sym'){  // NEW: XOR
+        const a = (m & (1<<idx[0])) !== 0;
+        const b = (m & (1<<idx[1])) !== 0;
+        if (a ^ b) sum += counts[m];
+      }
       else if (kind==='union'){ const need = idx.reduce((b,i)=> b | (1<<i), 0); if ((m & need) !== 0) sum += counts[m]; }
       else if (kind==='triple'){ const need=(1<<idx[0])|(1<<idx[1])|(1<<idx[2]); if ((m & need) === need) sum += counts[m]; }
     }
@@ -263,6 +280,11 @@
     if (kind==='single') return (maskBits & (1<<idx[0])) !== 0;
     if (kind==='pair')   return (maskBits & (1<<idx[0])) && (maskBits & (1<<idx[1]));
     if (kind==='diff')   return (maskBits & (1<<idx[0])) && !(maskBits & (1<<idx[1]));
+    if (kind==='sym'){   // NEW: XOR
+      const a = (maskBits & (1<<idx[0])) !== 0;
+      const b = (maskBits & (1<<idx[1])) !== 0;
+      return a ^ b;
+    }
     if (kind==='union'){ const need = idx.reduce((b,i)=> b | (1<<i), 0); return (maskBits & need) !== 0; }
     if (kind==='triple') return (maskBits & (1<<idx[0])) && (maskBits & (1<<idx[1])) && (maskBits & (1<<idx[2]));
     return false;
@@ -272,41 +294,78 @@
   function makeMask(kind, indices){
     if (!kind) return null;
     const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+    // Helper to create a blank offscreen canvas with same pixel dims as main canvas
+    const makeOff = () => {
+      const c = document.createElement('canvas');
+      c.width = canvas.width; c.height = canvas.height;
+      const g = c.getContext('2d');
+      g.setTransform(dpr,0,0,dpr,0,0);
+      return {c, g};
+    };
+
     const mask = document.createElement('canvas');
     mask.width = canvas.width; mask.height = canvas.height;
     const m = mask.getContext('2d');
     m.setTransform(dpr,0,0,dpr,0,0);
     m.clearRect(0,0,canvas.clientWidth, canvas.clientHeight);
     m.fillStyle = "#000";
-    const fillCircle = (i) => {
+
+    const fillCircle = (gc, i) => {
       const s = state.sets[i];
-      m.beginPath(); m.arc(pxX(s.x), pxY(s.y), s.r*S(), 0, Math.PI*2); m.closePath(); m.fill();
+      gc.beginPath(); gc.arc(pxX(s.x), pxY(s.y), s.r*S(), 0, Math.PI*2); gc.closePath(); gc.fill();
     };
 
     if (kind === 'single'){
-      fillCircle(indices[0]);
+      fillCircle(m, indices[0]);
+
     } else if (kind === 'pair'){
-      fillCircle(indices[0]);
+      fillCircle(m, indices[0]);
       m.globalCompositeOperation = 'destination-in';
-      fillCircle(indices[1]);
+      fillCircle(m, indices[1]);
+
     } else if (kind === 'diff'){
-      fillCircle(indices[0]);
+      fillCircle(m, indices[0]);
       m.globalCompositeOperation = 'destination-out';
-      fillCircle(indices[1]);
+      fillCircle(m, indices[1]);
+
+    } else if (kind === 'sym'){ // NEW: (A \ B) ∪ (B \ A)
+      // Build A\B
+      const {c: c1, g: g1} = makeOff();
+      g1.fillStyle = "#000";
+      fillCircle(g1, indices[0]);
+      g1.globalCompositeOperation = 'destination-out';
+      fillCircle(g1, indices[1]);
+
+      // Build B\A
+      const {c: c2, g: g2} = makeOff();
+      g2.fillStyle = "#000";
+      fillCircle(g2, indices[1]);
+      g2.globalCompositeOperation = 'destination-out';
+      fillCircle(g2, indices[0]);
+
+      // Combine onto mask
+      m.globalCompositeOperation = 'source-over';
+      m.drawImage(c1, 0, 0);
+      m.drawImage(c2, 0, 0);
+
     } else if (kind === 'triple'){
-      fillCircle(indices[0]);
+      fillCircle(m, indices[0]);
       m.globalCompositeOperation = 'destination-in';
-      fillCircle(indices[1]);
-      fillCircle(indices[2]);
+      fillCircle(m, indices[1]);
+      fillCircle(m, indices[2]);
+
     } else if (kind === 'outside'){
       m.fillRect(0,0,canvas.clientWidth, canvas.clientHeight);
       m.globalCompositeOperation = 'destination-out';
-      for (let i=0;i<state.sets.length;i++){ fillCircle(i); }
+      for (let i=0;i<state.sets.length;i++){ fillCircle(m, i); }
+
     } else if (kind === 'union'){
       m.globalCompositeOperation = 'source-over';
-      indices.forEach(i => fillCircle(i));
+      indices.forEach(i => fillCircle(m, i));
+
     } else if (kind === 'all'){
-      for (let i=0;i<state.sets.length;i++){ fillCircle(i); }
+      for (let i=0;i<state.sets.length;i++){ fillCircle(m, i); }
     }
     return mask;
   }
@@ -498,6 +557,8 @@
       desc = `Intersection **${id(hl.indices[0])} ∩ ${id(hl.indices[1])}** shared by **${name(hl.indices[0])}** and **${name(hl.indices[1])}**.`;
     } else if (hl.kind === 'diff'){
       desc = `Difference **${id(hl.indices[0])} \\ ${id(hl.indices[1])}** — in **${name(hl.indices[0])}** but not in **${name(hl.indices[1])}**.`;
+    } else if (hl.kind === 'sym'){
+      desc = `Symmetric difference **${id(hl.indices[0])} Δ ${id(hl.indices[1])}** — minerals in exactly one of the two sets (formula: **(A \\ B) ∪ (B \\ A)**).`;
     } else if (hl.kind === 'union'){
       const human = hl.indices.map(i => `${name(i)} (${id(i)})`).join(" or ");
       desc = `Union **${prettyExpr('union', hl.indices)}** — minerals in ${human}.`;
@@ -536,7 +597,7 @@
   }
 
   function updateRegionsAndTable(){
-    const { countsByMask, singles, pairs, diffs, unions2, triples, perElement, total } = memberships();
+    const { countsByMask, singles, pairs, diffs, syms, unions2, triples, perElement, total } = memberships();
     const n = state.sets.length;
     const outside = countsByMask[0];
 
@@ -609,6 +670,16 @@
       });
     }
 
+    // Symmetric differences (NEW)
+    if (syms.length){
+      addSubhead("Symmetric Differences (A Δ B)");
+      syms.forEach(({i,j,count}) => {
+        const a = state.sets[i], b = state.sets[j];
+        const dot = `<span class="dot" style="background:${mixColors([a.color,b.color])}"></span>`;
+        addRow(`${dot}<code>${a.id} Δ ${b.id}</code>`, count, "sym", [i,j]);
+      });
+    }
+
     // Unions
     if (unions2.length){
       addSubhead("Unions (A ∪ B)");
@@ -616,6 +687,16 @@
         const a = state.sets[i], b = state.sets[j];
         const dot = `<span class="dot" style="background:${mixColors([a.color,b.color])}"></span>`;
         addRow(`${dot}<code>${a.id} ∪ ${b.id}</code>`, count, "union", [i,j]);
+      });
+    }
+
+    // Triple intersections
+    if (triples.length){
+      addSubhead("Triple Intersections (A ∩ B ∩ C)");
+      triples.forEach(({i,j,k,count}) => {
+        const a = state.sets[i], b = state.sets[j], c = state.sets[k];
+        const dot = `<span class="dot" style="background:${mixColors([a.color,b.color,c.color])}"></span>`;
+        addRow(`${dot}<code>${a.id} ∩ ${b.id} ∩ ${c.id}</code>`, count, "triple", [i,j,k]);
       });
     }
 
