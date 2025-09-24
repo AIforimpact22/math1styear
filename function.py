@@ -1,9 +1,11 @@
 from __future__ import annotations
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Any, Tuple, Optional
-from flask import Blueprint, jsonify, render_template
+from typing import List, Dict, Any, Tuple
+from flask import Blueprint, jsonify, render_template, request
 
 function_bp = Blueprint("function", __name__)
+
+# -------- Geology-themed dataset: D = rock samples, E = mineral signatures --------
 
 @dataclass
 class Item:
@@ -11,38 +13,42 @@ class Item:
     label: str
 
 def _dataset() -> Dict[str, Any]:
-    # Simple 4×4 mapping in geology context
     domain: List[Item] = [
-        Item("S1", "Basalt"),
-        Item("S2", "Granite"),
-        Item("S3", "Limestone"),
-        Item("S4", "Gneiss"),
+        Item("S1", "Basalt (A)"),
+        Item("S2", "Granite (B)"),
+        Item("S3", "Limestone (C)"),
+        Item("S4", "Gneiss (D)"),
+        Item("S5", "Shale (E)"),
+        Item("S6", "Peridotite (F)"),
     ]
     codomain: List[Item] = [
         Item("C1", "Olivine‑rich"),
         Item("C2", "Feldspar‑dominant"),
         Item("C3", "Calcite‑dominant"),
         Item("C4", "Quartz‑rich"),
+        Item("C5", "Clay minerals"),
+        Item("C6", "Mafic oxides"),
     ]
 
-    # Target solution (bijective)
+    # Perfect bijection (reference solution)
     solution_pairs: List[Tuple[str, str]] = [
-        ("S1", "C1"),  # Basalt → Olivine‑rich
-        ("S2", "C2"),  # Granite → Feldspar‑dominant
-        ("S3", "C3"),  # Limestone → Calcite‑dominant
-        ("S4", "C4"),  # Gneiss → Quartz‑rich
+        ("S1", "C1"),
+        ("S2", "C2"),
+        ("S3", "C3"),
+        ("S4", "C4"),
+        ("S5", "C5"),
+        ("S6", "C6"),
     ]
 
-    # Deliberately imperfect starting map (not a function, not injective)
-    #   S1 → C2
-    #   S2 → C2   (collision)
-    #   S3 → C4
-    #   S4 → None (unassigned)
-    initial_pairs: List[Tuple[str, Optional[str]]] = [
-        ("S1", "C2"),
-        ("S2", "C2"),
-        ("S3", "C4"),
-        ("S4", None),
+    # Scrambled, intentionally wrong start (not total, not injective, not surjective)
+    initial_pairs: List[Tuple[str, str]] = [
+        ("S1", "C1"),
+        ("S2", "C1"),
+        ("S3", "C3"),
+        ("S4", "C5"),
+        ("S5", "C5"),
+        # S6 unmapped
+        # Unused targets will be C2, C4, C6
     ]
 
     return {
@@ -63,4 +69,6 @@ def function_home():
 
 @function_bp.route("/function/api/puzzle")
 def function_puzzle():
+    # Optional seed kept for future randomized datasets
+    _ = request.args.get("seed")
     return jsonify(_dataset())
