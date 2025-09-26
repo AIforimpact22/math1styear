@@ -1,11 +1,11 @@
 {% extends "index.html" %}
-{% block page_title %}Typing‑Based Assignment — Set Theory Minerals{% endblock %}
+{% block page_title %}Assignment 1 — Set Theory with Minerals{% endblock %}
 
 {% block controls %}
 <div class="controls" aria-label="Assignment controls">
   <a href="/" class="btn" target="_blank" rel="noopener">Open Set Theory Game</a>
-  <button id="btnGenerate" class="btn">Generate 10 Questions</button>
-  <button id="btnGrade" class="btn">Submit for Grading</button>
+  <button id="btnStart" class="btn">Start Assignment</button>
+  <button id="btnGrade" class="btn">Check & Grade</button>
   <button id="btnPdf" class="btn" disabled>Generate PDF</button>
 </div>
 {% endblock %}
@@ -14,57 +14,53 @@
 <section class="canvas-card" aria-label="Assignment form container">
   <style>
     .assign-wrap{ padding: 14px; }
-    .grid-2{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    @media (max-width: 980px){ .grid-2{ grid-template-columns: 1fr; } }
-
-    .id-card{ display:grid; gap:8px; background:#0f141c; border:1px solid #233040; border-radius:12px; padding:10px; }
+    .id-card{
+      display:grid; gap:8px; background:#0f141c; border:1px solid #233040; border-radius:12px; padding:10px;
+      margin-bottom: 10px;
+    }
     .id-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .id-row label{ min-width: 140px; color:#cbd7ea; }
     .id-row input[type="text"]{
       background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:8px 10px; border-radius:8px; width: 280px;
     }
-    .id-row select{
-      background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:8px 10px; border-radius:8px; width: 220px;
-    }
+
+    .rule-card{ background: var(--card); border:1px solid #233040; border-radius:14px; padding:12px; margin-bottom:10px; }
+    .rule-card h3{ margin:0 0 6px; font-size:14px; color:#cbd7ea; }
+    .rule-card ul{ margin:6px 0 0 18px; color:#d7e6ff; }
 
     .q-card{
-      background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px; margin-top:12px;
+      background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px; margin-top:10px;
     }
     .q-card h4{ margin:0 0 6px; font-size:14px; color:#cbd7ea; }
     .q-text{ color:#d7e6ff; margin: 4px 0 8px; white-space: pre-wrap; }
     .q-card textarea{
       background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:10px; border-radius:8px; width:100%;
-      min-height: 120px;
+      min-height: 110px;
     }
-
-    .rule-card{ background: var(--card); border:1px solid #233040; border-radius:14px; padding:12px; margin-top:12px; }
-    .rule-card h3{ margin:0 0 6px; font-size:14px; color:#cbd7ea; }
-    .rule-card ul{ margin:6px 0 0 18px; color:#d7e6ff; }
 
     .score{
       display:flex; align-items:center; gap:8px; padding:2px 6px; border-radius:10px;
       background: rgba(14,21,35,0.6); border:1px solid #223045; margin-top: 10px;
     }
-    .score .bar{ width:200px; height:8px; border:1px solid #263243; background:#0e1523; border-radius:999px; overflow:hidden; }
+    .score .bar{ width:230px; height:8px; border:1px solid #263243; background:#0e1523; border-radius:999px; overflow:hidden; }
     .score .fill{ height:100%; width:0%; background: linear-gradient(90deg, #16a34a, #22c55e); }
-    .passpill{ display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #223045; background:#0e1523; color:#a7b8cc; }
+    .pill{ display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #223045; background:#0e1523; color:#a7b8cc; }
 
     .perq{ display:grid; gap:6px; margin-top:8px; }
     .perq .item{ display:flex; justify-content:space-between; gap:8px; border:1px dashed #2a394e; border-radius:10px; padding:6px 8px; }
     .good{ color:#34d399; font-weight:700; }
     .bad{ color:#ef4444; font-weight:700; }
 
-    /* Print styling */
     @media print {
       header, .controls { display:none !important; }
       body { background: #fff; }
-      .canvas-card{ border: none; }
       .q-card{ page-break-inside: avoid; }
       .rule-card{ page-break-inside: avoid; }
     }
   </style>
 
   <div class="assign-wrap">
+    <!-- 1) Identity -->
     <div class="id-card">
       <div class="id-row">
         <label for="studentName">Student Name</label>
@@ -74,67 +70,41 @@
         <label for="neptun">Neptun Code</label>
         <input type="text" id="neptun" placeholder="ABC123" maxlength="6" pattern="[A-Za-z0-9]{6}" required />
       </div>
-      <div class="id-row">
-        <label for="language">Preferred Answer Language</label>
-        <select id="language">
-          <option>English</option>
-          <option>Hungarian</option>
-          <option>Kurdish (Kurmanji)</option>
-          <option>Arabic</option>
-          <option>German</option>
-          <option>French</option>
-          <option>Turkish</option>
-          <option>Spanish</option>
-        </select>
-      </div>
     </div>
 
+    <!-- 2) Short instruction -->
     <div class="rule-card">
-      <h3>Instructions</h3>
+      <h3>Instruction</h3>
       <ul>
-        <li>Click <strong>Generate 10 Questions</strong>. Your questions are personalized (different for each student).</li>
-        <li>Open the <strong>Set Theory Minerals Game</strong>, explore regions (∩, ∪, \, Δ, triple, outside) and write your answers in your chosen language.</li>
-        <li>Click <strong>Submit for Grading</strong>. You must score <strong>≥ 70%</strong> to unlock the PDF.</li>
-        <li>Click <strong>Generate PDF</strong> and then <em>upload the PDF</em> to the <u>University learning system</u> under the same assignment.</li>
+        <li>Use the <strong>Set Theory Minerals Game</strong> to think about regions (∩, ∪, \, Δ, triple, outside).</li>
+        <li>Answer each question in 2–5 sentences. You may write in <em>any language</em>.</li>
+        <li>Click <strong>Start Assignment</strong> to load your 10 personalized questions.</li>
+        <li>When done, click <strong>Check & Grade</strong> for instant feedback. If your score is <strong>≥ 70%</strong>, you can <strong>Generate PDF</strong> and then <strong>upload it</strong> to the University learning system under this assignment.</li>
       </ul>
     </div>
 
+    <!-- 3) Questions -->
     <div id="questionsBox"></div>
 
+    <!-- 4) Bottom: Grading & feedback -->
     <div class="q-card" id="gradingBox" style="display:none;">
-      <h4>Grading Result</h4>
+      <h4>Grading</h4>
       <div class="score">
         <span id="scoreText">Score: 0%</span>
         <div class="bar"><div id="scoreFill" class="fill"></div></div>
-        <span id="passPill" class="passpill">—</span>
+        <span id="passPill" class="pill">—</span>
       </div>
       <div class="perq" id="perQuestion"></div>
       <div class="rule-card" style="margin-top:10px;">
         <h3>Summary</h3>
         <div id="summaryText" class="q-text">—</div>
       </div>
-    </div>
-
-    <div class="rule-card">
-      <strong>Reminder:</strong> After generating the PDF, <u>upload it to the University learning system</u> under this assignment.
-    </div>
-  </div>
-</section>
-
-<!-- Right: concise help -->
-<aside>
-  <div>
-    <h2>Quick Help</h2>
-    <div class="sets-top">
-      <div class="badge">Universe: <strong>Typing‑Based Assignment</strong></div>
-      <div class="tips">
-        <div class="pill" style="margin:6px 0;">Tip</div>
-        <div>Use the game’s right panel to highlight regions and reason about minerals in those regions.</div>
-        <div>Δ is symmetric difference: <code>A Δ B = (A \ B) ∪ (B \ A)</code>.</div>
+      <div class="rule-card" style="margin-top:10px;">
+        <strong>Submission:</strong> After generating your PDF, please <u>upload it to the University learning system</u> under this assignment.
       </div>
     </div>
   </div>
-</aside>
+</section>
 {% endblock %}
 
 {% block scripts %}
@@ -142,22 +112,24 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
+  const btnStart = $("btnStart");
+  const btnGrade = $("btnGrade");
+  const btnPdf   = $("btnPdf");
+
   const questionsBox = $("questionsBox");
   const gradingBox = $("gradingBox");
   const scoreText = $("scoreText");
   const scoreFill = $("scoreFill");
-  const passPill = $("passPill");
+  const passPill  = $("passPill");
   const perQuestion = $("perQuestion");
   const summaryText = $("summaryText");
-  const btnGenerate = $("btnGenerate");
-  const btnGrade = $("btnGrade");
-  const btnPdf = $("btnPdf");
 
-  let currentQuestions = [];   // [{id,text}]
-  let currentSeed = "";
+  let currentQuestions = []; // [{id,text}]
   let gradingResult = null;
 
-  // Build 10 editable blocks
+  // Helpers
+  function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
   function renderQuestions(list){
     questionsBox.innerHTML = "";
     list.forEach(q => {
@@ -166,51 +138,75 @@
       card.innerHTML = `
         <h4>${q.id}</h4>
         <div class="q-text">${escapeHtml(q.text)}</div>
-        <textarea id="ans_${q.id}" placeholder="Type your answer here (any language)."></textarea>
+        <textarea id="ans_${q.id}" placeholder="Type your answer (2–5 sentences). Any language is ok."></textarea>
       `;
       questionsBox.appendChild(card);
     });
+    // Autosave restore (if any)
+    list.forEach(q => {
+      const key = saveKey(q.id);
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const ta = document.getElementById(`ans_${q.id}`);
+        if (ta) ta.value = saved;
+      }
+    });
   }
 
-  // Escape simple HTML
-  function escapeHtml(s){
-    return (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function saveKey(qid){ 
+    const name = ($("studentName").value || "").trim();
+    const neptun = ($("neptun").value || "").trim().toUpperCase();
+    return `assign1:${neptun}:${name}:${qid}`;
   }
 
-  // Generate
-  btnGenerate.addEventListener("click", async () => {
+  function autosaveWire(list){
+    list.forEach(q => {
+      const ta = document.getElementById(`ans_${q.id}`);
+      if (!ta) return;
+      ta.addEventListener("input", () => {
+        localStorage.setItem(saveKey(q.id), ta.value);
+      });
+    });
+  }
+
+  // Start / Generate
+  btnStart.addEventListener("click", async () => {
     const name = $("studentName").value.trim();
     const neptun = $("neptun").value.trim().toUpperCase();
-    const language = $("language").value;
-    if (!name || !neptun || !/^[A-Za-z0-9]{6}$/.test(neptun)){
-      alert("Please enter your Name and a valid 6‑character Neptun code.");
+    if (!name){
+      alert("Please enter your name.");
       return;
     }
-    btnGenerate.disabled = true;
-    btnGenerate.textContent = "Generating…";
+    if (!/^[A-Za-z0-9]{6}$/.test(neptun)){
+      alert("Please enter a valid 6-character Neptun code (letters/numbers).");
+      return;
+    }
+    btnStart.disabled = true;
+    btnStart.textContent = "Loading…";
     try {
       const r = await fetch("/assignment/api/generate", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ name, neptun, language })
+        body: JSON.stringify({ name, neptun })
       });
       const data = await r.json();
-      currentQuestions = data.questions || [];
-      currentSeed = data.seed || "";
-      if (!currentQuestions.length){
-        alert("No questions returned. Please try again.");
+      if (data.error){
+        alert(data.error);
         return;
       }
+      currentQuestions = data.questions || [];
       renderQuestions(currentQuestions);
+      autosaveWire(currentQuestions);
       gradingBox.style.display = "none";
       gradingResult = null;
       btnPdf.disabled = true;
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     } catch (e){
       console.error(e);
-      alert("Generation failed.");
+      alert("Could not load questions. Please try again.");
     } finally {
-      btnGenerate.disabled = false;
-      btnGenerate.textContent = "Generate 10 Questions";
+      btnStart.disabled = false;
+      btnStart.textContent = "Start Assignment";
     }
   });
 
@@ -218,9 +214,8 @@
   btnGrade.addEventListener("click", async () => {
     const name = $("studentName").value.trim();
     const neptun = $("neptun").value.trim().toUpperCase();
-    const language = $("language").value;
     if (!currentQuestions.length){
-      alert("Generate questions first.");
+      alert("Please click Start Assignment first.");
       return;
     }
     const qa = currentQuestions.map(q => ({
@@ -228,38 +223,32 @@
       question: q.text,
       answer: (document.getElementById(`ans_${q.id}`)?.value || "").trim()
     }));
-    const empty = qa.find(x => !x.answer);
-    if (empty){
-      if (!confirm("Some answers are empty. Submit anyway?")) return;
-    }
-
     btnGrade.disabled = true;
     btnGrade.textContent = "Grading…";
     try {
       const r = await fetch("/assignment/api/grade", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({
-          name, neptun, language, seed: currentSeed, qa
-        })
+        body: JSON.stringify({ name, neptun, qa })
       });
       const data = await r.json();
       gradingResult = data;
       showGrading(data);
+      gradingBox.style.display = "block";
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     } catch (e){
       console.error(e);
-      alert("Grading failed.");
+      alert("Grading failed. Please try again.");
     } finally {
       btnGrade.disabled = false;
-      btnGrade.textContent = "Submit for Grading";
+      btnGrade.textContent = "Check & Grade";
     }
   });
 
   function showGrading(res){
-    gradingBox.style.display = "block";
     const pct = res.overall_pct || 0;
     scoreText.textContent = `Score: ${pct}%`;
-    scoreFill.style.width = `${Math.max(0, Math.min(100,pct))}%`;
+    scoreFill.style.width = `${Math.max(0,Math.min(100,pct))}%`;
     passPill.textContent = pct >= 70 ? "PASS (≥ 70%)" : "REVISE (< 70%)";
     passPill.style.color = pct >= 70 ? "#a8f0c4" : "#ffb4bf";
     passPill.style.background = pct >= 70 ? "#11281f" : "#2a1115";
@@ -271,27 +260,26 @@
       div.className = "item";
       div.innerHTML = `
         <span><strong>${item.id}</strong></span>
-        <span class="${item.score >= 7 ? 'good':'bad'}">${item.score}/10</span>
+        <span class="${item.score>=7 ? 'good':'bad'}">${item.score}/10</span>
       `;
       perQuestion.appendChild(div);
     });
     summaryText.textContent = res.summary || "—";
 
-    // Unlock PDF if pass
-    $("btnPdf").disabled = !(pct >= 70);
+    btnPdf.disabled = !(pct >= 70);
   }
 
   // PDF (print)
   $("btnPdf").addEventListener("click", () => {
     if (!gradingResult || (gradingResult.overall_pct||0) < 70){
-      alert("You must achieve ≥ 70% before generating the PDF.");
+      alert("You must score ≥ 70% to generate the PDF.");
       return;
     }
     const name = $("studentName").value.trim();
     const neptun = $("neptun").value.trim().toUpperCase();
     const today = new Date().toISOString().slice(0,10);
 
-    // Inject a printable header
+    // Inject printable header
     const hdr = document.createElement("div");
     hdr.id = "printHeader";
     hdr.style.padding = "8px 16px";
@@ -300,12 +288,11 @@
     hdr.style.fontSize = "13px";
     hdr.style.background = "#0e1523";
     hdr.style.color = "#cfe0ff";
-    hdr.innerHTML = `<strong>Typing‑Based Assignment — Set Theory Minerals</strong> | Name: ${escapeHtml(name)} | Neptun: ${escapeHtml(neptun)} | Date: ${today} | Score: ${gradingResult.overall_pct}%<br><em>Upload this PDF to the University learning system under the same assignment.</em>`;
+    hdr.innerHTML = `<strong>Assignment 1 — Set Theory with Minerals</strong> | Name: ${escapeHtml(name)} | Neptun: ${escapeHtml(neptun)} | Date: ${today} | Score: ${gradingResult.overall_pct}%<br><em>Upload this PDF to the University learning system under the same assignment.</em>`;
     document.body.prepend(hdr);
 
     const originalTitle = document.title;
-    document.title = `SetTheory_Typing_Assignment_${neptun}_${name.replace(/\s+/g,'_')}`;
-
+    document.title = `Assignment1_SetTheory_${neptun}_${name.replace(/\s+/g,'_')}`;
     window.print();
 
     // Cleanup
@@ -313,6 +300,8 @@
     hdr.remove();
   });
 
+  // Minor UX: uppercase Neptun as they type
+  $("neptun").addEventListener("input", e => e.target.value = e.target.value.toUpperCase());
 })();
 </script>
 {% endblock %}
