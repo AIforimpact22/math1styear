@@ -1,56 +1,47 @@
 from __future__ import annotations
 import os, json, time, hashlib, random
-from dataclasses import dataclass
 from typing import List, Dict, Any
 from flask import Blueprint, render_template, request, jsonify
 
-# Optional: use OpenAI official client if available; else fall back to requests
+assignment_bp = Blueprint("assignment", __name__)
+
+# ============== CONFIG ==============
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+MODEL_GRADING   = os.environ.get("ASSIGNMENT_GRADING_MODEL", "gpt-4o-mini")
+
 USE_OFFICIAL = True
 try:
-    from openai import OpenAI  # pip install openai
+    from openai import OpenAI   # pip install openai
 except Exception:
     USE_OFFICIAL = False
 import requests
-
-assignment_bp = Blueprint("assignment", __name__)
-
-# --------------------------
-# Config
-# --------------------------
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
-MODEL_QUESTIONS = os.environ.get("ASSIGNMENT_QUESTION_MODEL", "gpt-4o-mini")
-MODEL_GRADING   = os.environ.get("ASSIGNMENT_GRADING_MODEL", "gpt-4o-mini")
 
 def _client():
     if not OPENAI_API_KEY:
         return None
     if USE_OFFICIAL:
         return OpenAI(api_key=OPENAI_API_KEY)
-    return None  # we'll call via requests if not official
+    return None
 
-def _chat_request(model: str, system_prompt: str, user_prompt: str, response_format: str | None = None) -> str:
-    """
-    Performs a chat request and returns the assistant content (string).
-    If official client not installed, uses HTTPS requests fallback.
-    """
+def _chat_request(model: str, system_prompt: str, user_prompt: str) -> str:
+    """Returns assistant content (JSON string)."""
     if not OPENAI_API_KEY:
         raise RuntimeError("Missing OPENAI_API_KEY")
 
     if USE_OFFICIAL:
         client = _client()
-        # Prefer Chat Completions for wide compatibility
         resp = client.chat.completions.create(
             model=model,
+            temperature=0.4,
+            response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.6,
-            response_format={"type": "json_object"} if response_format == "json" else None,
+            ]
         )
         return resp.choices[0].message.content
 
-    # Fallback: raw HTTPS
+    # Fallback HTTP
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {OPENAI_API_KEY}",
@@ -58,205 +49,202 @@ def _chat_request(model: str, system_prompt: str, user_prompt: str, response_for
     }
     payload = {
         "model": model,
-        "temperature": 0.6,
+        "temperature": 0.4,
+        "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
-        ],
+        ]
     }
-    if response_format == "json":
-        payload["response_format"] = {"type": "json_object"}
-
     r = requests.post(url, headers=headers, data=json.dumps(payload), timeout=60)
     r.raise_for_status()
     data = r.json()
     return data["choices"][0]["message"]["content"]
 
-# --------------------------
-# Helper: safe JSON parse
-# --------------------------
 def _safe_json(text: str) -> Any:
     try:
         return json.loads(text)
     except Exception:
-        # Try stripping code fences if present
-        t = text.strip()
+        t = (text or "").strip()
         if t.startswith("```"):
             t = t.strip("`")
-            # remove "json" language tag if any
             parts = t.split("\n", 1)
             if len(parts) == 2:
                 t = parts[1]
         return json.loads(t)
 
-# --------------------------
-# Routes
-# --------------------------
+# ============== DATA (example-aligned) ==============
+SET_LABELS = {
+    "I": "Igneous",
+    "S": "Sedimentary",
+    "M": "Metamorphic",
+}
+PAIRS = [("I","S"), ("I","M"), ("S","M")]
+
+# Minerals by canonical region (from your example)
+REG_MINERALS = {
+    "I": ["Olivine","Pyroxene","Plagioclase Feldspar","Amphibole","Biotite","Ilmenite"],
+    "S": ["Gypsum","Halite","Kaolinite","Opal","Galena","Hematite"],
+    "M": ["Garnet","Kyanite","Staurolite","Sillimanite","Chlorite","Graphite"],
+    "I∩S": ["Zeolite"],
+    "I∩M": ["Serpentine","Hornblende","Muscovite"],
+    "S∩M": ["Calcite","Dolomite","Talc"],
+    "I∩S∩M": ["Quartz"],
+    "outside": [],  # left empty on purpose (students can propose ideas)
+}
+
+# Question templates: short, simple, concept-check focused.
+TEMPLATES = [
+    # 1: Define a set + give example
+    lambda rng, A, B: {
+        "text": f"In your own words, what does set {A} ({SET_LABELS[A]}) represent in the game? "
+                f"Give one example mineral that typically belongs to {A}."
+    },
+    # 2: Intersection
+    lambda rng, A, B: {
+        "text": f"Explain the intersection {A} ∩ {B}. Name one mineral that could lie in {A} ∩ {B} and say why."
+    },
+    # 3: Difference
+    lambda rng, A, B: {
+        "text": f"Explain the difference {A} \\ {B} in geology terms. Give one example mineral you expect in {A} but not in {B}."
+    },
+    # 4: Symmetric difference
+    lambda rng, A, B: {
+        "text": f"What does the symmetric difference {A} Δ {B} capture? "
+                f"Give one mineral that would be included in {A} Δ {B} and one that would be excluded; justify briefly."
+    },
+    # 5: Union
+    lambda rng, A, B: {
+        "text": f"What does the union {A} ∪ {B} represent? Give one mineral only in {A} and one only in {B}."
+    },
+    # 6: Triple intersection
+    lambda rng, A, B: {
+        "text": f"What does the triple intersection I ∩ S ∩ M represent? Use Quartz as your example."
+    },
+    # 7: Outside / complement
+    lambda rng, A, B: {
+        "text": "What is the 'Outside all sets' region U \\ (I ∪ S ∪ M)? "
+                "Provide one plausible mineral/material that might fall outside and explain."
+    },
+    # 8: Named example from S∩M
+    lambda rng, A, B: {
+        "text": "Calcite is placed in S ∩ M in our example. Explain in 2–3 sentences why this makes sense geologically."
+    },
+    # 9: Write a sentence with notation
+    lambda rng, A, B: {
+        "text": f"If a mineral belongs to {B} but not {A}, write a one‑sentence statement using set notation and "
+                f"give one example from the game you think fits."
+    },
+    # 10: Compare ∩ and Δ
+    lambda rng, A, B: {
+        "text": f"Compare {A} ∩ {B} vs {A} Δ {B} in your own words. When would you use each to reason about minerals?"
+    },
+    # 11: Named example from I∩S
+    lambda rng, A, B: {
+        "text": "Does Zeolite belong to I ∩ S in the example? Answer in 1–2 sentences and justify."
+    },
+    # 12: Free pick mapping
+    lambda rng, A, B: {
+        "text": "Pick any mineral from the game and state which of {I,S,M} it belongs to (possibly multiple). "
+                "Justify briefly in geology terms."
+    },
+]
+
+def _seed_from_identity(name: str, neptun: str) -> int:
+    today = time.strftime("%Y-%m-%d")
+    key = f"{name}|{neptun}|{today}"
+    h = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+    return int(h, 16) % (2**31 - 1)
+
+def _gen_questions(name: str, neptun: str) -> Dict[str, Any]:
+    rng = random.Random(_seed_from_identity(name, neptun))
+    # Select 10 different templates
+    chosen_idx = rng.sample(range(len(TEMPLATES)), 10)
+    # For each, choose a pair (A,B) for those that need it
+    def pick_pair():
+        return rng.choice(PAIRS)
+    qlist = []
+    for i, ti in enumerate(chosen_idx, start=1):
+        A, B = pick_pair()
+        q = TEMPLATES[ti](rng, A, B)
+        qlist.append({"id": f"Q{i:02d}", "text": q["text"]})
+    return {"seed": str(_seed_from_identity(name, neptun)), "questions": qlist}
+
+# ============== ROUTES ==============
 @assignment_bp.route("/assignment")
 def assignment_home():
     return render_template("assignment.html")
 
 @assignment_bp.route("/assignment/api/generate", methods=["POST"])
 def assignment_generate():
-    """
-    Input JSON: { "name": "...", "neptun": "...", "language": "English|Hungarian|..." }
-    Output JSON: { "seed": "...", "questions": [{"id":"Q1","text":"..."}, ...] }
-    """
     data = request.get_json(force=True, silent=True) or {}
     name = (data.get("name") or "").strip()
     neptun = (data.get("neptun") or "").strip().upper()
-    language = (data.get("language") or "English").strip()
-
-    # unique-ish seed: hash of neptun + today's date
-    today = time.strftime("%Y-%m-%d")
-    seed_str = f"{neptun}|{today}|{random.randint(1000,9999)}"
-    seed_hash = hashlib.sha256(seed_str.encode("utf-8")).hexdigest()[:12]
-
-    # If API key missing, provide a deterministic fallback set (still unique-ish)
-    if not OPENAI_API_KEY:
-        random.seed(seed_hash)
-        qs = [
-            {"id": f"Q{i+1}",
-             "text": f"[{language}] Describe, in 3–5 sentences, how you would use the Set Theory Minerals game to analyze {random.choice(['I Δ S','I ∩ M','S ∩ M','U \\ (I ∪ S ∪ M)','I \\ (S ∪ M)'])} for a chosen mineral. Explain your reasoning."}
-            for i in range(10)
-        ]
-        return jsonify({"seed": seed_hash, "questions": qs})
-
-    # Build prompt for GPT to emit JSON questions
-    system_prompt = (
-        "You are an educational content generator. "
-        "You will produce exactly 10 open-ended, typing-only assignment questions in JSON. "
-        "Context: A student will use an interactive Venn diagram game with sets I (Igneous), S (Sedimentary), M (Metamorphic); "
-        "the game supports intersections (∩), differences (\\), symmetric differences (Δ), unions (∪), triple intersection, outside (complement). "
-        "Questions must require descriptive reasoning about regions, not just numeric counts. "
-        "Ensure at least 3 questions explicitly involve Δ, 1 involves the triple intersection, and 1 involves outside/complement. "
-        "Students can write in any language; the instructor provides a preferred language. "
-        "Return strict JSON with keys: questions:[{id:'Q1'..'Q10', text:'...'}]. No extra commentary."
-    )
-
-    user_prompt = f"""
-Preferred language: {language}
-Uniqueness token (seed): {seed_hash}
-Student: {name or 'Anonymous'} / Neptun: {neptun or 'UNKNOWN'}
-
-Constraints:
-- 10 items, ids Q1..Q10
-- Each requires a multi-sentence written description (2–6 sentences).
-- Reference geology context and the specific regions they must reason about in the game.
-- Avoid asking for uploads; screenshots optional wording is allowed once at most.
-- No solutions. No rubric in output. JSON only.
-- Use set symbols (∩, ∪, \\ , Δ, U) where relevant.
-JSON only, structure:
-{{
-  "questions": [
-    {{ "id": "Q1", "text": "..." }},
-    ...
-    {{ "id": "Q10", "text": "..." }}
-  ]
-}}
-    """.strip()
-
-    try:
-        content = _chat_request(MODEL_QUESTIONS, system_prompt, user_prompt, response_format="json")
-        obj = _safe_json(content)
-        questions = obj.get("questions", [])
-        # Basic sanity
-        if not isinstance(questions, list) or len(questions) != 10:
-            raise ValueError("Model did not return 10 questions.")
-        for i, q in enumerate(questions, 1):
-            q["id"] = f"Q{i}"
-        return jsonify({"seed": seed_hash, "questions": questions})
-    except Exception as e:
-        # Fallback deterministic list on any error
-        random.seed(seed_hash)
-        qs = [
-            {"id": f"Q{i+1}",
-             "text": f"[{language}] Explain, in 2–5 sentences, insights from highlighting {random.choice(['I Δ S','I Δ M','S Δ M','I ∩ S','I ∩ S ∩ M','U \\ (I ∪ S ∪ M)'])} "
-                     f"for two minerals of your choice. Link the region to geology."}
-            for i in range(10)
-        ]
-        return jsonify({"seed": seed_hash, "questions": qs, "warning": "fallback_used"})
+    if not name or not neptun:
+        return jsonify({"error": "Missing name or Neptun code"}), 400
+    return jsonify(_gen_questions(name, neptun))
 
 @assignment_bp.route("/assignment/api/grade", methods=["POST"])
 def assignment_grade():
     """
     Input JSON:
-    {
-      "name": "...", "neptun": "...",
-      "language": "English|...",
-      "seed": "...",
-      "qa": [{"id":"Q1","question":"...","answer":"..."} ...]  # 10 items
-    }
+    { "name":"...", "neptun":"...", "qa":[{"id":"Q01","question":"...","answer":"..."}] }
     Output JSON:
     {
-      "per_question":[{"id":"Q1","score":0-10,"feedback":"..."}...],
-      "overall_pct": 0-100,
-      "pass": true|false,
-      "summary":"..."
+      "per_question":[{"id":"Q01","score":0-10,"feedback":"..."}],
+      "overall_pct":0-100,"pass":true/false,"summary":"..."
     }
     """
     data = request.get_json(force=True, silent=True) or {}
     name = (data.get("name") or "").strip()
     neptun = (data.get("neptun") or "").strip().upper()
-    language = (data.get("language") or "English").strip()
     qa = data.get("qa") or []
 
-    # If no key, do a simple length-based heuristic (safe fallback).
-    if not OPENAI_API_KEY:
-        perq = []
-        total = 0
+    # If no key: heuristic fallback (length + symbols)
+    if not OPENAI_API_KEY or not qa:
+        perq, total = [], 0
         for item in qa:
             ans = (item.get("answer") or "").strip()
-            # crude heuristic: 0..10 based on length & presence of set symbols
-            base = min(10, max(0, len(ans)//120))
-            bonus = 1 if any(sym in ans for sym in ["∩","∪","\\","Δ","U"]) else 0
-            score = min(10, base + bonus)
+            # Base on length (roughly 2–6 sentences)
+            base = min(10, max(0, len(ans)//160))
+            # Bonus if uses set symbols or names
+            bonus = 0
+            if any(sym in ans for sym in ["∩","∪","\\","Δ","U"]): bonus += 1
+            if any(s in ans for s in ["Igneous","Sedimentary","Metamorphic","I ","S ","M "]): bonus += 1
+            score = max(0, min(10, base + bonus))
             total += score
-            perq.append({"id": item.get("id","?"), "score": score, "feedback": "Heuristic scoring (offline)."})
+            perq.append({"id": item.get("id","?"), "score": score, "feedback": "Heuristic grading used (offline)."})
         overall = round(total / (len(qa) * 10) * 100) if qa else 0
         return jsonify({
             "per_question": perq,
             "overall_pct": overall,
             "pass": overall >= 70,
-            "summary": "Offline grading fallback — install/openai and set OPENAI_API_KEY for rubric-based grading."
+            "summary": "Offline heuristic result. For rubric-based feedback, set OPENAI_API_KEY."
         })
 
-    # GPT-based grading
+    # GPT grading
     system_prompt = (
-        "You are a strict but fair grader for open-ended set-theory tasks in geology context. "
-        "Grade 10 answers (Q1..Q10) that reference an interactive Venn diagram with sets I,S,M and operations ∩, ∪, \\ , Δ, outside U. "
-        "Use the rubric: clarity (3), correctness of set reasoning (4), geology context linkage (3) = total 10 points per question. "
-        "Be concise in feedback (1–2 sentences). Return strict JSON only."
+        "You are a concise grader for short, open-ended answers about basic set relations in a geology-themed Venn diagram. "
+        "Sets: I (Igneous), S (Sedimentary), M (Metamorphic). Relations: ∩, ∪, \\ , Δ, outside U, triple intersection. "
+        "Accept ANY language. Grade each answer 0–10 using this rubric:\n"
+        "  - Clarity & relevance (0–3)\n"
+        "  - Correct set-theory reasoning (0–4)\n"
+        "  - Geology linkage (0–3)\n"
+        "Be brief in feedback (1 sentence). Return strict JSON with keys "
+        "{per_question:[{id,score,feedback}], overall_pct, pass, summary}."
     )
-
-    # Build a compact user prompt
-    payload = {
-        "language": language,
+    user_payload = {
         "student": {"name": name, "neptun": neptun},
-        "qa": [{"id": item.get("id","?"),
-                "question": (item.get("question") or "")[:600],
-                "answer": (item.get("answer") or "")[:4000]} for item in qa]
+        "qa": [{"id": it.get("id","?"),
+                "question": (it.get("question") or "")[:400],
+                "answer": (it.get("answer") or "")[:4000]} for it in qa]
     }
-    user_prompt = json.dumps({
-        "grade_request": payload,
-        "return_format": {
-            "per_question": [{"id": "Q1", "score": 0, "feedback": "short sentence"}],
-            "overall_pct": 0,
-            "pass": True,
-            "summary": "1–2 sentences"
-        }
-    }, ensure_ascii=False)
-
     try:
-        content = _chat_request(MODEL_GRADING, system_prompt, user_prompt, response_format="json")
+        content = _chat_request(MODEL_GRADING, system_prompt, json.dumps(user_payload, ensure_ascii=False))
         obj = _safe_json(content)
         perq = obj.get("per_question", [])
-        overall = int(obj.get("overall_pct", 0))
-        passed = bool(obj.get("pass", overall >= 70))
-        summary = obj.get("summary", "")
-        # Safety clamps
-        clean = []
-        total = 0
+        # Sanitize and compute overall if needed
+        total, clean = 0, []
         for item in perq:
             sid = item.get("id","?")
             sc = int(item.get("score", 0))
@@ -264,31 +252,31 @@ def assignment_grade():
             fb = (item.get("feedback") or "").strip()
             total += sc
             clean.append({"id": sid, "score": sc, "feedback": fb})
-        if not perq and qa:
-            # compute from total if needed
-            overall = round(total / (len(qa) * 10) * 100)
-            passed = overall >= 70
+        overall = obj.get("overall_pct")
+        if overall is None:
+            overall = round(total / (len(clean) * 10) * 100) if clean else 0
+        passed = bool(obj.get("pass", overall >= 70))
+        summary = obj.get("summary", "—")
         return jsonify({
             "per_question": clean,
-            "overall_pct": overall,
+            "overall_pct": int(overall),
             "pass": passed,
             "summary": summary
         })
-    except Exception as e:
-        # Fall back to heuristic if GPT fails
-        perq = []
-        total = 0
+    except Exception:
+        # Fallback if API fails
+        perq, total = [], 0
         for item in qa:
             ans = (item.get("answer") or "").strip()
-            base = min(10, max(0, len(ans)//120))
+            base = min(10, max(0, len(ans)//160))
             bonus = 1 if any(sym in ans for sym in ["∩","∪","\\","Δ","U"]) else 0
-            score = min(10, base + bonus)
+            score = max(0, min(10, base + bonus))
             total += score
-            perq.append({"id": item.get("id","?"), "score": score, "feedback": "Heuristic scoring (API error fallback)."})
+            perq.append({"id": item.get("id","?"), "score": score, "feedback": "Heuristic grading (API error)."})
         overall = round(total / (len(qa) * 10) * 100) if qa else 0
         return jsonify({
             "per_question": perq,
             "overall_pct": overall,
             "pass": overall >= 70,
-            "summary": "API error fallback — heuristic scoring used."
+            "summary": "Heuristic used due to API error."
         })
