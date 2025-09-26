@@ -178,7 +178,6 @@
     table{ width:100%; border-collapse: collapse; border:1px solid #233040; border-radius: 10px; overflow:hidden; }
     thead th{ background:#0d1320; color:#9fb2c7; font-weight:600; font-size:12px; padding:8px; text-align:left; border-bottom:1px solid #233040; }
     tbody td{ border-bottom:1px solid #1e2a3a; padding:6px 8px; font-size:13px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
-    tbody tr:hover{ background:#0f141c; }
 
     .ok{ color: var(--good); font-weight: 700; }
     .bad{ color: var(--bad); font-weight: 700; }
@@ -252,6 +251,10 @@
       <a class="nav-link" href="/sets" data-match="^/sets(/.*)?$">
         <span class="nav-ico">⭕</span><span>Set Theory</span>
       </a>
+      <!-- NEW: Relations link -->
+      <a class="nav-link" href="/relations" data-match="^/relations(/.*)?$">
+        <span class="nav-ico">🧭</span><span>Relations & Functions</span>
+      </a>
       <a class="nav-link" href="/assignment" data-match="^/assignment(/.*)?$">
         <span class="nav-ico">📝</span><span>Assignment 1</span>
       </a>
@@ -273,8 +276,9 @@
       <section class="home-card">
         <h2 style="margin:0 0 6px;">Welcome</h2>
         <p style="margin:0; color:#a9b8cc;">
-          Choose a page from the left: <strong>Set Theory</strong> (interactive Venn with minerals) or
-          <strong>Assignment 1</strong> (fill answers and generate a PDF with your Name &amp; Neptun).
+          Choose a page on the left: <strong>Set Theory</strong> (interactive Venn with minerals),
+          <strong>Relations & Functions</strong> (fossils → beds → environments, with live checks),
+          or <strong>Assignment 1</strong> (type answers, instant feedback, PDF export with Name &amp; Neptun).
         </p>
         <div class="home-grid" style="margin-top:12px;">
           <div class="home-tile">
@@ -282,14 +286,21 @@
             <p>Drag circles &amp; minerals. Explore <em>∩</em>, <em>∪</em>, <em>\</em>, <em>Δ</em>, complement. Click rows to highlight regions.</p>
             <p style="margin-top:8px;"><a class="btn" href="/sets">Open Set Theory →</a></p>
           </div>
+          <!-- NEW: Relations tile -->
+          <div class="home-tile">
+            <h3>Relations &amp; Functions (Fossils)</h3>
+            <p>Build relations and functions with fossils → beds → environments; learn reflexive/symmetric/transitive, partial order, injective/surjective/bijective, composition, inverse — all visually.</p>
+            <p style="margin-top:8px;"><a class="btn" href="/relations">Open Relations &amp; Functions →</a></p>
+          </div>
           <div class="home-tile">
             <h3>Assignment 1</h3>
-            <p>Answer 10 questions using the Set Theory game and export a PDF with Name &amp; Neptun.</p>
+            <p>Answer 10 questions using the games. Get instant, lenient feedback; export a PDF with Name &amp; Neptun, then upload to the university system.</p>
             <p style="margin-top:8px;"><a class="btn" href="/assignment">Open Assignment 1 →</a></p>
           </div>
           <div class="home-tile">
             <h3>Tips</h3>
-            <p>In Set Theory: drag circles &amp; minerals; mouse wheel resizes a set; <span class="kbd">Esc</span> clears highlight.</p>
+            <p>Set Theory: drag sets &amp; minerals; mouse wheel resizes a set; <span class="kbd">Esc</span> clears highlight.</p>
+            <p style="margin-top:6px;">Relations: click a source, then a target to add/remove an arrow; use scene tabs to explore each concept.</p>
           </div>
         </div>
       </section>
