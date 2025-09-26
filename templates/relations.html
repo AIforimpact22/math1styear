@@ -1,23 +1,20 @@
 {% extends "index.html" %}
-{% block page_title %}Relations & Functions — Fossils / Relációk & Függvények — Fosszíliák{% endblock %}
+{% block page_title %}Relations & Functions — Single View Game (Fossils){% endblock %}
 
 {% block controls %}
-<div class="controls" aria-label="Relations controls">
-  <div id="sceneTabs" class="chips"></div>
+<div class="controls" aria-label="Game controls" style="flex-wrap:wrap;">
+  <!-- LAYERS (what to show) -->
+  <div class="chips" id="layerChips" style="flex-wrap:wrap; gap:6px;"></div>
 
-  <button id="btnReset" class="btn">Reset scene</button>
+  <!-- EDIT MODES (what you can change by clicking) -->
+  <div class="chips" id="editChips" style="flex-wrap:wrap; gap:6px;"></div>
 
-  <label class="switch btn">
-    <input id="lockNodes" type="checkbox" />
-    <span id="txtLock">Lock nodes</span>
-  </label>
+  <!-- Utility -->
+  <button id="btnReset" class="btn">Reset</button>
+  <label class="switch btn"><input id="lockNodes" type="checkbox" /><span id="txtLock">Lock nodes</span></label>
+  <label class="switch btn"><input id="showLabels" type="checkbox" checked /><span id="txtShow">Show labels</span></label>
 
-  <label class="switch btn">
-    <input id="showLabels" type="checkbox" checked />
-    <span id="txtShow">Show labels</span>
-  </label>
-
-  <!-- NEW: Language toggle beside "Show labels" -->
+  <!-- Language toggle beside "Show labels" -->
   <div class="chips" style="display:inline-flex; gap:6px;">
     <div id="langEN" class="chip" title="English">ENG</div>
     <div id="langHU" class="chip" title="Magyar">HUN</div>
@@ -26,46 +23,94 @@
 {% endblock %}
 
 {% block content %}
-<section class="canvas-card" aria-label="Interactive canvas">
-  <canvas id="stage" role="img" aria-label="Relations & Functions canvas"></canvas>
+<section class="canvas-card" aria-label="Single view canvas">
+  <canvas id="stage" role="img" aria-label="Relations & Functions single view canvas"></canvas>
 </section>
 
 <aside>
   <div>
-    <h2 id="sceneTitle">—</h2>
-    <div class="sets-top" style="margin-top:6px;">
-      <div class="badge"><span id="datasetLabel">Dataset</span>: <strong>Fossils • Beds • Environments</strong></div>
+    <h2 id="panelTitle">Learn by Doing</h2>
+    <div class="sets-top">
+      <div class="badge" id="datasetLabel">Dataset: <strong>Fossils • Beds • Environments</strong></div>
       <div class="tips">
-        <div class="pill" id="tipLabel" style="margin:6px 0;">Tip</div>
-        <div id="tipLine1">Drag objects • Click source then target to add/remove an arrow.</div>
-        <div id="tipLine2">Switch scenes to learn each concept.</div>
+        <div class="pill" id="tipWord" style="margin:6px 0;">Tip</div>
+        <div id="tipLine1">Choose an <b>Edit mode</b>, then click <i>source → target</i> to (un)link.</div>
+        <div id="tipLine2">Use <b>Layers</b> to show/hide R, f, g, g∘f, Bed‑relation, Equivalence.</div>
       </div>
     </div>
   </div>
 
-  <div class="summary">
-    <h2 id="explainHeader">Explanation</h2>
-    <div id="explainText" class="q-text">—</div>
+  <div class="summary" id="checksBox">
+    <h2 id="checksHdr">Live Checks (8 core ideas)</h2>
 
-    <!-- Scene 2 selector -->
-    <div id="propSwitcher" style="display:none; margin-top:8px;">
-      <div class="row subhead" id="propSwitchHead">Pick a relation (Beds):</div>
-      <div class="chips" id="propChips"></div>
+    <!-- 1 Binary relation -->
+    <div class="row">
+      <div class="lhs"><strong id="c1Title">Binary Relation R ⊆ Fossils×Beds</strong></div>
+      <div class="k" id="c1Val">R: 0 pairs</div>
     </div>
 
-    <div id="checks" class="rule-card" style="margin-top:10px; display:none;">
-      <h3 id="checksHeader">Checks</h3>
-      <ul id="checkList" class="help-list"></ul>
+    <!-- 2 Properties -->
+    <div class="row">
+      <div class="lhs"><strong id="c2Title">Properties on Bed↔Bed relation</strong>
+        <span class="pill" style="margin-left:6px;">R_B:</span>
+        <span id="propChips" class="chips" style="margin-left:6px;"></span>
+      </div>
+      <div class="k" style="min-width:170px;">
+        <div id="c2Props" style="display:grid; grid-template-columns:auto auto; gap:4px 10px; text-align:left;"></div>
+      </div>
+    </div>
+
+    <!-- 3 Equivalence -->
+    <div class="row">
+      <div class="lhs"><strong id="c3Title">Equivalence Relation (classes on fossils)</strong></div>
+      <div class="k" id="c3Val">3 classes</div>
+    </div>
+
+    <!-- 4 Partial order -->
+    <div class="row">
+      <div class="lhs"><strong id="c4Title">Partial Order ≤ (stratigraphy)</strong></div>
+      <div class="k" id="c4Val">True</div>
+    </div>
+
+    <!-- 5 Function -->
+    <div class="row">
+      <div class="lhs"><strong id="c5Title">Function f: Fossils → Beds</strong></div>
+      <div class="k" id="c5Val">Function? —</div>
+    </div>
+
+    <!-- 6 Types -->
+    <div class="row">
+      <div class="lhs"><strong id="c6Title">Types for f (injective / surjective / bijective)</strong></div>
+      <div class="k" id="c6Val">inj —, surj —, bij —</div>
+    </div>
+
+    <!-- 7 Composition -->
+    <div class="row">
+      <div class="lhs"><strong id="c7Title">Composition g∘f: Fossils → Environments</strong></div>
+      <div class="k" id="c7Val">distinct envs: —</div>
+    </div>
+
+    <!-- 8 Inverse -->
+    <div class="row">
+      <div class="lhs"><strong id="c8Title">Inverse demo on g∘f (pick 4 fossils)</strong>
+        <span id="invChips" class="chips" style="margin-left:6px;"></span>
+      </div>
+      <div class="k" id="c8Val">f⁻¹ exists? —</div>
     </div>
   </div>
 </aside>
 
-<section class="explain-card" aria-live="polite" aria-label="Bottom legend">
+<section class="explain-card" aria-live="polite" aria-label="Bottom help">
   <div class="explain-head">
-    <span class="badge" id="legendHeader">Legend</span>
+    <span class="badge" id="legendHdr">Legend</span>
+    <code>R</code>, <code>f</code>, <code>g</code>, <code>g∘f</code>, <code>R_B</code>
   </div>
-  <div id="footerMsg" class="explain-body">
-    R = relation, f, g, g∘f = composite.
+  <div id="legendTxt" class="explain-body">
+    <span style="color:#58c6ff;">R</span> (relation),
+    <span style="color:#34d399;">f</span> (function Fossil→Bed),
+    <span style="color:#f59e0b;">g</span> (Bed→Environment),
+    <span style="color:#facc15;">g∘f</span> (composite),
+    <span style="color:#a78bfa;">R_B</span> (Beds’ own relation: identity / adjacent / ≤ / custom).
   </div>
 </section>
 {% endblock %}
@@ -73,90 +118,130 @@
 {% block scripts %}
 <script>
 (() => {
-  // ---------------- Utilities ----------------
+  // ---------- Utilities ----------
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
   const dist = (x1,y1,x2,y2)=>Math.hypot(x1-x2,y1-y2);
-  const $ = (id)=>document.getElementById(id);
+  const $ = id=>document.getElementById(id);
   const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  // Colors
+  const COL = {
+    frame: "#0c1220",
+    border: "#223045",
+    R: "#58c6ff",
+    f: "#34d399",
+    g: "#f59e0b",
+    comp: "#facc15",
+    bedsR: "#a78bfa",
+    hulls: ["rgba(122, 162, 255, 0.15)", "rgba(52, 211, 153, 0.14)", "rgba(250, 204, 21, 0.14)"],
+    hullBorders: ["#7aa2ff","#34d399","#facc15"]
+  };
 
   // Language pack
   const L = {
     en: {
-      btnReset: "Reset scene",
-      lockNodes: "Lock nodes",
-      showLabels: "Show labels",
+      layers: "Layers",
+      edit: "Edit",
+      layer_R: "Show R",
+      layer_f: "Show f",
+      layer_g: "Show g",
+      layer_comp: "Show g∘f",
+      layer_bedsR: "Show Beds‑relation",
+      layer_equiv: "Show Equivalence",
+      edit_none: "Move only",
+      edit_R: "Edit R (Fossil→Bed)",
+      edit_f: "Edit f (Fossil→Bed)",
+      edit_g: "Edit g (Bed→Env)",
+      edit_bR: "Edit Beds‑relation",
+      reset: "Reset",
+      lock: "Lock nodes",
+      show: "Show labels",
       dataset: "Dataset",
       tip: "Tip",
-      tip1: "Drag objects • Click source then target to add/remove an arrow.",
-      tip2: "Switch scenes to learn each concept.",
-      explanation: "Explanation",
-      pickRelation: "Pick a relation (Beds):",
-      checks: "Checks",
+      tip1: "Choose an Edit mode, then click source → target to toggle an arrow.",
+      tip2: "Use Layers to show/hide R, f, g, g∘f, bed‑relation, equivalence hulls.",
+      panel: "Learn by Doing",
+      checks: "Live Checks (8 core ideas)",
+      c1: "Binary Relation R ⊆ Fossils×Beds",
+      c2: "Properties on Bed↔Bed relation",
+      c3: "Equivalence Relation (classes on fossils)",
+      c4: "Partial Order ≤ (stratigraphy)",
+      c5: "Function f: Fossils → Beds",
+      c6: "Types for f (injective / surjective / bijective)",
+      c7: "Composition g∘f: Fossils → Environments",
+      c8: "Inverse demo on g∘f (pick 4 fossils)",
+      propPick: "Pick:",
+      reflexive: "Reflexive",
+      symmetric: "Symmetric",
+      antisym: "Antisymmetric",
+      trans: "Transitive",
       legend: "Legend",
-      legendText: `<span style="color:#58c6ff;">R</span> = relation, <span style="color:#34d399;">f</span>, <span style="color:#f59e0b;">g</span>, <span style="color:#facc15;">g∘f</span> = composite.`,
-      check_reflexive: "Reflexive",
-      check_symmetric: "Symmetric",
-      check_antisym: "Antisymmetric",
-      check_trans: "Transitive",
-      check_funcF: "Function? (each fossil maps to 1 bed)",
-      check_inj: "Injective? (no collisions)",
-      check_funcIso: "Function?",
-      check_surj: "Surjective?",
-      check_bij: "Bijective?",
-      check_comp_ok: "g∘f computed",
-      check_num_f: "number of f-arrows",
-      check_num_comp: "number of g∘f arrows",
-      check_bij_inv: "Bijection? (then invertible)"
+      invExistsYes: "Yes (bijective on chosen fossils ↔ environments)",
+      invExistsNo: "No"
     },
     hu: {
-      btnReset: "Jelenet visszaállítása",
-      lockNodes: "Objektumok zárolása",
-      showLabels: "Címkék mutatása",
+      layers: "Rétegek",
+      edit: "Szerkesztés",
+      layer_R: "R mutatása",
+      layer_f: "f mutatása",
+      layer_g: "g mutatása",
+      layer_comp: "g∘f mutatása",
+      layer_bedsR: "Ágy‑reláció mutatása",
+      layer_equiv: "Ekvivalencia mutatása",
+      edit_none: "Csak mozgatás",
+      edit_R: "R szerk. (Fosszília→Ágy)",
+      edit_f: "f szerk. (Fosszília→Ágy)",
+      edit_g: "g szerk. (Ágy→Körny.)",
+      edit_bR: "Ágy‑reláció szerk.",
+      reset: "Visszaállítás",
+      lock: "Objektumok zárolása",
+      show: "Címkék mutatása",
       dataset: "Adatkészlet",
       tip: "Tipp",
-      tip1: "Húzd az objektumokat • Kattints először a forrásra, majd a célra nyíl létrehozásához/törléséhez.",
-      tip2: "Válts jelenetek között, hogy megismerd a fogalmakat.",
-      explanation: "Magyarázat",
-      pickRelation: "Reláció kiválasztása (Kőzetágyak):",
-      checks: "Ellenőrzések",
+      tip1: "Válassz szerkesztési módot, majd kattints forrás → cél nyíl hozzáadásához/törléséhez.",
+      tip2: "A Rétegek kapcsolóival rejtsd/mutasd az R, f, g, g∘f, ágy‑reláció, ekvivalencia elemeket.",
+      panel: "Játékos tanulás",
+      checks: "Élő ellenőrzések (8 alapötlet)",
+      c1: "Bináris reláció R ⊆ Fosszíliák×Ágyak",
+      c2: "Relációtulajdonságok (Ágy↔Ágy)",
+      c3: "Ekvivalenciareláció (osztályok a fosszíliákon)",
+      c4: "Részbenrendezés ≤ (rétegtan)",
+      c5: "Függvény f: Fosszíliák → Ágyak",
+      c6: "Függvénytípusok f‑re (injektív / szürjektív / bijektív)",
+      c7: "Összetétel g∘f: Fosszíliák → Környezetek",
+      c8: "Inverz demó g∘f‑re (válassz 4 fosszíliát)",
+      propPick: "Válaszd:",
+      reflexive: "Reflexív",
+      symmetric: "Szimmetrikus",
+      antisym: "Antiszimmetrikus",
+      trans: "Tranzitív",
       legend: "Jelmagyarázat",
-      legendText: `<span style="color:#58c6ff;">R</span> = reláció, <span style="color:#34d399;">f</span>, <span style="color:#f59e0b;">g</span>, <span style="color:#facc15;">g∘f</span> = összetett.`,
-      check_reflexive: "Reflexív",
-      check_symmetric: "Szimmetrikus",
-      check_antisym: "Antiszimmetrikus",
-      check_trans: "Tranzitív",
-      check_funcF: "Függvény? (minden fosszília 1 ágyba)",
-      check_inj: "Injektív? (nincs ütközés)",
-      check_funcIso: "Függvény?",
-      check_surj: "Szürjektív?",
-      check_bij: "Bijektív?",
-      check_comp_ok: "g∘f kiszámítva",
-      check_num_f: "f nyilak száma",
-      check_num_comp: "g∘f nyilak száma",
-      check_bij_inv: "Bijekció? (ekkor invertálható)"
+      invExistsYes: "Igen (bijekció a választott fosszíliák ↔ környezetek között)",
+      invExistsNo: "Nem"
     }
   };
 
-  // Colors for edges
-  const COLORS = { R:"#58c6ff", f:"#34d399", g:"#f59e0b", comp:"#facc15" };
-
-  // ---------------- State ----------------
+  // ---------- State ----------
   const canvas = $("stage");
   const ctx = canvas.getContext("2d");
 
   const state = {
-    assets: null,    // { fossils, beds, envs, scenes }
-    sceneKey: null,
-    scene: null,
-    nodes: [],
-    edges: [],
-    pending: null,
+    assets: null, // {fossils,beds,envs,defaults}
+    nodes: [],    // {id,type:'fossil'|'bed'|'env', name,img?, order?, x,y, w,h}
+    edgesR: [],   // fossil->bed general relation
+    edgesF: [],   // fossil->bed function
+    edgesG: [],   // bed->env fixed (editable)
+    edgesRB: [],  // bed->bed relation for properties
+    invPick: new Set(), // selected fossils for inverse demo
+    layers: { R:true, f:true, g:true, comp:true, bedsR:true, equiv:true },
+    edit: "none", // 'none'|'R'|'f'|'g'|'bR'
+    lang: (localStorage.getItem("relations.lang") || "en"),
     needsDraw: true,
-    propKey: "identity",
-    lang: (localStorage.getItem("relations.lang") || "en") // 'en' | 'hu'
+    drag: null,
+    propKey: "leq" // which predefined bed relation is loaded
   };
 
-  // ---------------- Layout ----------------
+  // ---------- Layout helpers ----------
   function resizeCanvas(){
     const rect = canvas.getBoundingClientRect();
     canvas.width = Math.floor(rect.width * dpr);
@@ -166,408 +251,475 @@
   }
   window.addEventListener("resize", resizeCanvas);
 
-  function relayout(){
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    let cols = [];
-    if (["AtoB","func","iso"].includes(state.scene.mode)) cols = [0.22, 0.78];
-    else if (state.scene.mode === "compose") cols = [0.18, 0.50, 0.82];
-    else cols = [0.50];
+  function placeColumns(){
+    const foss = state.nodes.filter(n=>n.type==='fossil');
+    const beds = state.nodes.filter(n=>n.type==='bed');
+    const envs = state.nodes.filter(n=>n.type==='env');
 
-    const rowsFor = (n) => {
-      const base = 0.18, step = (0.64)/(Math.max(1,n)-1 || 1);
-      return Array.from({length:n}, (_,i)=> Math.max(0.12, Math.min(0.86, base + i*step)));
+    const rows = (n) => {
+      const base=0.18, step=(0.64)/(Math.max(1,n)-1 || 1);
+      return Array.from({length:n}, (_,i)=> clamp(base + i*step, 0.12, 0.86));
     };
 
-    const foss = state.nodes.filter(n => n.type==='fossil');
-    const beds = state.nodes.filter(n => n.type==='bed');
-    const envs = state.nodes.filter(n => n.type==='env');
-
-    if (state.scene.mode === "compose"){
-      placeColumn(foss, cols[0], rowsFor(foss.length));
-      placeColumn(beds, cols[1], rowsFor(beds.length));
-      placeColumn(envs, cols[2], rowsFor(envs.length));
-    } else if (["AtoB","func","iso"].includes(state.scene.mode)){
-      if (state.scene.mode === "iso"){
-        placeColumn(foss, cols[0], rowsFor(foss.length));
-        placeColumn(envs, cols[1], rowsFor(envs.length));
-      } else {
-        placeColumn(foss, cols[0], rowsFor(foss.length));
-        placeColumn(beds, cols[1], rowsFor(beds.length));
-      }
-    } else if (state.scene.mode === "poset"){
-      const byOrder = beds.slice().sort((a,b)=>a.order-b.order);
-      const ys = [0.80,0.62,0.44,0.26];
-      byOrder.forEach((n,i)=>{ n.x=0.50; n.y=ys[i]; });
-    } else {
-      if (state.sceneKey === "equiv" || state.scene.mode === "singleFossils"){
-        placeCircle(foss, 0.50, 0.50, 0.32);
-      } else {
-        placeCircle(beds, 0.50, 0.50, 0.32);
-      }
-    }
-    state.needsDraw = true;
-  }
-  function placeColumn(list, nx, nys){ list.forEach((n,i)=>{ n.x=nx; n.y=nys[i]??0.5; }); }
-  function placeCircle(list, cx, cy, rad){
-    const n = Math.max(1, list.length);
-    for (let i=0;i<list.length;i++){
-      const t = (i/n) * Math.PI*2;
-      list[i].x = cx + rad*Math.cos(t);
-      list[i].y = cy + rad*Math.sin(t);
-    }
+    const fossX = 0.18, bedsX = 0.50, envX = 0.82;
+    const fy = rows(foss.length), by = [0.80,0.62,0.44,0.26], ey = rows(envs.length);
+    foss.forEach((n,i)=>{ n.x=fossX; n.y=fy[i]; n.w=64; n.h=64; });
+    // Beds ordered old→young bottom→top (by.order 1..4)
+    beds.sort((a,b)=>a.order-b.order);
+    beds.forEach((n,i)=>{ n.x=bedsX; n.y=by[i]; n.w=100; n.h=36; });
+    envs.forEach((n,i)=>{ n.x=envX; n.y=ey[i]; n.w=110; n.h=36; });
   }
 
-  // ---------------- Build nodes/edges ----------------
-  function buildNodesForScene(){
-    state.nodes = [];
-    const addF = (ids)=> {
-      const allow = new Set(ids || state.assets.fossils.map(f=>f.id));
-      state.assets.fossils.forEach(f=>{
-        if (!ids || allow.has(f.id)) state.nodes.push({id:f.id,type:'fossil',name:f.name,img:f.img,w:64,h:64});
-      });
-    };
-    const addB = ()=> state.assets.beds.forEach(b=> state.nodes.push({id:b.id,type:'bed',name:b.name,order:b.order,w:80,h:36}));
-    const addE = (ids)=> state.assets.envs.forEach(e=>{
-      if (!ids || ids.includes(e.id)) state.nodes.push({id:e.id,type:'env',name:e.name,w:90,h:36});
-    });
-
-    switch(state.scene.mode){
-      case "compose": addF(); addB(); addE(); break;
-      case "iso": addF(); addE(); break;
-      case "func":
-      case "AtoB": addF(); addB(); break;
-      case "poset":
-      case "single": addB(); break;
-      case "singleFossils": addF(); break;
-      case "inverse": addF(state.scene.domain); addE(); break;
-    }
-  }
-
-  function idNode(id){ return state.nodes.find(n => n.id===id); }
-
-  function buildEdgesForScene(){
-    state.edges = [];
-    if (state.sceneKey === "relation"){
-      (state.scene.pairs || []).forEach(([a,b]) => state.edges.push({from:a,to:b,kind:'R'}));
-    } else if (state.sceneKey === "properties"){
-      const rel = state.scene.relations[state.propKey];
-      (rel.pairs || []).forEach(([a,b]) => state.edges.push({from:a,to:b,kind:'R'}));
-    } else if (state.sceneKey === "equiv"){
-      const classes = state.scene.classes || {};
-      Object.values(classes).forEach(ids => {
-        ids.forEach(a => ids.forEach(b => state.edges.push({from:a,to:b,kind:'R'})));
-      });
-    } else if (state.sceneKey === "poset"){
-      const beds = state.nodes.filter(n=>n.type==='bed').sort((a,b)=>a.order-b.order);
-      for (let i=0;i<beds.length-1;i++) state.edges.push({from:beds[i].id, to:beds[i+1].id, kind:'R'});
-      beds.forEach(b => state.edges.push({from:b.id,to:b.id,kind:'R'}));
-    } else if (state.sceneKey === "function"){
-      (state.scene.suggest || []).forEach(([a,b]) => state.edges.push({from:a,to:b,kind:'f'}));
-    } else if (state.sceneKey === "iso"){
-      (state.scene.suggest || []).forEach(([a,e]) => state.edges.push({from:a,to:e,kind:'f'}));
-    } else if (state.sceneKey === "compose"){
-      (state.scene.g || []).forEach(([b,e]) => state.edges.push({from:b,to:e,kind:'g'}));
-      (state.scene.f_suggest || []).forEach(([a,b]) => state.edges.push({from:a,to:b,kind:'f'}));
-      buildCompositionEdges();
-    } else if (state.sceneKey === "inverse"){
-      (state.scene.bijection || []).forEach(([a,e]) => state.edges.push({from:a,to:e,kind:'f'}));
-    }
-  }
-
-  function buildCompositionEdges(){
-    state.edges = state.edges.filter(e => e.kind !== 'comp');
-    const f = state.edges.filter(e => e.kind==='f');
-    const g = state.edges.filter(e => e.kind==='g');
-    const mapF = new Map(); f.forEach(e => mapF.set(e.from, e.to));
-    const mapG = new Map(); g.forEach(e => mapG.set(e.from, e.to));
-    for (const [a,b] of mapF.entries()){
-      const env = mapG.get(b);
-      if (env) state.edges.push({from:a,to:env,kind:'comp'});
-    }
-  }
-
-  // ---------------- Scene switching ----------------
+  // ---------- Build nodes / load assets ----------
   async function loadAssets(){
     const res = await fetch("/relations/api/assets");
     state.assets = await res.json();
-  }
 
-  function setScene(key){
-    state.sceneKey = key;
-    state.scene = state.assets.scenes[key];
-    buildNodesForScene();
-    relayout();
-    buildEdgesForScene();
-    applyLang();       // update texts in the current language
-    updateChecks();    // rebuild checks using current language
+    // Nodes
+    state.nodes = [];
+    state.assets.fossils.forEach(f => state.nodes.push({id:f.id, type:'fossil', name:f.name, img:f.img, x:0.18, y:0.3, w:64,h:64}));
+    state.assets.beds.forEach(b => state.nodes.push({id:b.id, type:'bed', name:b.name, order:b.order, x:0.5, y:0.5, w:100,h:36}));
+    state.assets.envs.forEach(e => state.nodes.push({id:e.id, type:'env', name:e.name, x:0.82, y:0.5, w:110,h:36}));
+    placeColumns();
+
+    // Edges
+    state.edgesR = state.assets.defaults.R_pairs.map(([a,b])=>({from:a,to:b}));
+    state.edgesF = state.assets.defaults.f_pairs.map(([a,b])=>({from:a,to:b}));
+    state.edgesG = state.assets.defaults.g_pairs.map(([a,b])=>({from:a,to:b}));
+    state.edgesRB = state.assets.defaults.beds_relations[state.propKey].map(([a,b])=>({from:a,to:b}));
+
+    // Inverse default pick: choose 4 fossils
+    ["iguanodon","fish","ammonoidea","ankylosaurus"].forEach(id => state.invPick.add(id));
+
+    buildUI();
+    applyLang();
+    updateAllChecks();
     state.needsDraw = true;
   }
 
-  function buildTabs(){
-    const tabs = $("sceneTabs"); tabs.innerHTML = "";
-    const order = ["relation","properties","equiv","poset","function","iso","compose","inverse"];
-    order.forEach(k => {
-      const sc = state.assets.scenes[k];
-      const chip = document.createElement("div");
-      chip.className = "chip";
-      chip.textContent = sc.short;   // short label on tabs
-      chip.title = (state.lang==='hu' ? sc.title_hu : sc.title_en);
-      chip.addEventListener("click", ()=> {
-        document.querySelectorAll("#sceneTabs .chip").forEach(c=>c.classList.remove("selected"));
-        chip.classList.add("selected");
-        setScene(k);
+  // ---------- UI builders ----------
+  function buildUI(){
+    // Layers
+    const LAY = [
+      ["R","layer_R"], ["f","layer_f"], ["g","layer_g"], ["comp","layer_comp"], ["bedsR","layer_bedsR"], ["equiv","layer_equiv"]
+    ];
+    const lc = $("layerChips"); lc.innerHTML = "";
+    addLabelChip(lc, L[state.lang].layers);
+    LAY.forEach(([key, lab])=>{
+      const chip = makeChip(L[state.lang][lab], state.layers[key], () => {
+        state.layers[key] = !state.layers[key];
+        chip.classList.toggle("selected", state.layers[key]);
+        state.needsDraw = true;
       });
-      tabs.appendChild(chip);
-      if (!state.sceneKey) chip.classList.add("selected");
+      lc.appendChild(chip);
     });
+
+    // Edit modes
+    const EDIT = [["none","edit_none"],["R","edit_R"],["f","edit_f"],["g","edit_g"],["bR","edit_bR"]];
+    const ec = $("editChips"); ec.innerHTML = "";
+    addLabelChip(ec, L[state.lang].edit);
+    EDIT.forEach(([key, lab])=>{
+      const chip = makeChip(L[state.lang][lab], state.edit===key, () => {
+        state.edit = key;
+        [...ec.querySelectorAll(".chip")].forEach(c=>c.classList.remove("selected"));
+        chip.classList.add("selected");
+      });
+      ec.appendChild(chip);
+    });
+
+    // Props chooser for bed↔bed relation
+    const propBox = $("propChips"); propBox.innerHTML = "";
+    const options = [
+      ["identity","Identity"], ["adjacent","Adjacent"], ["leq","≤ stratigraphic"]
+    ];
+    options.forEach(([k,label])=>{
+      const chip = makeChip(label + (k==="leq"?" (≤)":""), state.propKey===k, ()=>{
+        state.propKey = k;
+        // load predefined pairs; if identity/adjacent/leq
+        const pairs = state.assets.defaults.beds_relations[k];
+        state.edgesRB = pairs.map(([a,b])=>({from:a,to:b}));
+        // recompute checks
+        updatePropertiesChecks();
+        state.needsDraw = true;
+        // toggle UI
+        [...propBox.querySelectorAll(".chip")].forEach(c=>c.classList.remove("selected"));
+        chip.classList.add("selected");
+      });
+      propBox.appendChild(chip);
+    });
+
+    // Inverse pick chips
+    const invBox = $("invChips"); invBox.innerHTML = "";
+    state.assets.fossils.forEach(f=>{
+      const chip = makeChip(f.name, state.invPick.has(f.id), ()=>{
+        if (state.invPick.has(f.id)) state.invPick.delete(f.id);
+        else if (state.invPick.size<4) state.invPick.add(f.id);
+        // force at most 4
+        while (state.invPick.size>4) { state.invPick.delete([...state.invPick][0]); }
+        updateInverseCheck();
+        state.needsDraw = true;
+        // refresh selection UI
+        [...invBox.querySelectorAll(".chip")].forEach(c=>c.classList.remove("selected"));
+        state.assets.fossils.forEach((ff, i)=>{
+          if (state.invPick.has(ff.id)) invBox.children[i].classList.add("selected");
+        });
+      });
+      invBox.appendChild(chip);
+    });
+
+    // Language chips
+    $("langEN").onclick = ()=>{ state.lang="en"; localStorage.setItem("relations.lang","en"); applyLang(); };
+    $("langHU").onclick = ()=>{ state.lang="hu"; localStorage.setItem("relations.lang","hu"); applyLang(); };
+
+    // Reset
+    $("btnReset").onclick = ()=>{
+      state.layers = {R:true,f:true,g:true,comp:true,bedsR:true,equiv:true};
+      state.edit = "none";
+      state.propKey = "leq";
+      state.edgesR = state.assets.defaults.R_pairs.map(([a,b])=>({from:a,to:b}));
+      state.edgesF = state.assets.defaults.f_pairs.map(([a,b])=>({from:a,to:b}));
+      state.edgesG = state.assets.defaults.g_pairs.map(([a,b])=>({from:a,to:b}));
+      state.edgesRB = state.assets.defaults.beds_relations[state.propKey].map(([a,b])=>({from:a,to:b}));
+      state.invPick = new Set(["iguanodon","fish","ammonoidea","ankylosaurus"]);
+      placeColumns();
+      buildUI();
+      applyLang();
+      updateAllChecks();
+      state.needsDraw = true;
+    };
+
+    $("showLabels").onchange = ()=> state.needsDraw = true;
   }
 
-  function buildPropChips(){
-    const box = $("propChips"); box.innerHTML = "";
-    const rels = state.assets.scenes.properties.relations;
-    Object.keys(rels).forEach(key => {
-      const r = rels[key];
-      const chip = document.createElement("div");
-      chip.className = "chip";
-      chip.textContent = (state.lang==='hu' ? r.label_hu : r.label_en);
-      chip.addEventListener("click", () => {
-        document.querySelectorAll("#propChips .chip").forEach(c=>c.classList.remove("selected"));
-        chip.classList.add("selected");
-        state.propKey = key;
-        setScene("properties");
-      });
-      box.appendChild(chip);
-      if (key === state.propKey) chip.classList.add("selected");
-    });
+  function addLabelChip(parent, label){
+    const span = document.createElement("span");
+    span.className = "pill";
+    span.textContent = label;
+    parent.appendChild(span);
   }
 
-  // ---------------- Language toggle ----------------
+  function makeChip(text, selected, onClick){
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.textContent = text;
+    if (selected) chip.classList.add("selected");
+    chip.onclick = onClick;
+    return chip;
+  }
+
+  // ---------- Language application ----------
   function applyLang(){
-    const lang = state.lang;
-    // Controls
-    $("btnReset").textContent = L[lang].btnReset;
-    $("txtLock").textContent = L[lang].lockNodes;
-    $("txtShow").textContent = L[lang].showLabels;
+    const t = L[state.lang];
+    $("btnReset").textContent = t.reset;
+    $("txtLock").textContent = t.lock;
+    $("txtShow").textContent = t.show;
+    $("datasetLabel").innerHTML = t.dataset + ': <strong>Fossils • Beds • Environments</strong>';
+    $("tipWord").textContent = t.tip;
+    $("tipLine1").textContent = t.tip1;
+    $("tipLine2").textContent = t.tip2;
+    $("panelTitle").textContent = t.panel;
+    $("checksHdr").textContent = t.checks;
 
-    // Title + note
-    $("sceneTitle").textContent = (lang==='hu' ? state.scene.title_hu : state.scene.title_en);
-    $("explainHeader").textContent = L[lang].explanation;
-    $("explainText").textContent = (lang==='hu' ? state.scene.note_hu : state.scene.note_en);
+    $("c1Title").textContent = t.c1;
+    $("c2Title").textContent = t.c2;
+    $("c3Title").textContent = t.c3;
+    $("c4Title").textContent = t.c4;
+    $("c5Title").textContent = t.c5;
+    $("c6Title").textContent = t.c6;
+    $("c7Title").textContent = t.c7;
+    $("c8Title").textContent = t.c8;
 
-    // Dataset + tips
-    $("datasetLabel").textContent = L[lang].dataset;
-    $("tipLabel").textContent = L[lang].tip;
-    $("tipLine1").textContent = L[lang].tip1;
-    $("tipLine2").textContent = L[lang].tip2;
+    $("legendHdr").textContent = t.legend;
+    $("legendTxt").innerHTML =
+      `<span style="color:${COL.R};">R</span> (relation),
+       <span style="color:${COL.f};">f</span> (Fossil→Bed),
+       <span style="color:${COL.g};">g</span> (Bed→Environment),
+       <span style="color:${COL.comp};">g∘f</span> (composite),
+       <span style="color:${COL.bedsR};">R_B</span> (Beds relation).`;
 
-    // Property switcher
-    $("propSwitchHead").textContent = L[lang].pickRelation;
-    $("checksHeader").textContent = L[lang].checks;
+    // Rebuild layer & edit chips with localized labels
+    buildUI();
+    updateAllChecks();
 
-    // Legend
-    $("legendHeader").textContent = L[lang].legend;
-    $("footerMsg").innerHTML = L[lang].legendText;
-
-    // Rebuild property chips in new language if visible
-    if (state.sceneKey === "properties") buildPropChips();
-
-    // Toggle selected chip
-    $("langEN").classList.toggle("selected", lang==='en');
-    $("langHU").classList.toggle("selected", lang==='hu');
-
-    // Update tab tooltips (titles)
-    document.querySelectorAll("#sceneTabs .chip").forEach((chip, i) => {
-      const order = ["relation","properties","equiv","poset","function","iso","compose","inverse"];
-      const k = order[i]; const sc = state.assets.scenes[k];
-      chip.title = (lang==='hu' ? sc.title_hu : sc.title_en);
-    });
+    // Toggle selected language UI
+    $("langEN").classList.toggle("selected", state.lang==='en');
+    $("langHU").classList.toggle("selected", state.lang==='hu');
   }
 
-  $("langEN").addEventListener("click", () => {
-    state.lang = "en"; localStorage.setItem("relations.lang","en");
-    applyLang(); updateChecks();
-  });
-  $("langHU").addEventListener("click", () => {
-    state.lang = "hu"; localStorage.setItem("relations.lang","hu");
-    applyLang(); updateChecks();
-  });
-
-  // ---------------- Interaction ----------------
-  let drag = null;
-
+  // ---------- Picking & interaction ----------
   function pickNode(px,py){
     for (let i=state.nodes.length-1;i>=0;i--){
       const n = state.nodes[i];
-      const x = n.x*canvas.clientWidth, y = n.y*canvas.clientHeight;
+      const x=n.x*canvas.clientWidth, y=n.y*canvas.clientHeight;
       if (n.type==='fossil'){
-        if (dist(px,py,x,y) <= 36) return n;
+        if (dist(px,py,x,y)<=36) return n;
       } else {
-        const w=n.w, h=n.h;
-        if (px>=x-w/2 && px<=x+w/2 && py>=y-h/2 && py<=y+h/2) return n;
+        if (px>=x-n.w/2 && px<=x+n.w/2 && py>=y-n.h/2 && py<=y+n.h/2) return n;
       }
     }
     return null;
   }
 
-  canvas.addEventListener("pointerdown", (ev) => {
+  function togglePair(list, a,b, uniqueFrom=false){
+    if (uniqueFrom){
+      // Remove all existing out from 'a'
+      for (let i=list.length-1;i>=0;--i) if (list[i].from===a) list.splice(i,1);
+      list.push({from:a,to:b});
+      return;
+    }
+    const idx = list.findIndex(e=>e.from===a && e.to===b);
+    if (idx>=0) list.splice(idx,1); else list.push({from:a,to:b});
+  }
+
+  canvas.addEventListener("pointerdown", (ev)=>{
     const rect = canvas.getBoundingClientRect();
-    const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+    const x = ev.clientX-rect.left, y = ev.clientY-rect.top;
     const n = pickNode(x,y);
-    if (!n) { state.pending = null; return; }
+    if (!n) { state.drag=null; return; }
 
-    const lock = $("lockNodes").checked;
-    const connectable = ["relation","function","iso","compose","inverse"].includes(state.sceneKey);
-
-    if (connectable){
-      if (!state.pending){
-        if (["relation","function","iso","inverse","compose"].includes(state.sceneKey) && n.type==='fossil'){
-          state.pending = n.id;
-        }
-      } else {
-        let ok=false, kind='R';
-        if (state.sceneKey==="relation" && n.type==='bed'){ kind='R'; ok=true; }
-        if (state.sceneKey==="function" && n.type==='bed'){ kind='f'; ok=true; }
-        if (state.sceneKey==="iso" && n.type==='env'){ kind='f'; ok=true; }
-        if (state.sceneKey==="inverse" && n.type==='env'){ kind='f'; ok=true; }
-        if (state.sceneKey==="compose" && n.type==='bed'){ kind='f'; ok=true; }
-
-        if (ok){
-          toggleEdge(state.pending, n.id, kind);
-          if (state.sceneKey === "compose") buildCompositionEdges();
-          updateChecks();
+    // EDIT MODES
+    if (state.edit !== "none"){
+      // start/pair logic
+      if (!state.drag || !state.drag.intent){
+        state.drag = { intent:"edge", from:n };
+        return;
+      } else if (state.drag.intent==="edge"){
+        const a = state.drag.from;
+        const b = n;
+        if (a.id!==b.id){
+          if (state.edit==="R" && a.type==='fossil' && b.type==='bed'){
+            togglePair(state.edgesR, a.id,b.id,false);
+          } else if (state.edit==="f" && a.type==='fossil' && b.type==='bed'){
+            togglePair(state.edgesF, a.id,b.id,true);
+          } else if (state.edit==="g" && a.type==='bed' && b.type==='env'){
+            togglePair(state.edgesG, a.id,b.id,true);
+          } else if (state.edit==="bR" && a.type==='bed' && b.type==='bed'){
+            togglePair(state.edgesRB, a.id,b.id,false);
+          }
+          state.drag = null;
+          updateAllChecks();
           state.needsDraw = true;
+          return;
         }
-        state.pending = null;
       }
     }
 
-    if (!lock){
-      drag = { id:n.id, dx: n.x*canvas.clientWidth - x, dy: n.y*canvas.clientHeight - y };
-    }
+    // DRAGGING
+    if ($("lockNodes").checked) { state.drag=null; return; }
+    state.drag = { intent:"move", id:n.id, dx:n.x*canvas.clientWidth-x, dy:n.y*canvas.clientHeight-y };
   });
 
-  window.addEventListener("pointermove", (ev) => {
-    if (!drag) return;
+  window.addEventListener("pointermove", (ev)=>{
+    if (!state.drag || state.drag.intent!=="move") return;
     const rect = canvas.getBoundingClientRect();
-    const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
-    const n = idNode(drag.id); if (!n) return;
-    n.x = clamp((x + drag.dx)/canvas.clientWidth, 0.06, 0.94);
-    n.y = clamp((y + drag.dy)/canvas.clientHeight, 0.08, 0.92);
+    const x = ev.clientX-rect.left, y = ev.clientY-rect.top;
+    const n = state.nodes.find(nn=>nn.id===state.drag.id);
+    if (!n) return;
+    n.x = clamp((x + state.drag.dx)/canvas.clientWidth, 0.06, 0.94);
+    n.y = clamp((y + state.drag.dy)/canvas.clientHeight, 0.08, 0.92);
     state.needsDraw = true;
   });
-  window.addEventListener("pointerup", ()=> drag=null);
+  window.addEventListener("pointerup", ()=> state.drag=null);
 
-  function toggleEdge(from,to,kind){
-    if (kind==='f'){
-      state.edges = state.edges.filter(e => !(e.kind==='f' && e.from===from));
-      state.edges.push({from,to,kind:'f'});
-    } else {
-      const idx = state.edges.findIndex(e => e.kind==='R' && e.from===from && e.to===to);
-      if (idx>=0) state.edges.splice(idx,1); else state.edges.push({from,to,kind:'R'});
-    }
+  // ---------- Checks / logic ----------
+  function updateAllChecks(){
+    updateC1_R();
+    updatePropertiesChecks();
+    updateC3_Equiv();
+    updateC4_Poset();
+    updateC5_Function();
+    updateC6_Types();
+    updateC7_Composition();
+    updateInverseCheck();
   }
 
-  // ---------------- Checks (per scene, localized) ----------------
-  function addCheck(ul, label, ok){
-    const li = document.createElement("li");
-    li.innerHTML = `<strong>${label}</strong>: ${ok===true ? "✓" : ok===false ? "✗" : ok}`;
-    ul.appendChild(li);
+  function updateC1_R(){
+    $("c1Val").textContent = `R: ${state.edgesR.length} pairs`;
+    if (state.lang==='hu') $("c1Val").textContent = `R: ${state.edgesR.length} pár`;
   }
 
-  function updateChecks(){
-    const list = $("checkList");
-    list.innerHTML = "";
-    $("checks").style.display = "none";
+  function listPairsToMap(list){
+    const m = new Map();
+    list.forEach(e=>{
+      if (!m.has(e.from)) m.set(e.from, new Set());
+      m.get(e.from).add(e.to);
+    });
+    return m;
+  }
+
+  function updatePropertiesChecks(){
     const T = L[state.lang];
-
-    if (state.sceneKey === "properties"){
-      $("checks").style.display = "block";
-      const pairs = state.edges.filter(e=>e.kind==='R').map(e=>[e.from,e.to]);
-      const ids = state.nodes.filter(n=>n.type==='bed').map(n=>n.id);
-      const has = (a,b)=> pairs.some(p=>p[0]===a && p[1]===b);
-
-      const isReflexive = ids.every(a => has(a,a));
-      const isSym = pairs.every(([a,b]) => has(b,a));
-      const isAnti = pairs.every(([a,b]) => (a===b) || !has(b,a));
-      let isTrans = true;
-      outer: for (const [a,b] of pairs){
-        for (const [c,d] of pairs){
-          if (b===c && !has(a,d)){ isTrans=false; break outer; }
+    const ids = state.nodes.filter(n=>n.type==='bed').map(n=>n.id);
+    const has = (a,b) => state.edgesRB.some(e=> e.from===a && e.to===b);
+    // Reflexive
+    const reflexive = ids.every(a => has(a,a));
+    // Symmetric
+    const symmetric = state.edgesRB.every(e => has(e.to, e.from));
+    // Antisymmetric
+    const antisym = state.edgesRB.every(e => (e.from===e.to) || !has(e.to, e.from));
+    // Transitive
+    let trans = true;
+    outer: for (const e1 of state.edgesRB){
+      for (const e2 of state.edgesRB){
+        if (e1.to===e2.from){
+          if (!has(e1.from, e2.to)){ trans=false; break outer; }
         }
       }
-      addCheck(list, T.check_reflexive, isReflexive);
-      addCheck(list, T.check_symmetric, isSym);
-      addCheck(list, T.check_antisym, isAnti);
-      addCheck(list, T.check_trans, isTrans);
     }
+    const grid = $("c2Props"); grid.innerHTML = "";
+    grid.appendChild(makePropRow(T.reflexive, reflexive));
+    grid.appendChild(makePropRow(T.symmetric, symmetric));
+    grid.appendChild(makePropRow(T.antisym, antisym));
+    grid.appendChild(makePropRow(T.trans, trans));
+  }
 
-    if (state.sceneKey === "function"){
-      $("checks").style.display = "block";
-      const fossils = state.nodes.filter(n=>n.type==='fossil').map(n=>n.id);
-      const beds = state.nodes.filter(n=>n.type==='bed').map(n=>n.id);
-      const f = state.edges.filter(e=>e.kind==='f');
-      const outCount = new Map(); fossils.forEach(a=>outCount.set(a,0));
-      const inCount = new Map();  beds.forEach(b=>inCount.set(b,0));
-      f.forEach(e => { outCount.set(e.from, (outCount.get(e.from)||0)+1); inCount.set(e.to, (inCount.get(e.to)||0)+1); });
-      const totalSet = fossils.every(a => (outCount.get(a)||0)===1);
-      const injective = beds.every(b => (inCount.get(b)||0) <= 1);
-      addCheck(list, T.check_funcF, totalSet);
-      addCheck(list, T.check_inj, injective);
-    }
+  function makePropRow(label, ok){
+    const div = document.createElement("div");
+    div.innerHTML = `<strong>${label}:</strong> ${ok? "✓":"✗"}`;
+    return div;
+  }
 
-    if (state.sceneKey === "iso"){
-      $("checks").style.display = "block";
-      const fossils = state.nodes.filter(n=>n.type==='fossil').map(n=>n.id);
-      const envs = state.nodes.filter(n=>n.type==='env').map(n=>n.id);
-      const f = state.edges.filter(e=>e.kind==='f');
-      const outCount = new Map(); fossils.forEach(a=>outCount.set(a,0));
-      const inCount = new Map();  envs.forEach(b=>inCount.set(b,0));
-      f.forEach(e => { outCount.set(e.from, (outCount.get(e.from)||0)+1); inCount.set(e.to, (inCount.get(e.to)||0)+1); });
-      const isFunc = fossils.every(a => (outCount.get(a)||0)===1);
-      const injective = envs.every(b => (inCount.get(b)||0) <= 1);
-      const surjective = envs.every(b => (inCount.get(b)||0) >= 1);
-      const bijective = isFunc && injective && surjective;
-      addCheck(list, T.check_funcIso, isFunc);
-      addCheck(list, T.check_inj, injective);
-      addCheck(list, T.check_surj, surjective);
-      addCheck(list, T.check_bij, bijective);
-    }
+  function updateC3_Equiv(){
+    // Count classes
+    const classes = state.assets.defaults.equiv_classes;
+    const n = Object.keys(classes).length;
+    $("c3Val").textContent = `${n} classes`;
+    if (state.lang==='hu') $("c3Val").textContent = `${n} osztály`;
+  }
 
-    if (state.sceneKey === "compose"){
-      $("checks").style.display = "block";
-      const f = state.edges.filter(e=>e.kind==='f').length;
-      const comp = state.edges.filter(e=>e.kind==='comp').length;
-      addCheck(list, T.check_comp_ok, comp>0);
-      addCheck(list, T.check_num_f, f);
-      addCheck(list, T.check_num_comp, comp);
-    }
+  function updateC4_Poset(){
+    // Using ≤ as default R_B = leq ensures it's a partial order
+    $("c4Val").textContent = "True";
+    if (state.lang==='hu') $("c4Val").textContent = "Igaz";
+  }
 
-    if (state.sceneKey === "inverse"){
-      $("checks").style.display = "block";
-      const dom = new Set(state.scene.domain);
-      const f = state.edges.filter(e=>e.kind==='f');
-      const outCount = new Map(); state.scene.domain.forEach(a=>outCount.set(a,0));
-      const envs = state.nodes.filter(n=>n.type==='env').map(n=>n.id);
-      const inCount = new Map();  envs.forEach(b=>inCount.set(b,0));
-      f.forEach(e => { if (dom.has(e.from)) { outCount.set(e.from, (outCount.get(e.from)||0)+1); inCount.set(e.to, (inCount.get(e.to)||0)+1); }});
-      const isFunc = state.scene.domain.every(a => (outCount.get(a)||0)===1);
-      const injective = envs.every(b => (inCount.get(b)||0) <= 1);
-      const surjective = envs.every(b => (inCount.get(b)||0) >= 1);
-      const bij = isFunc && injective && surjective;
-      addCheck(list, T.check_bij_inv, bij);
+  function updateC5_Function(){
+    const fossils = state.nodes.filter(n=>n.type==='fossil').map(n=>n.id);
+    const beds = state.nodes.filter(n=>n.type==='bed').map(n=>n.id);
+    const out = new Map(); fossils.forEach(a=>out.set(a,0));
+    const inn = new Map(); beds.forEach(b=>inn.set(b,0));
+    state.edgesF.forEach(e=>{ out.set(e.from,(out.get(e.from)||0)+1); inn.set(e.to,(inn.get(e.to)||0)+1); });
+    const isFunc = fossils.every(a => (out.get(a)||0)===1);
+    $("c5Val").textContent = (state.lang==='hu')
+      ? `Függvény? ${isFunc ? "✓ Igen" : "✗ Nem"}`
+      : `Function? ${isFunc ? "✓ Yes" : "✗ No"}`;
+  }
+
+  function updateC6_Types(){
+    const fossils = state.nodes.filter(n=>n.type==='fossil').map(n=>n.id);
+    const beds = state.nodes.filter(n=>n.type==='bed').map(n=>n.id);
+    const out = new Map(); fossils.forEach(a=>out.set(a,0));
+    const inn = new Map(); beds.forEach(b=>inn.set(b,0));
+    state.edgesF.forEach(e=>{ out.set(e.from,(out.get(e.from)||0)+1); inn.set(e.to,(inn.get(e.to)||0)+1); });
+    const isFunc = fossils.every(a => (out.get(a)||0)===1);
+    const injective = beds.every(b => (inn.get(b)||0) <= 1);
+    const surjective = beds.every(b => (inn.get(b)||0) >= 1);
+    const bij = isFunc && injective && surjective;
+    const t = (x)=> x ? "✓" : "✗";
+    $("c6Val").textContent = `inj ${t(injective)}, surj ${t(surjective)}, bij ${t(bij)}`;
+    if (state.lang==='hu'){
+      $("c6Title").textContent = L.hu.c6;
+    } else {
+      $("c6Title").textContent = L.en.c6;
     }
   }
 
-  // ---------------- Drawing ----------------
+  function computeComp(){
+    // comp edges a->env using f then g
+    const mapF = new Map(); state.edgesF.forEach(e=> mapF.set(e.from, e.to));
+    const mapG = new Map(); state.edgesG.forEach(e=> mapG.set(e.from, e.to));
+    const comp = [];
+    for (const [a,b] of mapF.entries()){
+      const env = mapG.get(b);
+      if (env) comp.push({from:a,to:env});
+    }
+    return comp;
+  }
+
+  function updateC7_Composition(){
+    const comp = computeComp();
+    const envSet = new Set(comp.map(e=>e.to));
+    const count = envSet.size;
+    $("c7Val").textContent = `distinct envs: ${count}`;
+    if (state.lang==='hu') $("c7Val").textContent = `különböző környezetek: ${count}`;
+  }
+
+  function updateInverseCheck(){
+    const comp = computeComp();
+    const pick = new Set(state.invPick);
+    // Only consider picked fossils
+    const sub = comp.filter(e=> pick.has(e.from));
+    const envs = state.nodes.filter(n=>n.type==='env').map(n=>n.id);
+    // Condition: pick exactly 4 fossils, and sub uses all 4 envs exactly once
+    const okSize = pick.size===4;
+    const hit = new Map(); envs.forEach(id=>hit.set(id,0));
+    sub.forEach(e=> hit.set(e.to,(hit.get(e.to)||0)+1));
+    const allOne = envs.every(id => hit.get(id)===1);
+    const exists = okSize && allOne;
+    $("c8Val").textContent = exists ? (state.lang==='hu'? L.hu.invExistsYes : L.en.invExistsYes)
+                                    : (state.lang==='hu'? L.hu.invExistsNo : L.en.invExistsNo);
+  }
+
+  // ---------- Drawing ----------
   const imgCache = new Map();
   function getImage(url){
-    return new Promise((resolve) => {
+    return new Promise((resolve)=>{
       if (imgCache.has(url)) { resolve(imgCache.get(url)); return; }
       const im = new Image();
-      im.crossOrigin = "anonymous"; // allow imgur
-      im.onload = () => { imgCache.set(url, im); resolve(im); };
-      im.onerror = () => resolve(null);
+      im.crossOrigin = "anonymous";
+      im.onload = ()=>{ imgCache.set(url,im); resolve(im); };
+      im.onerror = ()=> resolve(null);
       im.src = url;
+    });
+  }
+
+  function rr(x,y,w,h,r){
+    const R = Math.min(r, Math.min(w,h)/2);
+    ctx.beginPath();
+    ctx.moveTo(x+R,y);
+    ctx.arcTo(x+w,y, x+w,y+h, R);
+    ctx.arcTo(x+w,y+h, x,y+h, R);
+    ctx.arcTo(x,y+h, x,y, R);
+    ctx.arcTo(x,y, x+w,y, R);
+    ctx.closePath();
+  }
+
+  function drawEdgeCurve(ax,ay,bx,by,color){
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2.2;
+    const mx = (ax+bx)/2, my = (ay+by)/2 - 18;
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.quadraticCurveTo(mx,my,bx,by); ctx.stroke();
+    const ang = Math.atan2(by-my, bx-mx), s=6;
+    ctx.beginPath();
+    ctx.moveTo(bx,by);
+    ctx.lineTo(bx - s*Math.cos(ang - Math.PI/6), by - s*Math.sin(ang - Math.PI/6));
+    ctx.lineTo(bx - s*Math.cos(ang + Math.PI/6), by - s*Math.sin(ang + Math.PI/6));
+    ctx.closePath(); ctx.fill();
+  }
+
+  function nodeXY(id){
+    const n = state.nodes.find(nn=>nn.id===id);
+    return n ? [n.x*canvas.clientWidth, n.y*canvas.clientHeight] : [0,0];
+  }
+
+  function drawEquivalenceHulls(){
+    if (!state.layers.equiv) return;
+    const classes = state.assets.defaults.equiv_classes;
+    const groups = Object.values(classes);
+    groups.forEach((ids, gi)=>{
+      const pts = ids.map(id => nodeXY(id));
+      if (!pts.length) return;
+      // simple rounded bounding box
+      let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+      pts.forEach(([x,y])=>{ minx=Math.min(minx,x-44); maxx=Math.max(maxx,x+44); miny=Math.min(miny,y-44); maxy=Math.max(maxy,y+44); });
+      const pad=8;
+      const x=minx-pad, y=miny-pad, w=(maxx-minx)+pad*2, h=(maxy-miny)+pad*2;
+      ctx.save();
+      ctx.fillStyle = COL.hulls[gi % COL.hulls.length];
+      ctx.strokeStyle = COL.hullBorders[gi % COL.hullBorders.length];
+      ctx.lineWidth = 1.5;
+      rr(x,y,w,h,14);
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
     });
   }
 
@@ -577,93 +729,91 @@
     ctx.clearRect(0,0,w,h);
 
     // Frame
-    ctx.fillStyle = "#0c1220";
-    ctx.strokeStyle = "#223045";
-    ctx.lineWidth = 1.5;
+    ctx.fillStyle = COL.frame; ctx.strokeStyle = COL.border; ctx.lineWidth = 1.5;
     rr(8.5,8.5, w-17, h-17, 12); ctx.fill(); ctx.stroke();
 
-    // Edges
-    for (const e of state.edges) drawEdge(e);
+    // Draw layers (edges first)
+    if (state.layers.bedsR){
+      // bed↔bed edges
+      for (const e of state.edgesRB){
+        const [ax,ay] = nodeXY(e.from); const [bx,by] = nodeXY(e.to);
+        drawEdgeCurve(ax,ay,bx,by,COL.bedsR);
+      }
+    }
+    if (state.layers.R){
+      for (const e of state.edgesR){
+        const [ax,ay]=nodeXY(e.from), [bx,by]=nodeXY(e.to);
+        drawEdgeCurve(ax,ay,bx,by,COL.R);
+      }
+    }
+    if (state.layers.g){
+      for (const e of state.edgesG){
+        const [ax,ay]=nodeXY(e.from), [bx,by]=nodeXY(e.to);
+        drawEdgeCurve(ax,ay,bx,by,COL.g);
+      }
+    }
+    if (state.layers.f){
+      for (const e of state.edgesF){
+        const [ax,ay]=nodeXY(e.from), [bx,by]=nodeXY(e.to);
+        drawEdgeCurve(ax,ay,bx,by,COL.f);
+      }
+    }
+    if (state.layers.comp){
+      for (const e of computeComp()){
+        const [ax,ay]=nodeXY(e.from), [bx,by]=nodeXY(e.to);
+        drawEdgeCurve(ax,ay,bx,by,COL.comp);
+      }
+    }
+
+    // Equivalence hulls behind fossils
+    drawEquivalenceHulls();
 
     // Nodes
     const showLabels = $("showLabels").checked;
     for (const n of state.nodes){
+      const cx = n.x*w, cy = n.y*h;
       if (n.type==='fossil'){
-        const cx = n.x*w, cy = n.y*h, R=34;
+        const R=34;
         ctx.save();
         ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.closePath(); ctx.clip();
-        const im = await getImage(n.img);
+        const im = await getImage(state.assets.fossils.find(f=>f.id===n.id)?.img);
         if (im){
           const scale = Math.max((2*R)/im.width, (2*R)/im.height);
-          const iw = im.width*scale, ih = im.height*scale;
-          ctx.drawImage(im, cx - iw/2, cy - ih/2, iw, ih);
-        } else { ctx.fillStyle = "#1b2536"; ctx.fill(); }
+          const iw = im.width*scale, ih=im.height*scale;
+          ctx.drawImage(im, cx-iw/2, cy-ih/2, iw, ih);
+        } else { ctx.fillStyle="#1b2536"; ctx.fill(); }
         ctx.restore();
-        ctx.strokeStyle = "#5aa7ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
-        if (showLabels) labelChip(cx, cy+R+10, n.name);
+        ctx.strokeStyle="#5aa7ff"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
+        if (showLabels) drawLabel(cx, cy+R+12, n.name);
       } else {
-        const cx = n.x*w, cy = n.y*h;
-        ctx.fillStyle = "#0e1523"; ctx.strokeStyle = "#2b3a52"; ctx.lineWidth = 1.2;
-        rr(cx - n.w/2, cy - n.h/2, n.w, n.h, 8); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = "#cfe0ff";
-        ctx.font = "500 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillStyle="#0e1523"; ctx.strokeStyle="#2b3a52"; ctx.lineWidth=1.2;
+        rr(cx-n.w/2, cy-n.h/2, n.w, n.h, 8); ctx.fill(); ctx.stroke();
+        ctx.fillStyle="#cfe0ff"; ctx.font="500 12px system-ui,-apple-system, Segoe UI, Roboto, Arial";
+        ctx.textAlign="center"; ctx.textBaseline="middle";
         ctx.fillText(n.name, cx, cy);
       }
     }
   }
 
-  function rr(x,y,w,h,r){
-    const rr = Math.min(r, Math.min(w,h)/2);
-    ctx.beginPath();
-    ctx.moveTo(x+rr,y);
-    ctx.arcTo(x+w,y, x+w,y+h, rr);
-    ctx.arcTo(x+w,y+h, x,y+h, rr);
-    ctx.arcTo(x,y+h, x,y, rr);
-    ctx.arcTo(x,y, x+w,y, rr);
-    ctx.closePath();
-  }
-  function labelChip(cx, topY, text){
-    ctx.font = "500 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  function drawLabel(cx, y, text){
+    ctx.font="500 12px system-ui,-apple-system, Segoe UI, Roboto, Arial";
     const pad=8, tw = ctx.measureText(text).width + pad*2, th=20;
-    ctx.fillStyle = "rgba(12,18,32,0.92)";
-    rr(cx - tw/2, topY- th/2, tw, th, 8); ctx.fill();
-    ctx.strokeStyle = "#233040"; ctx.lineWidth = 1; rr(cx - tw/2, topY- th/2, tw, th, 8); ctx.stroke();
-    ctx.fillStyle = "#d7e6ff"; ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.fillText(text, cx, topY);
-  }
-  function drawEdge(e){
-    const a = idNode(e.from), b = idNode(e.to);
-    if (!a || !b) return;
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    const ax = a.x*w, ay = a.y*h, bx = b.x*w, by = b.y*h;
-    const col = COLORS[e.kind] || "#7dd3fc";
-    ctx.strokeStyle = col; ctx.lineWidth = 2.2; ctx.fillStyle = col;
-    const mx = (ax+bx)/2, my = (ay+by)/2 - 18;
-    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.quadraticCurveTo(mx,my,bx,by); ctx.stroke();
-    const ang = Math.atan2(by-my, bx-mx), size=6;
-    ctx.beginPath();
-    ctx.moveTo(bx,by);
-    ctx.lineTo(bx - size*Math.cos(ang - Math.PI/6), by - size*Math.sin(ang - Math.PI/6));
-    ctx.lineTo(bx - size*Math.cos(ang + Math.PI/6), by - size*Math.sin(ang + Math.PI/6));
-    ctx.closePath(); ctx.fill();
+    ctx.fillStyle="rgba(12,18,32,0.92)";
+    rr(cx - tw/2, y-th/2, tw, th, 8); ctx.fill();
+    ctx.strokeStyle="#233040"; ctx.lineWidth=1;
+    rr(cx - tw/2, y-th/2, tw, th, 8); ctx.stroke();
+    ctx.fillStyle="#d7e6ff"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(text, cx, y);
   }
 
-  // ---------------- Loop & boot ----------------
+  // ---------- Loop ----------
   function loop(){ if (state.needsDraw) draw(); requestAnimationFrame(loop); }
-  $("btnReset").addEventListener("click", () => setScene(state.sceneKey));
 
+  // ---------- Boot ----------
+  $("lockNodes").checked = false;
   (async function boot(){
     resizeCanvas();
     await loadAssets();
-    buildTabs();
-    buildPropChips();
-    setScene("relation");   // default scene
-    // apply initial language selection
-    applyLang(); updateChecks();
-    // set initial chip selection
-    $("langEN").classList.toggle("selected", state.lang==='en');
-    $("langHU").classList.toggle("selected", state.lang==='hu');
     loop();
   })();
 })();
