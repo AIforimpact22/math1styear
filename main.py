@@ -1,4 +1,11 @@
+import os
 from flask import Flask, render_template
+from werkzeug.exceptions import HTTPException
+
+# --- Paths: make sure Flask knows where templates/static live ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 # Set Theory (kept as before)
 from set_theory import (
@@ -15,12 +22,18 @@ from relations import relations_bp
 
 
 def create_app():
-    app = Flask(__name__)
+    # explicitly tell Flask the templates/static paths
+    app = Flask(
+        __name__,
+        template_folder=TEMPLATES_DIR,
+        static_folder=STATIC_DIR,
+        static_url_path="/static",
+    )
 
     # --- Landing page (root) ---
     @app.route("/")
     def home():
-        # Renders the base template directly; its default 'landing' shows the tiles
+        # Make sure templates/index.html exists
         return render_template("index.html")
 
     # --- Health probe ---
@@ -40,7 +53,6 @@ def create_app():
 
     # --- Mount pages ---
     # Set Theory UI at /sets (its own /api/... appear under /sets/api/...).
-    # We also exposed /api/... proxies above to avoid breaking older code.
     app.register_blueprint(set_theory_bp, url_prefix="/sets")
 
     # Assignment 1 page at /assignment
@@ -50,6 +62,24 @@ def create_app():
     # - Page route:            GET /relations
     # - Assets (JSON) route:   GET /relations/api/assets
     app.register_blueprint(relations_bp)
+
+    # -------- Friendly error pages (so you see what's wrong locally) --------
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        # In debug/server logs you’ll still get the traceback.
+        if isinstance(e, HTTPException):
+            return e  # let Flask show default HTTP errors
+        # For generic 500s, render a tiny helpful page
+        return (
+            "<h3>Internal Server Error</h3>"
+            "<p>Check the server logs for a traceback. Common causes:</p>"
+            "<ul>"
+            "<li>Template not found (templates/index.html or templates/relations.html)</li>"
+            "<li>Blueprint imported but route renders missing template</li>"
+            "<li>Wrong working directory when starting Flask</li>"
+            "</ul>",
+            500,
+        )
 
     return app
 
