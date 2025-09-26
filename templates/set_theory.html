@@ -1,7 +1,7 @@
 {% extends "index.html" %}
 
 {% block controls %}
-<div class="controls" aria-label="Simulation controls">
+<div class="controls" id="simControls" aria-label="Simulation controls">
   <button id="btnNewPuzzle" class="btn">New Puzzle</button>
   <label class="switch btn"><input id="lockSets" type="checkbox" /> Lock Sets</label>
   <label class="switch btn"><input id="lockElements" type="checkbox" /> Lock Elements</label>
@@ -10,78 +10,220 @@
 {% endblock %}
 
 {% block content %}
-<!-- Left: Canvas -->
-<section class="canvas-card" aria-label="Universe canvas">
-  <div id="hlChip" class="hl-chip" style="display:none;"></div>
-  <canvas id="venn" role="img" aria-label="Interactive Venn canvas"></canvas>
+
+<!-- Tabs -->
+<style>
+  .tabbar{ display:flex; gap:8px; align-items:center; margin:8px 0 12px; }
+  .tabbtn{
+    display:inline-flex; align-items:center; gap:8px;
+    background:#0e1523; border:1px solid #223045; color:#cfe0ff;
+    padding:8px 12px; border-radius:999px; cursor:pointer; user-select:none;
+    font-size:13px;
+  }
+  .tabbtn[aria-selected="true"]{
+    border-color:#6f8fff; box-shadow:0 0 0 2px rgba(111,143,255,0.15) inset;
+    background:#102037; color:#e8f0ff; font-weight:600;
+  }
+  .hidden{ display:none !important; }
+  .assignment-card{
+    grid-column: 1 / -1;
+    background: var(--card);
+    border:1px solid #233040; border-radius:14px; padding:14px;
+  }
+  .assignment-card h2{ margin:0 0 8px; font-size:16px; color:#cbd7ea; }
+  .assignment-card .meta{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+  .assignment-card .pill{ display:inline-flex; padding:2px 6px; border-radius:999px; border:1px solid #223045; background:#0e1523; font-size:11px; color:#a7b8cc; }
+  .assignment-card ol{ margin:6px 0 0 20px; }
+  .assignment-card li{ margin:8px 0; color:#d7e6ff; }
+  .assignment-card code{ background:#0d1320; border:1px solid #263243; padding:2px 6px; border-radius:6px; color:#a9c3ff; }
+  .assignment-card .sub{ margin:6px 0 0 16px; }
+</style>
+
+<div class="tabbar" role="tablist" aria-label="View selector">
+  <button id="tabbtn-sim" class="tabbtn" role="tab" aria-selected="true" aria-controls="simPanel">Simulation</button>
+  <button id="tabbtn-assignment" class="tabbtn" role="tab" aria-selected="false" aria-controls="assignmentPanel">Assignment</button>
+</div>
+
+<!-- ===== Simulation (default) ===== -->
+<section id="simPanel" role="tabpanel" aria-labelledby="tabbtn-sim">
+  <!-- Left: Canvas -->
+  <section class="canvas-card" aria-label="Universe canvas">
+    <div id="hlChip" class="hl-chip" style="display:none;"></div>
+    <canvas id="venn" role="img" aria-label="Interactive Venn canvas"></canvas>
+  </section>
+
+  <!-- Right: Sidebar -->
+  <aside>
+    <div>
+      <h2>Sets</h2>
+
+      <!-- Universe + Score + Tips live here -->
+      <div class="sets-top">
+        <div class="badge">Universe: <strong id="uName">…</strong></div>
+
+        <div class="score" aria-live="polite">
+          <span id="scoreText">Score: 0/0 (0%)</span>
+          <div class="bar"><div id="scoreFill" class="fill"></div></div>
+        </div>
+
+        <div class="tips">
+          <div class="pill" style="margin-bottom:6px;">Tip</div>
+          <div>Drag sets &amp; minerals • Wheel on a set to resize</div>
+          <div>Click any row to highlight • Press <span class="kbd">Esc</span> to clear</div>
+        </div>
+      </div>
+
+      <!-- Chips for each set -->
+      <div id="setsChips" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
+    </div>
+
+    <div class="summary" id="regions">
+      <h2>Regions &amp; Intersections</h2>
+      <!-- Filled dynamically -->
+    </div>
+
+    <div>
+      <h2>Elements &amp; Membership</h2>
+      <div style="overflow:auto; max-height: 38vh; border-radius:12px;">
+        <table aria-label="elements membership table">
+          <thead>
+            <tr id="theadRow">
+              <th>Mineral</th>
+              <th>Status</th>
+              <!-- set names appended dynamically -->
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Bottom row under canvas -->
+  <section class="explain-card" aria-live="polite" aria-label="Text explanation for selected region">
+    <div class="explain-head">
+      <span class="badge">Selected region</span>
+      <code id="expExpr">—</code>
+      <span class="pill" id="expCount">(0 elements)</span>
+    </div>
+    <div class="explain-body" id="expText">
+      Click a region to spotlight it. In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.
+    </div>
+    <div class="explain-body" id="expElements" style="display:none;">
+      <strong>Elements in region:</strong>
+      <ul class="exp-list" id="expList"></ul>
+    </div>
+  </section>
 </section>
 
-<!-- Right: Sidebar -->
-<aside>
-  <div>
-    <h2>Sets</h2>
+<!-- ===== Assignment ===== -->
+<section id="assignmentPanel" class="assignment-card hidden" role="tabpanel" aria-labelledby="tabbtn-assignment">
+  <h2>Assignment — Set Theory with Minerals (Interactive Venn)</h2>
+  <div class="meta">
+    <span class="pill">Symbols: <strong>I</strong> = Igneous, <strong>S</strong> = Sedimentary, <strong>M</strong> = Metamorphic, <strong>U</strong> = Universe</span>
+    <span class="pill">Use “Regions &amp; Intersections” rows</span>
+    <span class="pill">Press <strong>Esc</strong> to clear highlight</span>
+  </div>
 
-    <!-- Universe + Score + Tips live here -->
-    <div class="sets-top">
-      <div class="badge">Universe: <strong id="uName">…</strong></div>
+  <p style="color:#a9b8cc; margin: 6px 0 10px;">
+    Open the Simulation tab to interact with the game. Unless told otherwise, answer using (or near) your solved arrangement.
+  </p>
 
-      <div class="score" aria-live="polite">
-        <span id="scoreText">Score: 0/0 (0%)</span>
-        <div class="bar"><div id="scoreFill" class="fill"></div></div>
+  <ol>
+    <li><strong>Solve the puzzle (2 pts)</strong><br>
+      Reach <strong>Score ≥ 90%</strong>.<br>
+      <em>Submit:</em> One screenshot showing the canvas and the green score bar (with the score text visible).</li>
+
+    <li><strong>Pairwise intersections (6 pts)</strong><br>
+      Using <em>Intersections (A ∩ B)</em>: record the counts for
+      <code>|I∩S|</code>, <code>|I∩M|</code>, <code>|S∩M|</code>, and list the minerals in each intersection.</li>
+
+    <li><strong>Triple intersection (3 pts)</strong><br>
+      Click <em>Triple Intersections (A ∩ B ∩ C)</em> and report <code>|I∩S∩M|</code>. List the mineral(s).</li>
+
+    <li><strong>Inclusion–exclusion for two sets (4 pts)</strong><br>
+      Verify for <strong>I</strong> and <strong>S</strong>:<br>
+      <code>|I∪S| = |I| + |S| - |I∩S|</code>. Show both sides from the panel rows.</li>
+
+    <li><strong>Symmetric difference (8 pts)</strong><br>
+      For <strong>I</strong> and <strong>S</strong>:<br>
+      (a) Click <em>Symmetric Differences (A Δ B)</em>, record <code>|IΔS|</code>, and list its minerals.<br>
+      (b) Verify: <code>|IΔS| = |I| + |S| - 2|I∩S|</code>.<br>
+      (c) Verify: <code>IΔS = (I \ S) ∪ (S \ I)</code> by listing and unioning minerals from the two differences.</li>
+
+    <li><strong>Differences with interpretation (6 pts)</strong><br>
+      For <strong>I</strong> and <strong>M</strong>: list 3 minerals from <code>I \ M</code> and 3 from <code>M \ I</code>.
+      Briefly interpret geologically what distinguishes these groups.</li>
+
+    <li><strong>Outside vs. solved (5 pts)</strong><br>
+      (a) Before solving (score &lt; 50%), record <em>Outside all sets</em> count.<br>
+      (b) After solving (score ≥ 90%), record it again.<br>
+      (c) Name two minerals that moved from outside to inside and state their final set memberships.
+      <em>Include one small screenshot of Outside highlighted (before or after).</em></li>
+
+    <li><strong>Largest symmetric difference (6 pts)</strong><br>
+      Compare <code>|IΔS|</code>, <code>|IΔM|</code>, <code>|SΔM|</code>. Which is largest and why? Reference a few minerals.</li>
+
+    <li><strong>Sensitivity to set boundaries (5 pts)</strong><br>
+      Slightly enlarge <strong>M</strong> (mouse wheel) without moving minerals. Report how counts for <code>IΔM</code> and <code>SΔM</code> change and explain why.</li>
+
+    <li><strong>Inclusion–exclusion for three sets (10 pts)</strong><br>
+      Verify numerically:
+      <div class="sub">
+        <code>|I∪S∪M| = |I| + |S| + |M| - |I∩S| - |I∩M| - |S∩M| + |I∩S∩M|</code><br>
+        Also confirm <code>|I∪S∪M| =</code> Total minerals <code>−</code> Outside all sets.
       </div>
+    </li>
+  </ol>
 
-      <div class="tips">
-        <div class="pill" style="margin-bottom:6px;">Tip</div>
-        <div>Drag sets &amp; minerals • Wheel on a set to resize</div>
-        <div>Click any row to highlight • Press <span class="kbd">Esc</span> to clear</div>
-      </div>
-    </div>
-
-    <!-- Chips for each set -->
-    <div id="setsChips" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
-  </div>
-
-  <div class="summary" id="regions">
-    <h2>Regions &amp; Intersections</h2>
-    <!-- Filled dynamically -->
-  </div>
-
-  <div>
-    <h2>Elements &amp; Membership</h2>
-    <div style="overflow:auto; max-height: 38vh; border-radius:12px;">
-      <table aria-label="elements membership table">
-        <thead>
-          <tr id="theadRow">
-            <th>Mineral</th>
-            <th>Status</th>
-            <!-- set names appended dynamically -->
-          </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</aside>
-
-<!-- Bottom row under canvas -->
-<section class="explain-card" aria-live="polite" aria-label="Text explanation for selected region">
-  <div class="explain-head">
-    <span class="badge">Selected region</span>
-    <code id="expExpr">—</code>
-    <span class="pill" id="expCount">(0 elements)</span>
-  </div>
-  <div class="explain-body" id="expText">
-    Click a region to spotlight it. In this geology context, sets represent mineral-forming environments or processes; a mineral belongs to a set if its label lies inside that circle.
-  </div>
-  <div class="explain-body" id="expElements" style="display:none;">
-    <strong>Elements in region:</strong>
-    <ul class="exp-list" id="expList"></ul>
-  </div>
+  <p style="color:#a9b8cc; margin-top:8px;">
+    <em>Optional extra credit (+4 pts):</em> Demonstrate that
+    <code>A Δ B = (A ∪ B) \ (A ∩ B)</code> for your chosen pair by listing minerals on both sides.
+  </p>
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script>
+/* -------- Tab switching (Simulation / Assignment) -------- */
+(() => {
+  const simBtn = document.getElementById('tabbtn-sim');
+  const asgBtn = document.getElementById('tabbtn-assignment');
+  const simControls = document.getElementById('simControls');
+
+  // Simulation parts to hide/show
+  const simParts = [
+    document.getElementById('simPanel').querySelector('.canvas-card'),
+    document.getElementById('simPanel').querySelector('aside'),
+    document.getElementById('simPanel').querySelector('.explain-card')
+  ];
+  const assignmentPanel = document.getElementById('assignmentPanel');
+
+  function setTab(simActive){
+    // aria-selected
+    simBtn.setAttribute('aria-selected', simActive ? 'true' : 'false');
+    asgBtn.setAttribute('aria-selected', simActive ? 'false' : 'true');
+
+    // show/hide controls
+    simControls.classList.toggle('hidden', !simActive);
+
+    // show/hide panels
+    simParts.forEach(el => el.classList.toggle('hidden', !simActive));
+    assignmentPanel.classList.toggle('hidden', simActive);
+
+    // Trigger canvas resize when returning to Simulation
+    if (simActive) {
+      window.dispatchEvent(new Event('resize'));
+    }
+  }
+
+  simBtn.addEventListener('click', () => setTab(true));
+  asgBtn.addEventListener('click', () => setTab(false));
+})();
+</script>
+
+<script>
+/* -------- Simulation engine (unchanged logic, with Δ support) -------- */
 (() => {
   // ---------- Utilities ----------
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -207,7 +349,7 @@
       }
     }
 
-    const syms = []; // NEW: symmetric differences (A Δ B)
+    const syms = []; // symmetric differences (A Δ B)
     for (let i=0;i<n;i++) for (let j=i+1;j<n;j++){
       let sum=0;
       for (let m=0;m<counts.length;m++){
@@ -243,7 +385,7 @@
     if (kind==='single') return `${id(idx[0])}`;
     if (kind==='pair')   return `${id(idx[0])} ∩ ${id(idx[1])}`;
     if (kind==='diff')   return `${id(idx[0])} \\ ${id(idx[1])}`;
-    if (kind==='sym')    return `${id(idx[0])} Δ ${id(idx[1])}`; // NEW
+    if (kind==='sym')    return `${id(idx[0])} Δ ${id(idx[1])}`;
     if (kind==='union'){
       const parts = idx.map(i => id(i)).join(" ∪ ");
       return parts || "Union";
@@ -263,11 +405,7 @@
       if (kind==='single'){ if (m & (1<<idx[0])) sum += counts[m]; }
       else if (kind==='pair'){ const need=(1<<idx[0])|(1<<idx[1]); if ((m & need) === need) sum += counts[m]; }
       else if (kind==='diff'){ if ((m & (1<<idx[0])) && !(m & (1<<idx[1]))) sum += counts[m]; }
-      else if (kind==='sym'){  // NEW: XOR
-        const a = (m & (1<<idx[0])) !== 0;
-        const b = (m & (1<<idx[1])) !== 0;
-        if (a ^ b) sum += counts[m];
-      }
+      else if (kind==='sym'){ const a = (m & (1<<idx[0])) !== 0; const b = (m & (1<<idx[1])) !== 0; if (a ^ b) sum += counts[m]; }
       else if (kind==='union'){ const need = idx.reduce((b,i)=> b | (1<<i), 0); if ((m & need) !== 0) sum += counts[m]; }
       else if (kind==='triple'){ const need=(1<<idx[0])|(1<<idx[1])|(1<<idx[2]); if ((m & need) === need) sum += counts[m]; }
     }
@@ -280,22 +418,17 @@
     if (kind==='single') return (maskBits & (1<<idx[0])) !== 0;
     if (kind==='pair')   return (maskBits & (1<<idx[0])) && (maskBits & (1<<idx[1]));
     if (kind==='diff')   return (maskBits & (1<<idx[0])) && !(maskBits & (1<<idx[1]));
-    if (kind==='sym'){   // NEW: XOR
-      const a = (maskBits & (1<<idx[0])) !== 0;
-      const b = (maskBits & (1<<idx[1])) !== 0;
-      return a ^ b;
-    }
+    if (kind==='sym'){ const a = (maskBits & (1<<idx[0])) !== 0; const b = (maskBits & (1<<idx[1])) !== 0; return a ^ b; }
     if (kind==='union'){ const need = idx.reduce((b,i)=> b | (1<<i), 0); return (maskBits & need) !== 0; }
     if (kind==='triple') return (maskBits & (1<<idx[0])) && (maskBits & (1<<idx[1])) && (maskBits & (1<<idx[2]));
     return false;
   }
 
-  // ---------- Mask for strong highlight ----------
+  // ---------- Mask & drawing ----------
   function makeMask(kind, indices){
     if (!kind) return null;
     const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-    // Helper to create a blank offscreen canvas with same pixel dims as main canvas
     const makeOff = () => {
       const c = document.createElement('canvas');
       c.width = canvas.width; c.height = canvas.height;
@@ -320,49 +453,25 @@
       fillCircle(m, indices[0]);
 
     } else if (kind === 'pair'){
-      fillCircle(m, indices[0]);
-      m.globalCompositeOperation = 'destination-in';
-      fillCircle(m, indices[1]);
+      fillCircle(m, indices[0]); m.globalCompositeOperation = 'destination-in'; fillCircle(m, indices[1]);
 
     } else if (kind === 'diff'){
-      fillCircle(m, indices[0]);
-      m.globalCompositeOperation = 'destination-out';
-      fillCircle(m, indices[1]);
+      fillCircle(m, indices[0]); m.globalCompositeOperation = 'destination-out'; fillCircle(m, indices[1]);
 
-    } else if (kind === 'sym'){ // NEW: (A \ B) ∪ (B \ A)
-      // Build A\B
-      const {c: c1, g: g1} = makeOff();
-      g1.fillStyle = "#000";
-      fillCircle(g1, indices[0]);
-      g1.globalCompositeOperation = 'destination-out';
-      fillCircle(g1, indices[1]);
-
-      // Build B\A
-      const {c: c2, g: g2} = makeOff();
-      g2.fillStyle = "#000";
-      fillCircle(g2, indices[1]);
-      g2.globalCompositeOperation = 'destination-out';
-      fillCircle(g2, indices[0]);
-
-      // Combine onto mask
-      m.globalCompositeOperation = 'source-over';
-      m.drawImage(c1, 0, 0);
-      m.drawImage(c2, 0, 0);
+    } else if (kind === 'sym'){
+      const {c: c1, g: g1} = makeOff(); g1.fillStyle="#000"; fillCircle(g1, indices[0]); g1.globalCompositeOperation='destination-out'; fillCircle(g1, indices[1]);
+      const {c: c2, g: g2} = makeOff(); g2.fillStyle="#000"; fillCircle(g2, indices[1]); g2.globalCompositeOperation='destination-out'; fillCircle(g2, indices[0]);
+      m.globalCompositeOperation='source-over'; m.drawImage(c1,0,0); m.drawImage(c2,0,0);
 
     } else if (kind === 'triple'){
-      fillCircle(m, indices[0]);
-      m.globalCompositeOperation = 'destination-in';
-      fillCircle(m, indices[1]);
-      fillCircle(m, indices[2]);
+      fillCircle(m, indices[0]); m.globalCompositeOperation='destination-in'; fillCircle(m, indices[1]); fillCircle(m, indices[2]);
 
     } else if (kind === 'outside'){
-      m.fillRect(0,0,canvas.clientWidth, canvas.clientHeight);
-      m.globalCompositeOperation = 'destination-out';
+      m.fillRect(0,0,canvas.clientWidth, canvas.clientHeight); m.globalCompositeOperation='destination-out';
       for (let i=0;i<state.sets.length;i++){ fillCircle(m, i); }
 
     } else if (kind === 'union'){
-      m.globalCompositeOperation = 'source-over';
-      indices.forEach(i => fillCircle(m, i));
+      m.globalCompositeOperation='source-over'; indices.forEach(i => fillCircle(m, i));
 
     } else if (kind === 'all'){
       for (let i=0;i<state.sets.length;i++){ fillCircle(m, i); }
@@ -370,7 +479,6 @@
     return mask;
   }
 
-  // ---------- Score ----------
   function uiUpdateScore(correct, total){
     const pct = total ? Math.round(100 * correct / total) : 0;
     scoreText.textContent = `Score: ${correct}/${total} (${pct}%)`;
@@ -394,7 +502,6 @@
     return correct;
   }
 
-  // ---------- Drawing ----------
   function roundRect(ctx, x, y, w, h, r){
     const rr = Math.min(r, Math.min(w,h)/2);
     ctx.beginPath();
@@ -670,7 +777,7 @@
       });
     }
 
-    // Symmetric differences (NEW)
+    // Symmetric differences
     if (syms.length){
       addSubhead("Symmetric Differences (A Δ B)");
       syms.forEach(({i,j,count}) => {
@@ -851,10 +958,11 @@
 
   // ---------- Wire up ----------
   window.addEventListener("resize", resizeCanvas);
-  canvas.addEventListener("pointerdown", onPointerDown);
+  const canvasEl = document.getElementById("venn");
+  canvasEl.addEventListener("pointerdown", onPointerDown);
   window.addEventListener("pointermove", onPointerMove);
   window.addEventListener("pointerup", onPointerUp);
-  canvas.addEventListener("wheel", onWheel, {passive:false});
+  canvasEl.addEventListener("wheel", onWheel, {passive:false});
 
   document.getElementById("btnNewPuzzle").addEventListener("click", newPuzzle);
   document.getElementById("showLabels").addEventListener("change", requestDraw);
