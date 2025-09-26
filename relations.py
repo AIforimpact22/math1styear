@@ -4,115 +4,58 @@ from flask import Blueprint, render_template, jsonify
 
 relations_bp = Blueprint("relations", __name__)
 
-# -----------------------------
-# Static data (fossils, beds, environments)
-# -----------------------------
+# ---------- Static sets: A (circles), B (squares), C (diamonds) ----------
+A_SET = [{"id": f"a{i}", "name": f"a{i}"} for i in range(1, 5)]
+B_SET = [{"id": f"b{i}", "name": f"b{i}", "order": i} for i in range(1, 5)]
+C_SET = [{"id": f"c{i}", "name": f"c{i}"} for i in range(1, 5)]
 
-FOSSILS = [
-    {"id": "iguanodon",    "name": "Iguanodon",    "img": "https://i.imgur.com/uSxSGu6.png"},
-    {"id": "fish",         "name": "Fish",         "img": "https://i.imgur.com/hRPKl7l.png"},
-    {"id": "triceratops",  "name": "Triceratops",  "img": "https://i.imgur.com/xVdWZvH.png"},
-    {"id": "ammonoidea",   "name": "Ammonoidea",   "img": "https://i.imgur.com/556YaIo.png"},
-    {"id": "ankylosaurus", "name": "Ankylosaurus", "img": "https://i.imgur.com/HPpF1BX.png"},
-]
-
-# Four beds with a stratigraphic order (1 = oldest … 4 = youngest)
-BEDS = [
-    {"id": "tuff",   "name": "Volcanic Tuff (T)",       "env": "volcanic",   "order": 1},
-    {"id": "reef",   "name": "Reef Limestone (L)",      "env": "reef",       "order": 2},
-    {"id": "marine", "name": "Marine Shale (Msh)",      "env": "marine",     "order": 3},
-    {"id": "river",  "name": "River Sandstone (R)",     "env": "terrestrial","order": 4},
-]
-
-ENVIRONMENTS = [
-    {"id": "terrestrial", "name": "Terrestrial"},
-    {"id": "marine",      "name": "Marine"},
-    {"id": "reef",        "name": "Reef"},
-    {"id": "volcanic",    "name": "Volcanic"},
-]
-
-# -----------------------------
-# Helpers (pairs for properties)
-# -----------------------------
+# Helpers to prebuild standard relations on B
 def _leq_pairs() -> List[Tuple[str, str]]:
-    # All (a,b) with order(a) <= order(b)
-    id_to_order = {b["id"]: b["order"] for b in BEDS}
-    ids = [b["id"] for b in BEDS]
+    ids = [b["id"] for b in B_SET]
+    id2ord = {b["id"]: b["order"] for b in B_SET}
     out: List[Tuple[str, str]] = []
     for a in ids:
         for b in ids:
-            if id_to_order[a] <= id_to_order[b]:
+            if id2ord[a] <= id2ord[b]:
                 out.append((a, b))
     return out
 
 def _identity_pairs() -> List[Tuple[str, str]]:
-    return [(b["id"], b["id"]) for b in BEDS]
+    return [(b["id"], b["id"]) for b in B_SET]
 
 def _adjacent_pairs() -> List[Tuple[str, str]]:
-    # Symmetric "neighbor" relation among beds
-    return [
-        ("river", "marine"), ("marine", "river"),
-        ("marine", "reef"),  ("reef", "marine"),
-        ("reef", "tuff"),    ("tuff", "reef"),
-    ]
+    # b1↔b2, b2↔b3, b3↔b4 (symmetric, not reflexive)
+    return [("b1","b2"),("b2","b1"),
+            ("b2","b3"),("b3","b2"),
+            ("b3","b4"),("b4","b3")]
 
-# -----------------------------
-# Defaults for the single-view game
-# -----------------------------
 DEFAULTS = {
-    # General relation R ⊆ Fossils×Beds (not necessarily a function)
-    "R_pairs": [
-        ("iguanodon", "river"),
-        ("triceratops", "river"),
-        ("ankylosaurus", "river"),
-        ("fish", "marine"),
-        ("ammonoidea", "reef"),
-    ],
-
-    # Function f: Fossils → Beds (students can edit; starts similar to R)
-    "f_pairs": [
-        ("iguanodon", "river"),
-        ("triceratops", "river"),
-        ("ankylosaurus", "river"),
-        ("fish", "marine"),
-        ("ammonoidea", "reef"),
-    ],
-
-    # Fixed g: Beds → Environments (used for composition)
-    "g_pairs": [
-        ("river",  "terrestrial"),
-        ("marine", "marine"),
-        ("reef",   "reef"),
-        ("tuff",   "volcanic"),
-    ],
-
-    # Bed↔Bed relation choices to illustrate properties
-    "beds_relations": {
+    # Start with a small R so students add more (goal #1 asks ≥4 pairs)
+    "R_pairs": [("a1","b1"), ("a2","b3")],
+    # Start f empty so students must build a function
+    "f_pairs": [],
+    # g starts as identity B→C so composition is easy to see
+    "g_pairs": [("b1","c1"), ("b2","c2"), ("b3","c3"), ("b4","c4")],
+    # B↔B relation templates for properties / poset
+    "B_relations": {
         "identity": _identity_pairs(),
         "adjacent": _adjacent_pairs(),
-        "leq": _leq_pairs()
+        "chain_leq": _leq_pairs()
     },
-
-    # Equivalence classes on fossils (taxonomy-style)
-    "equiv_classes": {
-        "Dinosaurs":   ["iguanodon", "triceratops", "ankylosaurus"],
-        "Fish":        ["fish"],
-        "Cephalopods": ["ammonoidea"]
-    }
+    # A↔A relation for equivalence (start as identity so they see one example works)
+    "A_equiv": [(a["id"], a["id"]) for a in A_SET]
 }
 
-# -----------------------------
-# Routes
-# -----------------------------
+# ---------- Routes ----------
 @relations_bp.route("/relations")
-def page():
+def relations_page():
     return render_template("relations.html")
 
 @relations_bp.route("/relations/api/assets")
-def api_assets():
+def relations_assets():
     return jsonify({
-        "fossils": FOSSILS,
-        "beds": BEDS,
-        "envs": ENVIRONMENTS,
+        "A": A_SET,
+        "B": B_SET,
+        "C": C_SET,
         "defaults": DEFAULTS
     })
