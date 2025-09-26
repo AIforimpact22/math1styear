@@ -147,7 +147,7 @@
     }
     .tiles{
       display:grid;
-      grid-template-columns: repeat(2, minmax(240px, 1fr));
+      grid-template-columns: repeat(2, minmax(240px, 1fr)); /* will wrap the 3rd tile onto a new row */
       gap: 16px;
     }
     @media (max-width: 720px){
@@ -206,7 +206,7 @@
     <a class="tile" href="/sets">
       <div>
         <h3>Set Theory</h3>
-        <p>Drag circles & minerals to explore unions, intersections, differences, and complements in a geology context.</p>
+        <p>Drag circles & minerals to explore unions, intersections, differences, symmetric differences, and complements.</p>
       </div>
       <div class="go">Open Set Theory <span>→</span></div>
     </a>
@@ -217,6 +217,15 @@
         <p>Build a bijection between rock samples and mineral signatures; learn about invertibility & countability.</p>
       </div>
       <div class="go">Open Functions <span>→</span></div>
+    </a>
+
+    <!-- NEW: Assignment 1 tile -->
+    <a class="tile" href="/assignment">
+      <div>
+        <h3>Assignment 1</h3>
+        <p>Answer 10 questions using the Set Theory game, then generate a PDF with your Name & Neptun and upload it.</p>
+      </div>
+      <div class="go">Open Assignment 1 <span>→</span></div>
     </a>
   </div>
 </section>
