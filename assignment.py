@@ -1,410 +1,267 @@
-{% extends "index.html" %}
-{% block page_title %}Assignment 1 — Set Theory with Minerals / Halmazelmélet ásványokkal{% endblock %}
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+import os, json, time, hashlib, random
+from typing import List, Dict, Any
+from flask import Blueprint, render_template, request, jsonify
 
-{% block controls %}
-<div class="controls" aria-label="Assignment controls">
-  <a href="/" class="btn" target="_blank" rel="noopener" id="lblOpenGame">Open Set Theory Game</a>
-  <button id="btnStart" class="btn">Start Assignment</button>
-  <button id="btnGrade" class="btn">Check & Grade</button>
-  <button id="btnPdf" class="btn" disabled>Generate PDF</button>
-</div>
-{% endblock %}
+assignment_bp = Blueprint("assignment", __name__)
 
-{% block content %}
-<section class="canvas-card" aria-label="Assignment form container">
-  <style>
-    .assign-wrap{ padding: 14px; }
-    .id-card{
-      display:grid; gap:8px; background:#0f141c; border:1px solid #233040; border-radius:12px; padding:10px;
-      margin-bottom: 10px;
+# ------------------ Optional GPT grading config ------------------
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+MODEL_GRADING  = os.environ.get("ASSIGNMENT_GRADING_MODEL", "gpt-4o-mini")
+
+USE_OFFICIAL = True
+try:
+    from openai import OpenAI  # pip install openai
+except Exception:
+    USE_OFFICIAL = False
+import requests
+
+def _client():
+    if not OPENAI_API_KEY:
+        return None
+    if USE_OFFICIAL:
+        return OpenAI(api_key=OPENAI_API_KEY)
+    return None
+
+def _chat_request(model: str, system_prompt: str, user_prompt: str) -> str:
+    """Return assistant content (JSON string)."""
+    if not OPENAI_API_KEY:
+        raise RuntimeError("Missing OPENAI_API_KEY")
+    if USE_OFFICIAL:
+        client = _client()
+        resp = client.chat.completions.create(
+            model=model,
+            temperature=0.4,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        return resp.choices[0].message.content
+    # Fallback HTTP
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "model": model,
+        "temperature": 0.4,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
     }
-    .id-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .id-row label{ min-width: 140px; color:#cbd7ea; }
-    .id-row input[type="text"], .id-row select{
-      background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:8px 10px; border-radius:8px; width: 280px;
+    r = requests.post(url, headers=headers, data=json.dumps(payload), timeout=60)
+    r.raise_for_status()
+    data = r.json()
+    return data["choices"][0]["message"]["content"]
+
+def _safe_json(text: str) -> Any:
+    try:
+        return json.loads(text)
+    except Exception:
+        t = (text or "").strip()
+        if t.startswith("```"):
+            t = t.strip("`")
+            parts = t.split("\n", 1)
+            if len(parts) == 2:
+                t = parts[1]
+        return json.loads(t)
+
+# ------------------ Data & question builders ------------------
+SET_LABELS = {
+    "EN": {"I": "Igneous", "S": "Sedimentary", "M": "Metamorphic"},
+    "HU": {"I": "Magmás",  "S": "Üledékes",   "M": "Metamorf"},
+}
+PAIRS = [("I","S"), ("I","M"), ("S","M")]
+
+def lang_code(language: str) -> str:
+    L = (language or "").strip().lower()
+    if L.startswith("hu") or "magyar" in L:
+        return "HU"
+    return "EN"
+
+# Simple, concept‑check prompts (English/Hungarian)
+def Q_define_set(A: str, L: str) -> str:
+    en = f"In your own words, what does set {A} ({SET_LABELS['EN'][A]}) represent in the game? Name one mineral that typically belongs to {A}."
+    hu = f"Saját szavaiddal írd le, mit jelent az {A} halmaz ({SET_LABELS['HU'][A]}) a játékban! Nevezz meg egy ásványt, amely jellemzően az {A} halmazba tartozik."
+    return hu if L=="HU" else en
+
+def Q_intersection(A: str, B: str, L: str) -> str:
+    en = f"Explain the intersection {A} ∩ {B}. Name one mineral you expect in {A} ∩ {B} and say why."
+    hu = f"Magyarázd el a(z) {A} ∩ {B} metszetet! Nevezz meg egy ásványt, amely ide tartozhat, és indokold röviden."
+    return hu if L=="HU" else en
+
+def Q_difference(A: str, B: str, L: str) -> str:
+    en = f"Explain the difference {A} \\ {B}. Give one mineral that is in {A} but not in {B}, with a short justification."
+    hu = f"Magyarázd el a(z) {A} \\ {B} különbséget! Adj meg egy ásványt, amely {A}-ban benne van, de {B}-ben nincs, és indokold röviden."
+    return hu if L=="HU" else en
+
+def Q_symdiff(A: str, B: str, L: str) -> str:
+    en = f"What does the symmetric difference {A} Δ {B} capture? Give one mineral included in {A} Δ {B} and one excluded; justify briefly."
+    hu = f"Mit jelent a szimmetrikus különbség {A} Δ {B}? Adj meg egy ásványt, amely bekerül {A} Δ {B}-be, és egyet, amely nem; röviden indokold."
+    return hu if L=="HU" else en
+
+def Q_union(A: str, B: str, L: str) -> str:
+    en = f"What does the union {A} ∪ {B} represent? Give one mineral only in {A} and one only in {B}."
+    hu = f"Mit jelent az {A} ∪ {B} unió? Adj meg egy ásványt, amely csak az {A} halmazban, és egyet, amely csak a {B} halmazban szerepel."
+    return hu if L=="HU" else en
+
+def Q_triple(L: str) -> str:
+    en = "What does the triple intersection I ∩ S ∩ M represent? Use Quartz as an example."
+    hu = "Mit jelent az I ∩ S ∩ M hármas metszet? Használd a Kvarcot (Quartz) példaként."
+    return hu if L=="HU" else en
+
+def Q_outside(L: str) -> str:
+    en = "What is the 'Outside all sets' region U \\ (I ∪ S ∪ M)? Suggest one plausible mineral/material that could be outside and explain briefly."
+    hu = "Mit jelent a „Minden halmazon kívül” régió, azaz U \\ (I ∪ S ∪ M)? Javasolj egy lehetséges ásványt/anyagot, amely kívül lehet, és röviden indokold."
+    return hu if L=="HU" else en
+
+def Q_sentence_notation(A: str, B: str, L: str) -> str:
+    en = f"If a mineral belongs to {B} but not {A}, write one short sentence using set notation, and name one mineral from the game you think fits."
+    hu = f"Ha egy ásvány {B}-hez tartozik, de {A}-hoz nem, írj egy rövid mondatot halmaz‑jelöléssel, és nevezz meg egy szerinted ide illő ásványt a játékból."
+    return hu if L=="HU" else en
+
+def Q_compare_cap_delta(A: str, B: str, L: str) -> str:
+    en = f"Compare {A} ∩ {B} and {A} Δ {B} in your own words. When would you use each to reason about minerals?"
+    hu = f"Hasonlítsd össze a(z) {A} ∩ {B} és {A} Δ {B} halmazokat! Mikor használnád egyiket vagy a másikat az ásványok vizsgálatában?"
+    return hu if L=="HU" else en
+
+def build_question_set(rng: random.Random, L: str) -> List[Dict[str,str]]:
+    P1 = rng.choice(PAIRS)  # intersection
+    P2 = rng.choice(PAIRS)  # difference
+    P3 = rng.choice(PAIRS)  # symdiff
+    P4 = rng.choice(PAIRS)  # union
+    P5 = rng.choice(PAIRS)  # compare
+    items = [
+        Q_define_set("I", L),
+        Q_define_set("S", L),
+        Q_define_set("M", L),
+        Q_intersection(P1[0], P1[1], L),
+        Q_difference(P2[0], P2[1], L),
+        Q_symdiff(P3[0], P3[1], L),
+        Q_union(P4[0], P4[1], L),
+        Q_triple(L),
+        Q_outside(L),
+        Q_compare_cap_delta(P5[0], P5[1], L),
+    ]
+    tail = items[3:]
+    rng.shuffle(tail)
+    items = items[:3] + tail
+    return [{"id": f"Q{i+1:02d}", "text": t} for i, t in enumerate(items)]
+
+def _seed_from_identity(name: str, neptun: str) -> int:
+    today = time.strftime("%Y-%m-%d")
+    key = f"{name}|{neptun}|{today}"
+    h = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+    return int(h, 16) % (2**31 - 1)
+
+def _gen_questions(name: str, neptun: str, language: str) -> Dict[str, Any]:
+    L = lang_code(language)
+    rng = random.Random(_seed_from_identity(name, neptun))
+    return {
+        "seed": str(_seed_from_identity(name, neptun)),
+        "language": "Hungarian" if L=="HU" else "English",
+        "questions": build_question_set(rng, L)
     }
 
-    .rule-card{ background: var(--card); border:1px solid #233040; border-radius:14px; padding:12px; margin-bottom:10px; }
-    .rule-card h3{ margin:0 0 6px; font-size:14px; color:#cbd7ea; }
-    .rule-card ul{ margin:6px 0 0 18px; color:#d7e6ff; }
+# ------------------ Routes ------------------
+@assignment_bp.route("/assignment")
+def assignment_home():
+    return render_template("assignment.html")
 
-    .q-card{
-      background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px; margin-top:10px;
+@assignment_bp.route("/assignment/api/generate", methods=["POST"])
+def assignment_generate():
+    data = request.get_json(force=True, silent=True) or {}
+    name = (data.get("name") or "").strip()
+    neptun = (data.get("neptun") or "").strip().upper()
+    language = (data.get("language") or "English").strip()
+    if not name or not neptun:
+        return jsonify({"error": "Missing name or Neptun code"}), 400
+    return jsonify(_gen_questions(name, neptun, language))
+
+@assignment_bp.route("/assignment/api/grade", methods=["POST"])
+def assignment_grade():
+    data = request.get_json(force=True, silent=True) or {}
+    name = (data.get("name") or "").strip()
+    neptun = (data.get("neptun") or "").strip().upper()
+    language = (data.get("language") or "English").strip()
+    qa = data.get("qa") or []
+
+    # No GPT: offline heuristic
+    if not OPENAI_API_KEY or not qa:
+        perq, total = [], 0
+        L = lang_code(language)
+        words_en = ["Igneous","Sedimentary","Metamorphic","intersection","difference","union","symmetric"]
+        words_hu = ["Magmás","Üledékes","Metamorf","metszet","különbség","unió","szimmetrikus"]
+        for item in qa:
+            ans = (item.get("answer") or "").strip()
+            base = min(10, max(0, len(ans)//160))  # ~2–5 sentences
+            bonus = 0
+            if any(sym in ans for sym in ["∩","∪","\\","Δ","U"]): bonus += 1
+            if any(w in ans for w in (words_hu if L=="HU" else words_en)): bonus += 1
+            score = max(0, min(10, base + bonus))
+            total += score
+            perq.append({"id": item.get("id","?"), "score": score, "feedback": "Heuristic grading (offline)."})
+        overall = round(total / (len(qa) * 10) * 100) if qa else 0
+        return jsonify({
+            "per_question": perq,
+            "overall_pct": overall,
+            "pass": overall >= 70,
+            "summary": "Offline heuristic result. Set OPENAI_API_KEY for rubric grading."
+        })
+
+    # GPT rubric grading
+    system_prompt = (
+        "You are a concise grader for short, open-ended answers about basic set relations in a geology-themed Venn diagram.\n"
+        "Sets: I (Igneous), S (Sedimentary), M (Metamorphic). Relations: ∩, ∪, \\ , Δ, outside U, triple intersection.\n"
+        "Accept English or Hungarian responses. Grade each answer 0–10 using: clarity (0–3), set-theory correctness (0–4), geology linkage (0–3).\n"
+        "Return strict JSON: {per_question:[{id,score,feedback}], overall_pct, pass, summary}."
+    )
+    payload = {
+        "language": language,
+        "student": {"name": name, "neptun": neptun},
+        "qa": [{"id": it.get("id","?"),
+                "question": (it.get("question") or "")[:400],
+                "answer": (it.get("answer") or "")[:4000]} for it in qa]
     }
-    .q-card h4{ margin:0 0 6px; font-size:14px; color:#cbd7ea; }
-    .q-text{ color:#d7e6ff; margin: 4px 0 8px; white-space: pre-wrap; }
-    .q-card textarea{
-      background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:10px; border-radius:8px; width:100%;
-      min-height: 110px;
-    }
-
-    .score{
-      display:flex; align-items:center; gap:8px; padding:2px 6px; border-radius:10px;
-      background: rgba(14,21,35,0.6); border:1px solid #223045; margin-top: 10px;
-    }
-    .score .bar{ width:230px; height:8px; border:1px solid #263243; background:#0e1523; border-radius:999px; overflow:hidden; }
-    .score .fill{ height:100%; width:0%; background: linear-gradient(90deg, #16a34a, #22c55e); }
-    .pill{ display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #223045; background:#0e1523; color:#a7b8cc; }
-
-    .perq{ display:grid; gap:6px; margin-top:8px; }
-    .perq .item{ display:flex; justify-content:space-between; gap:8px; border:1px dashed #2a394e; border-radius:10px; padding:6px 8px; }
-    .good{ color:#34d399; font-weight:700; }
-    .bad{ color:#ef4444; font-weight:700; }
-
-    @media print {
-      header, .controls { display:none !important; }
-      body { background: #fff; }
-      .q-card{ page-break-inside: avoid; }
-      .rule-card{ page-break-inside: avoid; }
-    }
-  </style>
-
-  <div class="assign-wrap">
-    <!-- 1) Identity -->
-    <div class="id-card">
-      <div class="id-row">
-        <label for="studentName" id="lblName">Student Name</label>
-        <input type="text" id="studentName" placeholder="Your full name / Teljes név" required />
-      </div>
-      <div class="id-row">
-        <label for="neptun" id="lblNeptun">Neptun Code</label>
-        <input type="text" id="neptun" placeholder="ABC123" maxlength="6" pattern="[A-Za-z0-9]{6}" required />
-      </div>
-      <div class="id-row">
-        <label for="language" id="lblLang">Language / Nyelv</label>
-        <select id="language">
-          <option value="English">English</option>
-          <option value="Hungarian">Hungarian (Magyar)</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- 2) Short instruction -->
-    <div class="rule-card">
-      <h3 id="instTitle">Instruction</h3>
-      <ul id="instList">
-        <li>Use the <strong>Set Theory Minerals Game</strong> to think about regions (∩, ∪, \, Δ, triple, outside).</li>
-        <li>Answer each question in 2–5 sentences. You may write in <em>any language</em>.</li>
-        <li>Click <strong>Start Assignment</strong> to load your 10 personalized questions.</li>
-        <li>Click <strong>Check & Grade</strong> for instant feedback. If your score is <strong>≥ 70%</strong>, you can <strong>Generate PDF</strong> and then <strong>upload it</strong> to the University learning system under this assignment.</li>
-      </ul>
-    </div>
-
-    <!-- 3) Questions -->
-    <div id="questionsBox"></div>
-
-    <!-- 4) Bottom: Grading & feedback -->
-    <div class="q-card" id="gradingBox" style="display:none;">
-      <h4 id="gradeTitle">Grading</h4>
-      <div class="score">
-        <span id="scoreText">Score: 0%</span>
-        <div class="bar"><div id="scoreFill" class="fill"></div></div>
-        <span id="passPill" class="pill">—</span>
-      </div>
-      <div class="perq" id="perQuestion"></div>
-      <div class="rule-card" style="margin-top:10px;">
-        <h3 id="sumTitle">Summary</h3>
-        <div id="summaryText" class="q-text">—</div>
-      </div>
-      <div class="rule-card" style="margin-top:10px;">
-        <strong id="submitNote">Submission:</strong>
-        <span id="submitText">After generating your PDF, please <u>upload it to the University learning system</u> under this assignment.</span>
-      </div>
-    </div>
-  </div>
-</section>
-{% endblock %}
-
-{% block scripts %}
-<script>
-(() => {
-  const $ = (id) => document.getElementById(id);
-
-  const btnStart = $("btnStart");
-  const btnGrade = $("btnGrade");
-  const btnPdf   = $("btnPdf");
-  const langSel  = $("language");
-
-  const questionsBox = $("questionsBox");
-  const gradingBox   = $("gradingBox");
-  const scoreText    = $("scoreText");
-  const scoreFill    = $("scoreFill");
-  const passPill     = $("passPill");
-  const perQuestion  = $("perQuestion");
-  const summaryText  = $("summaryText");
-
-  let currentQuestions = []; // [{id,text}]
-  let gradingResult = null;
-
-  // --- Simple UI i18n (EN/HU) for labels/instructions ---
-  const I18N = {
-    EN: {
-      openGame: "Open Set Theory Game",
-      start: "Start Assignment",
-      grade: "Check & Grade",
-      pdf: "Generate PDF",
-      name: "Student Name",
-      neptun: "Neptun Code",
-      lang: "Language",
-      instructionTitle: "Instruction",
-      instructionList: [
-        "Use the Set Theory Minerals Game to think about regions (∩, ∪, \\, Δ, triple, outside).",
-        "Answer each question in 2–5 sentences. You may write in any language.",
-        "Click Start Assignment to load your 10 personalized questions.",
-        "Click Check & Grade for instant feedback. If your score is ≥ 70%, you can Generate PDF and then upload it to the University learning system under this assignment."
-      ],
-      grading: "Grading",
-      summary: "Summary",
-      submissionNote: "Submission:",
-      submissionText: "After generating your PDF, please upload it to the University learning system under this assignment.",
-      scoreLabel: (pct)=>`Score: ${pct}%`,
-      pass: "PASS (≥ 70%)",
-      revise: "REVISE (< 70%)",
-      answerPlaceholder: "Type your answer (2–5 sentences). Any language is ok."
-    },
-    HU: {
-      openGame: "Halmazjáték megnyitása",
-      start: "Feladat indítása",
-      grade: "Ellenőrzés és értékelés",
-      pdf: "PDF készítése",
-      name: "Hallgató neve",
-      neptun: "Neptun-kód",
-      lang: "Nyelv",
-      instructionTitle: "Utasítás",
-      instructionList: [
-        "Használd a Halmazelmélet–Ásványok játékot a régiók megértéséhez (∩, ∪, \\, Δ, hármas metszet, kívül).",
-        "Minden kérdésre 2–5 mondatban válaszolj. Bármely nyelven írhatsz.",
-        "Kattints a Feladat indítása gombra a 10 személyre szabott kérdés betöltéséhez.",
-        "Kattints az Ellenőrzés és értékelés gombra az azonnali visszajelzéshez. Ha az eredményed ≥ 70%, készíts PDF‑et, majd töltsd fel az egyetemi oktatási rendszerbe ehhez a feladathoz."
-      ],
-      grading: "Értékelés",
-      summary: "Összegzés",
-      submissionNote: "Leadás:",
-      submissionText: "A PDF elkészítése után töltsd fel az egyetemi oktatási rendszerbe ehhez a feladathoz.",
-      scoreLabel: (pct)=>`Pontszám: ${pct}%`,
-      pass: "SIKERES (≥ 70%)",
-      revise: "JAVÍTANDÓ (< 70%)",
-      answerPlaceholder: "Írd meg a választ (2–5 mondat). Bármely nyelv elfogadott."
-    }
-  };
-
-  function uiLangCode(){
-    const v = (langSel.value || "English").toLowerCase();
-    return v.startsWith("hungarian") ? "HU" : "EN";
-  }
-
-  function applyUIStrings(){
-    const L = I18N[uiLangCode()];
-    $("lblOpenGame").textContent = L.openGame;
-    $("btnStart").textContent = L.start;
-    $("btnGrade").textContent = L.grade;
-    $("btnPdf").textContent   = L.pdf;
-
-    $("lblName").textContent   = L.name;
-    $("lblNeptun").textContent = L.neptun;
-    $("lblLang").textContent   = "Language / Nyelv";
-
-    $("instTitle").textContent = L.instructionTitle;
-    const ul = $("instList");
-    ul.innerHTML = "";
-    L.instructionList.forEach(t => {
-      const li = document.createElement("li"); li.innerHTML = t; ul.appendChild(li);
-    });
-
-    $("gradeTitle").textContent = L.grading;
-    $("sumTitle").textContent   = L.summary;
-    $("submitNote").textContent = L.submissionNote;
-    $("submitText").innerHTML   = L.submissionText;
-
-    // Update score label if already graded
-    const cur = parseInt((scoreText.textContent.match(/\d+/)||[0])[0], 10) || 0;
-    scoreText.textContent = L.scoreLabel(cur);
-
-    // Update answer placeholders
-    currentQuestions.forEach(q => {
-      const ta = document.getElementById(`ans_${q.id}`);
-      if (ta) ta.placeholder = L.answerPlaceholder;
-    });
-  }
-
-  langSel.addEventListener("change", applyUIStrings);
-
-  // Helpers
-  function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-  function renderQuestions(list){
-    const L = I18N[uiLangCode()];
-    questionsBox.innerHTML = "";
-    list.forEach(q => {
-      const card = document.createElement("div");
-      card.className = "q-card";
-      card.innerHTML = `
-        <h4>${q.id}</h4>
-        <div class="q-text">${escapeHtml(q.text)}</div>
-        <textarea id="ans_${q.id}" placeholder="${escapeHtml(L.answerPlaceholder)}"></textarea>
-      `;
-      questionsBox.appendChild(card);
-    });
-    // restore autosave
-    list.forEach(q => {
-      const key = saveKey(q.id);
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        const ta = document.getElementById(`ans_${q.id}`);
-        if (ta) ta.value = saved;
-      }
-    });
-  }
-
-  function autosaveWire(list){
-    list.forEach(q => {
-      const ta = document.getElementById(`ans_${q.id}`);
-      if (!ta) return;
-      ta.addEventListener("input", () => {
-        localStorage.setItem(saveKey(q.id), ta.value);
-      });
-    });
-  }
-
-  function saveKey(qid){
-    const name = ($("studentName").value || "").trim();
-    const neptun = ($("neptun").value || "").trim().toUpperCase();
-    const L = uiLangCode();
-    return `assign1:${neptun}:${name}:${L}:${qid}`;
-    // (language added so EN/HU drafts don't overwrite each other)
-  }
-
-  // Start / Generate
-  btnStart.addEventListener("click", async () => {
-    const name = $("studentName").value.trim();
-    const neptun = $("neptun").value.trim().toUpperCase();
-    const language = langSel.value;
-    if (!name){ alert(uiLangCode()==="HU" ? "Add meg a nevedet!" : "Please enter your name."); return; }
-    if (!/^[A-Za-z0-9]{6}$/.test(neptun)){
-      alert(uiLangCode()==="HU" ? "Adj meg érvényes 6 karakteres Neptun‑kódot!" : "Please enter a valid 6‑character Neptun code.");
-      return;
-    }
-    btnStart.disabled = true; btnStart.textContent = uiLangCode()==="HU" ? "Betöltés…" : "Loading…";
-    try {
-      const r = await fetch("/assignment/api/generate", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ name, neptun, language })
-      });
-      const data = await r.json();
-      if (data.error){ alert(data.error); return; }
-      currentQuestions = data.questions || [];
-      renderQuestions(currentQuestions);
-      autosaveWire(currentQuestions);
-      gradingBox.style.display = "none";
-      gradingResult = null;
-      btnPdf.disabled = true;
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-    } catch (e){
-      console.error(e);
-      alert(uiLangCode()==="HU" ? "Hiba a kérdések betöltésekor." : "Could not load questions.");
-    } finally {
-      btnStart.disabled = false; btnStart.textContent = I18N[uiLangCode()].start;
-    }
-  });
-
-  // Grade
-  btnGrade.addEventListener("click", async () => {
-    const name = $("studentName").value.trim();
-    const neptun = $("neptun").value.trim().toUpperCase();
-    const language = langSel.value;
-    if (!currentQuestions.length){
-      alert(uiLangCode()==="HU" ? "Előbb indítsd el a feladatot." : "Please start the assignment first.");
-      return;
-    }
-    const qa = currentQuestions.map(q => ({
-      id: q.id,
-      question: q.text,
-      answer: (document.getElementById(`ans_${q.id}`)?.value || "").trim()
-    }));
-    btnGrade.disabled = true; btnGrade.textContent = uiLangCode()==="HU" ? "Értékelés…" : "Grading…";
-    try {
-      const r = await fetch("/assignment/api/grade", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ name, neptun, language, qa })
-      });
-      const data = await r.json();
-      gradingResult = data;
-      showGrading(data);
-      gradingBox.style.display = "block";
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-    } catch (e){
-      console.error(e);
-      alert(uiLangCode()==="HU" ? "Hiba az értékelés során." : "Grading failed.");
-    } finally {
-      btnGrade.disabled = false; btnGrade.textContent = I18N[uiLangCode()].grade;
-    }
-  });
-
-  function showGrading(res){
-    const L = I18N[uiLangCode()];
-    const pct = res.overall_pct || 0;
-    scoreText.textContent = L.scoreLabel(pct);
-    scoreFill.style.width = `${Math.max(0,Math.min(100,pct))}%`;
-    const pass = pct >= 70;
-    passPill.textContent = pass ? L.pass : L.revise;
-    passPill.style.color = pass ? "#a8f0c4" : "#ffb4bf";
-    passPill.style.background = pass ? "#11281f" : "#2a1115";
-    passPill.style.border = pass ? "1px solid #1f6f4f" : "1px solid #5a2831";
-
-    perQuestion.innerHTML = "";
-    (res.per_question || []).forEach(item => {
-      const div = document.createElement("div");
-      div.className = "item";
-      div.innerHTML = `
-        <span><strong>${item.id}</strong></span>
-        <span class="${item.score>=7 ? 'good':'bad'}">${item.score}/10</span>
-      `;
-      perQuestion.appendChild(div);
-    });
-    summaryText.textContent = res.summary || "—";
-    btnPdf.disabled = !pass;
-  }
-
-  // PDF (print)
-  $("btnPdf").addEventListener("click", () => {
-    if (!gradingResult || (gradingResult.overall_pct||0) < 70){
-      alert(uiLangCode()==="HU" ? "PDF készítéséhez legalább 70% szükséges." : "You must score ≥ 70% to generate the PDF.");
-      return;
-    }
-    const name = $("studentName").value.trim();
-    const neptun = $("neptun").value.trim().toUpperCase();
-    const today = new Date().toISOString().slice(0,10);
-    const L = I18N[uiLangCode()];
-
-    // Printable header
-    const hdr = document.createElement("div");
-    hdr.id = "printHeader";
-    hdr.style.padding = "8px 16px";
-    hdr.style.borderBottom = "1px solid #233040";
-    hdr.style.marginBottom = "8px";
-    hdr.style.fontSize = "13px";
-    hdr.style.background = "#0e1523";
-    hdr.style.color = "#cfe0ff";
-    hdr.innerHTML = `<strong>Assignment 1 — Set Theory with Minerals / Halmazelmélet ásványokkal</strong> | `
-      + `Name/Név: ${escapeHtml(name)} | Neptun: ${escapeHtml(neptun)} | Date: ${today} | `
-      + `${L.scoreLabel(gradingResult.overall_pct)}<br>`
-      + `<em>${L.submissionText}</em>`;
-    document.body.prepend(hdr);
-
-    const originalTitle = document.title;
-    document.title = `Assignment1_${neptun}_${name.replace(/\s+/g,'_')}`;
-    window.print();
-    document.title = originalTitle;
-    hdr.remove();
-  });
-
-  // Minor UX: uppercase Neptun as they type
-  $("neptun").addEventListener("input", e => e.target.value = e.target.value.toUpperCase());
-
-  // Initialize UI strings for default language
-  applyUIStrings();
-})();
-</script>
-{% endblock %}
+    try:
+        content = _chat_request(MODEL_GRADING, system_prompt, json.dumps(payload, ensure_ascii=False))
+        obj = _safe_json(content)
+        perq = obj.get("per_question", [])
+        clean, total = [], 0
+        for item in perq:
+            sid = item.get("id","?")
+            sc  = max(0, min(10, int(item.get("score", 0))))
+            fb  = (item.get("feedback") or "").strip()
+            total += sc
+            clean.append({"id": sid, "score": sc, "feedback": fb})
+        overall = obj.get("overall_pct")
+        if overall is None:
+            overall = round(total / (len(clean) * 10) * 100) if clean else 0
+        passed = bool(obj.get("pass", overall >= 70))
+        summary = obj.get("summary", "—")
+        return jsonify({
+            "per_question": clean,
+            "overall_pct": int(overall),
+            "pass": passed,
+            "summary": summary
+        })
+    except Exception:
+        # Fallback to heuristic on error
+        perq, total = [], 0
+        for item in qa:
+            ans = (item.get("answer") or "").strip()
+            base = min(10, max(0, len(ans)//160))
+            bonus = 1 if any(sym in ans for sym in ["∩","∪","\\","Δ","U"]) else 0
+            score = max(0, min(10, base + bonus))
+            total += score
+            perq.append({"id": item.get("id","?"), "score": score, "feedback": "Heuristic grading (API error)."})
+        overall = round(total / (len(qa) * 10) * 100) if qa else 0
+        return jsonify({
+            "per_question": perq,
+            "overall_pct": overall,
+            "pass": overall >= 70,
+            "summary": "Heuristic used due to API error."
+        })
