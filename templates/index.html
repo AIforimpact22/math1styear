@@ -15,6 +15,7 @@
       --ring:#334155;
       --hover:#0f141c;
       --accent:#7aa2ff;
+      --navw: 260px;
     }
     *{ box-sizing: border-box; }
     html, body { height: 100%; }
@@ -25,8 +26,9 @@
       font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
 
+    /* Header (sticky) */
     header{
-      position: sticky; top: 0; z-index: 20;
+      position: sticky; top: 0; z-index: 50;
       background: linear-gradient(135deg, #101828 0%, #0b0f14 60%);
       border-bottom: 1px solid #1f2a36;
     }
@@ -63,18 +65,73 @@
     }
     .btn:hover{ border-color:#2b3a4f; background:#0f141c; }
     .btn:active{ transform: translateY(1px); }
+    .btn.small{ padding:6px 8px; font-size:12px; }
     .chip{ font-size:12px; padding:6px 8px; border-radius:999px; }
     .chip .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; border:1px solid #0e1523; }
     .chip small{ color: var(--muted); }
     .pill{ display:inline-flex; padding:2px 6px; border-radius:999px; border:1px solid #223045; background:#0e1523; font-size:11px; color:#a7b8cc; }
 
-    /* Shared page grid used by feature pages */
+    /* App shell: left sidebar + content area */
+    .app{
+      display: grid;
+      grid-template-columns: var(--navw) minmax(0,1fr);
+      gap: 0;
+      max-width: 1400px;
+      margin: 12px auto 24px;
+      padding: 0 16px;
+    }
+    @media (max-width: 980px){
+      .app{ grid-template-columns: 1fr; }
+    }
+
+    /* Left sidebar nav */
+    nav.sidenav{
+      align-self: start;
+      background: var(--card);
+      border:1px solid #233040; border-radius:14px;
+      padding: 12px;
+      position: sticky; top: 12px;
+      height: fit-content;
+    }
+    .nav-head{
+      display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;
+    }
+    .nav-head h3{ margin:0; font-size:13px; color:#cbd7ea; letter-spacing:.2px; text-transform: uppercase; }
+    .nav-group{ display:flex; flex-direction:column; gap:6px; }
+    .nav-link{
+      display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px;
+      color:#e6efff; text-decoration:none; border:1px solid transparent; background:transparent;
+    }
+    .nav-link:hover{ background:#0f141c; border-color:#2b3a4f; }
+    .nav-link.active{
+      background: rgba(122,162,255,0.12);
+      border-color: rgba(122,162,255,0.45);
+      box-shadow: inset 0 0 0 1px rgba(122,162,255,0.15);
+    }
+    .nav-ico{ width:18px; text-align:center; opacity:.9; }
+    .nav-sub{ margin-top:10px; border-top:1px dashed #2a394e; padding-top:10px; }
+    .hint{ font-size:12px; color:#9fb2c7; line-height:1.45; }
+
+    /* Mobile: collapse sidebar */
+    #navToggle{ display:none; }
+    @media (max-width: 980px){
+      #navToggle{ display:inline-flex; }
+      nav.sidenav{ display:none; }
+      body.nav-open nav.sidenav{ display:block; }
+    }
+
+    /* Content wrapper */
+    .content{
+      min-width: 0; /* fix overflow issues */
+      display:flex; flex-direction:column; gap:12px;
+    }
+
+    /* ----- Feature page grid (kept so existing pages work) ----- */
     main{
       display:grid;
       grid-template-columns: minmax(0,1fr) 360px;
       column-gap: 16px;
       row-gap: 0;
-      max-width: 1200px; margin: 12px auto; padding: 0 16px 16px;
     }
     @media (max-width: 980px){ main{ grid-template-columns: 1fr; } }
 
@@ -87,7 +144,7 @@
     }
     canvas{ width:100%; height:66vh; display:block; }
 
-    /* Score block (kept for feature pages) */
+    /* Score block (used by feature pages) */
     .score{
       display:flex; align-items:center; gap:8px;
       padding:2px 6px; border-radius:10px; background: rgba(14,21,35,0.6); border:1px solid #223045;
@@ -139,36 +196,17 @@
     .exp-list{ margin:8px 0 0 18px; }
     .exp-list li{ margin:2px 0; }
 
-    /* Landing grid (default content of this template) */
-    .landing{
-      max-width: 1200px;
-      margin: 16px auto 24px;
-      padding: 0 16px 16px;
+    /* Home (default content) */
+    .home-card{
+      background: var(--card); border:1px solid #233040; border-radius:14px; padding:16px;
     }
-    .tiles{
-      display:grid;
-      grid-template-columns: repeat(2, minmax(240px, 1fr)); /* will wrap the 3rd tile onto a new row */
-      gap: 16px;
+    .home-grid{ display:grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 12px; margin-top:10px; }
+    @media (max-width: 720px){ .home-grid{ grid-template-columns: 1fr; } }
+    .home-tile{
+      background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px;
     }
-    @media (max-width: 720px){
-      .tiles{ grid-template-columns: 1fr; }
-    }
-    .tile{
-      display:flex; flex-direction:column; justify-content:space-between;
-      background: var(--card); border:1px solid #233040; border-radius:14px;
-      padding:16px; text-decoration:none; color:inherit;
-      transition: border-color .15s ease, transform .1s ease, background .15s ease;
-      min-height: 160px;
-    }
-    .tile:hover{ background: var(--hover); border-color: var(--ring); transform: translateY(-1px); }
-    .tile h3{ margin: 0 0 10px; font-size: 18px; color:#e4ecff; }
-    .tile p{ margin: 0 0 12px; color:#a9b8cc; }
-    .tile .go{
-      align-self:flex-start;
-      display:inline-flex; gap:8px; align-items:center;
-      background:#0e1523; border:1px solid #223045; border-radius:10px; padding:8px 10px; color:#cfe0ff;
-    }
-    .tile .go span{ font-size:12px; opacity:.9; }
+    .home-tile h3{ margin:0 0 6px; font-size:16px; color:#e4ecff; }
+    .home-tile p{ margin:0; color:#a9b8cc; }
   </style>
 </head>
 <body>
@@ -194,46 +232,100 @@
 
     <div class="byline">
       By <a href="https://www.linkedin.com/in/habdulhaq/" target="_blank" rel="noopener noreferrer">ABDULHAQ Hawkar</a>
+      <button id="navToggle" class="btn small" style="margin-left:10px;">☰ Menu</button>
     </div>
 
     {% block controls %}{% endblock %}
   </div>
 </header>
 
-{# -------- DEFAULT LANDING CONTENT (shown when rendering this template directly) -------- #}
-<section class="landing">
-  <div class="tiles">
-    <a class="tile" href="/sets">
-      <div>
-        <h3>Set Theory</h3>
-        <p>Drag circles & minerals to explore unions, intersections, differences, symmetric differences, and complements.</p>
-      </div>
-      <div class="go">Open Set Theory <span>→</span></div>
-    </a>
+<div class="app">
+  <!-- LEFT SIDEBAR NAV -->
+  <nav class="sidenav" aria-label="Main navigation">
+    <div class="nav-head">
+      <h3>Pages</h3>
+    </div>
+    <div class="nav-group" role="list">
+      <a class="nav-link" href="/" data-match="^/$">
+        <span class="nav-ico">🏠</span><span>Home</span>
+      </a>
+      <a class="nav-link" href="/sets" data-match="^/sets(/.*)?$">
+        <span class="nav-ico">⭕</span><span>Set Theory</span>
+      </a>
+      <a class="nav-link" href="/function" data-match="^/function(/.*)?$">
+        <span class="nav-ico">🔗</span><span>Functions</span>
+      </a>
+      <a class="nav-link" href="/assignment" data-match="^/assignment(/.*)?$">
+        <span class="nav-ico">📝</span><span>Assignment 1</span>
+      </a>
+    </div>
 
-    <a class="tile" href="/function">
-      <div>
-        <h3>Functions</h3>
-        <p>Build a bijection between rock samples and mineral signatures; learn about invertibility & countability.</p>
+    <div class="nav-sub">
+      <div class="hint">
+        Use the sidebar to switch pages. On mobile, tap <strong>☰ Menu</strong>.
       </div>
-      <div class="go">Open Functions <span>→</span></div>
-    </a>
+    </div>
+  </nav>
 
-    <!-- NEW: Assignment 1 tile -->
-    <a class="tile" href="/assignment">
-      <div>
-        <h3>Assignment 1</h3>
-        <p>Answer 10 questions using the Set Theory game, then generate a PDF with your Name & Neptun and upload it.</p>
-      </div>
-      <div class="go">Open Assignment 1 <span>→</span></div>
-    </a>
+  <!-- RIGHT CONTENT -->
+  <div class="content">
+    <!-- Feature pages place their own canvas/aside here -->
+    <main>
+      {% block content %}
+      <!-- Default Home (shown only on / when not overridden) -->
+      <section class="home-card">
+        <h2 style="margin:0 0 6px;">Welcome</h2>
+        <p style="margin:0; color:#a9b8cc;">
+          Choose a page from the left: <strong>Set Theory</strong> (interactive Venn with minerals),
+          <strong>Functions</strong> (mapping game & invertibility), or
+          <strong>Assignment 1</strong> (fill answers and generate a PDF with your Name & Neptun).
+        </p>
+        <div class="home-grid" style="margin-top:12px;">
+          <div class="home-tile">
+            <h3>Set Theory</h3>
+            <p>Drag circles & minerals. Explore <em>∩</em>, <em>∪</em>, <em>\</em>, <em>Δ</em>, complement. Click rows to highlight regions.</p>
+            <p style="margin-top:8px;"><a class="btn" href="/sets">Open Set Theory →</a></p>
+          </div>
+          <div class="home-tile">
+            <h3>Functions</h3>
+            <p>Connect rock samples (D) to mineral signatures (E). Aim for a bijection to enable inversion.</p>
+            <p style="margin-top:8px;"><a class="btn" href="/function">Open Functions →</a></p>
+          </div>
+          <div class="home-tile">
+            <h3>Assignment 1</h3>
+            <p>Answer 10 questions using the Set Theory game and export a PDF with Name & Neptun.</p>
+            <p style="margin-top:8px;"><a class="btn" href="/assignment">Open Assignment 1 →</a></p>
+          </div>
+          <div class="home-tile">
+            <h3>Tips</h3>
+            <p>In Set Theory: drag circles & minerals; mouse wheel resizes a set; <span class="kbd">Esc</span> clears highlight.</p>
+          </div>
+        </div>
+      </section>
+      {% endblock %}
+    </main>
   </div>
-</section>
+</div>
 
-{# -------- FEATURE PAGE LAYOUT (only used by child templates) -------- #}
-<main>
-  {% block content %}{% endblock %}
-</main>
+<!-- Small script for sidebar highlighting + mobile toggle -->
+<script>
+  (function(){
+    // Highlight the active nav item based on current URL
+    var path = location.pathname;
+    document.querySelectorAll('nav.sidenav .nav-link').forEach(function(a){
+      var re = new RegExp(a.getAttribute('data-match'));
+      if (re.test(path)) a.classList.add('active');
+    });
+
+    // Mobile toggle
+    var btn = document.getElementById('navToggle');
+    if (btn){
+      btn.addEventListener('click', function(){
+        document.body.classList.toggle('nav-open');
+      });
+    }
+  })();
+</script>
 
 {% block scripts %}{% endblock %}
 </body>
