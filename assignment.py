@@ -1,427 +1,271 @@
-{% extends "index.html" %}
-{% block page_title %}Assignment 1 — Set Theory with Minerals / Halmazelmélet ásványokkal{% endblock %}
+from __future__ import annotations
+import os, json, time, hashlib, random, re
+from typing import List, Dict, Any
+from flask import Blueprint, render_template, request, jsonify
 
-{% block controls %}
-<div class="controls" aria-label="Assignment controls">
-  <a href="/" class="btn" target="_blank" rel="noopener" id="lblOpenGame">Open Set Theory Game</a>
-  <button id="btnStart" class="btn">Start Assignment</button>
-  <button id="btnGrade" class="btn">Check & Grade</button>
-  <button id="btnPdf" class="btn" disabled>Generate PDF</button>
-</div>
-{% endblock %}
+assignment_bp = Blueprint("assignment", __name__)
 
-{% block content %}
-<section class="canvas-card" aria-label="Assignment form container">
-  <style>
-    .assign-wrap{ padding: 14px; }
-    .id-card{
-      display:grid; gap:8px; background:#0f141c; border:1px solid #233040; border-radius:12px; padding:10px;
-      margin-bottom: 10px;
+# =========================
+# Config (lenient grading)
+# =========================
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+MODEL_GRADING  = os.environ.get("ASSIGNMENT_GRADING_MODEL", "gpt-4o-mini")
+PASS_THRESHOLD = 70  # keep requirement: ≥ 70% to unlock PDF
+
+USE_OFFICIAL = True
+try:
+    from openai import OpenAI   # pip install openai
+except Exception:
+    USE_OFFICIAL = False
+import requests
+
+def _client():
+    if not OPENAI_API_KEY:
+        return None
+    if USE_OFFICIAL:
+        return OpenAI(api_key=OPENAI_API_KEY)
+    return None
+
+def _chat_request(model: str, system_prompt: str, user_payload: dict) -> str:
+    """Return assistant content (JSON string)."""
+    if not OPENAI_API_KEY:
+        raise RuntimeError("Missing OPENAI_API_KEY")
+    if USE_OFFICIAL:
+        client = _client()
+        resp = client.chat.completions.create(
+            model=model,
+            temperature=0.3,  # low temp for consistent, lenient rubric
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+            ],
+        )
+        return resp.choices[0].message.content
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "model": model,
+        "temperature": 0.3,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+        ]
     }
-    .id-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .id-row label{ min-width: 140px; color:#cbd7ea; }
-    .id-row input[type="text"], .id-row select{
-      background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:8px 10px; border-radius:8px; width: 280px;
+    r = requests.post(url, headers=headers, json=payload, timeout=60)
+    r.raise_for_status()
+    data = r.json()
+    return data["choices"][0]["message"]["content"]
+
+def _safe_json(text: str) -> Any:
+    try:
+        return json.loads(text)
+    except Exception:
+        t = (text or "").strip()
+        if t.startswith("```"):
+            t = t.strip("`")
+            parts = t.split("\n", 1)
+            if len(parts) == 2:
+                t = parts[1]
+        return json.loads(t)
+
+# =========================
+# Example-aligned content
+# =========================
+SET_LABELS = {"I": "Igneous", "S": "Sedimentary", "M": "Metamorphic"}
+PAIRS = [("I","S"), ("I","M"), ("S","M")]
+
+REG_MINERALS = {
+    "I": ["Olivine","Pyroxene","Plagioclase Feldspar","Amphibole","Biotite","Ilmenite"],
+    "S": ["Gypsum","Halite","Kaolinite","Opal","Galena","Hematite"],
+    "M": ["Garnet","Kyanite","Staurolite","Sillimanite","Chlorite","Graphite"],
+    "I∩S": ["Zeolite"],
+    "I∩M": ["Serpentine","Hornblende","Muscovite"],
+    "S∩M": ["Calcite","Dolomite","Talc"],
+    "I∩S∩M": ["Quartz"],
+}
+
+MINERAL_KEYWORDS = set(sum(REG_MINERALS.values(), []))  # flatten
+
+# Simple, short, concept-check templates (10 will be sampled)
+TEMPLATES = [
+    lambda rng, A, B: {"text": f"In your own words, what does set {A} ({SET_LABELS[A]}) represent? Give one mineral typically in {A} and say why."},
+    lambda rng, A, B: {"text": f"Explain the intersection {A} ∩ {B}. Name one mineral that could lie in {A} ∩ {B} and justify briefly."},
+    lambda rng, A, B: {"text": f"Explain the difference {A} \\ {B}. Give one mineral you expect in {A} but not in {B} and why."},
+    lambda rng, A, B: {"text": f"What does the symmetric difference {A} Δ {B} capture? Give one mineral included and one excluded; explain."},
+    lambda rng, A, B: {"text": f"What does the union {A} ∪ {B} represent? Give one mineral only in {A} and one only in {B}."},
+    lambda rng, A, B: {"text": "What does the triple intersection I ∩ S ∩ M represent? Use Quartz as your example (2–4 sentences)."},
+    lambda rng, A, B: {"text": "What is the 'Outside all sets' region U \\ (I ∪ S ∪ M)? Propose one plausible item and explain briefly."},
+    lambda rng, A, B: {"text": "Calcite is in S ∩ M in our example. Explain in 2–3 sentences why that makes sense."},
+    lambda rng, A, B: {"text": f"If a mineral belongs to {B} but not {A}, write one sentence in set notation and give a fitting mineral."},
+    lambda rng, A, B: {"text": f"Compare {A} ∩ {B} vs {A} Δ {B} in your own words. When would you use each?"},
+    lambda rng, A, B: {"text": "Does Zeolite belong to I ∩ S in the example? Answer in 1–2 sentences and justify."},
+    lambda rng, A, B: {"text": "Pick any mineral and state which of {I,S,M} it belongs to (possibly multiple). Justify briefly."},
+]
+
+def _seed_from_identity(name: str, neptun: str) -> int:
+    today = time.strftime("%Y-%m-%d")
+    key = f"{name}|{neptun}|{today}"
+    h = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+    return int(h, 16) % (2**31 - 1)
+
+def _gen_questions(name: str, neptun: str) -> Dict[str, Any]:
+    rng = random.Random(_seed_from_identity(name, neptun))
+    chosen_idx = rng.sample(range(len(TEMPLATES)), 10)
+    def pick_pair():
+        return rng.choice(PAIRS)
+    qlist = []
+    for i, ti in enumerate(chosen_idx, start=1):
+        A, B = pick_pair()
+        q = TEMPLATES[ti](rng, A, B)
+        qlist.append({"id": f"Q{i:02d}", "text": q["text"]})
+    return {"seed": str(_seed_from_identity(name, neptun)), "questions": qlist}
+
+# =========================
+# Lenient heuristic (offline)
+# =========================
+SYM_RE = re.compile(r"[∩∪Δ\\U]")
+SET_RE = re.compile(r"\b(I|S|M|Igneous|Sedimentary|Metamorphic)\b", re.IGNORECASE)
+
+def _soft_score_and_feedback(ans: str) -> tuple[int, str]:
+    """
+    Lenient scoring:
+      • Baseline 6/10 for any relevant multi-sentence answer (≥ ~60 chars).
+      • + up to 2 for length/clarity.
+      • +1 if uses set symbols (∩ ∪ \ Δ U).
+      • +1 if mentions a valid set (I/S/M or names) or a mineral from the example.
+      • Cap at 10. Floor at 4 for very short text.
+    """
+    txt = (ans or "").strip()
+    if not txt:
+        return 0, "Please add a short explanation in any language."
+
+    nchar = len(txt)
+    nsent = max(1, txt.count(".") + txt.count("!") + txt.count("?"))
+    has_sym = bool(SYM_RE.search(txt))
+    has_set = bool(SET_RE.search(txt))
+    has_mineral = any(m.lower() in txt.lower() for m in MINERAL_KEYWORDS)
+
+    base = 6 if nchar >= 60 else 4
+    length_pts = 2 if nchar >= 220 else (1 if nchar >= 120 else 0)
+    sym_pts = 1 if has_sym else 0
+    set_or_mineral_pts = 1 if (has_set or has_mineral) else 0
+
+    score = min(10, base + length_pts + sym_pts + set_or_mineral_pts)
+
+    # Friendly, actionable feedback
+    if score >= 9:
+        fb = "Clear and relevant; nice linkage to the set relations."
+    elif score >= 7:
+        fb = "Good job. You could add one more detail or example for full credit."
+    elif score >= 4:
+        fb = "Thanks — add a bit more detail and try to use symbols (∩, ∪, Δ, \\) or mineral names."
+    else:
+        fb = "Please expand your answer (2–4 sentences) and mention the relevant sets/minerals."
+    return score, fb
+
+# =========================
+# Routes
+# =========================
+@assignment_bp.route("/assignment")
+def assignment_home():
+    return render_template("assignment.html")
+
+@assignment_bp.route("/assignment/api/generate", methods=["POST"])
+def assignment_generate():
+    data = request.get_json(force=True, silent=True) or {}
+    name = (data.get("name") or "").strip()
+    neptun = (data.get("neptun") or "").strip().upper()
+    if not name or not neptun:
+        return jsonify({"error": "Missing name or Neptun code"}), 400
+    return jsonify(_gen_questions(name, neptun))
+
+@assignment_bp.route("/assignment/api/grade", methods=["POST"])
+def assignment_grade():
+    """
+    Input:  { "name":"..", "neptun":"..", "qa":[{"id":"Q01","question":"...","answer":"..."}] }
+    Output: { "per_question":[..], "overall_pct":int, "pass":bool, "summary":"..." }
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    name = (data.get("name") or "").strip()
+    neptun = (data.get("neptun") or "").strip().upper()
+    qa = data.get("qa") or []
+
+    # If no GPT key, use lenient heuristic
+    if not OPENAI_API_KEY or not qa:
+        perq, total = [], 0
+        for item in qa:
+            score, fb = _soft_score_and_feedback(item.get("answer",""))
+            total += score
+            perq.append({"id": item.get("id","?"), "score": score, "feedback": fb})
+        overall = round(total / (len(qa) * 10) * 100) if qa else 0
+        return jsonify({
+            "per_question": perq,
+            "overall_pct": overall,
+            "pass": overall >= PASS_THRESHOLD,
+            "summary": "Lenient offline grading. Aim for 2–4 sentences with symbols and mineral names."
+        })
+
+    # GPT grading (lenient rubric + safety floor)
+    system_prompt = (
+        "You are a supportive grader for short, open-ended answers about set relations in a geology Venn diagram. "
+        "Sets: I (Igneous), S (Sedimentary), M (Metamorphic). Relations: ∩, ∪, \\ , Δ, outside U, triple intersection. "
+        "Accept ANY language. Be LENIENT:\n"
+        "• If the answer is on-topic and multi-sentence (≈2+), award at least 6/10.\n"
+        "• Award extra points for correct set reasoning, use of symbols (∩ ∪ Δ \\ U), and geology linkage.\n"
+        "Rubric (lenient): baseline relevance/effort (0–6), set reasoning (0–2), geology linkage (0–2) = total 10.\n"
+        "Return strict JSON: {per_question:[{id,score,feedback}], overall_pct, pass, summary}. Keep feedback friendly (≤1 sentence)."
+    )
+    user_payload = {
+        "student": {"name": name, "neptun": neptun},
+        "qa": [{"id": it.get("id","?"),
+                "question": (it.get("question") or "")[:400],
+                "answer": (it.get("answer") or "")[:4000]} for it in qa]
     }
 
-    .rule-card{ background: var(--card); border:1px solid #233040; border-radius:14px; padding:12px; margin-bottom:10px; }
-    .rule-card h3{ margin:0 0 6px; font-size:14px; color:#cbd7ea; }
-    .rule-card ul{ margin:6px 0 0 18px; color:#d7e6ff; }
+    try:
+        content = _chat_request(MODEL_GRADING, system_prompt, user_payload)
+        obj = _safe_json(content)
+        perq = obj.get("per_question", [])
+        clean, total = [], 0
 
-    .q-card{
-      background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px; margin-top:10px;
-    }
-    .q-card h4{ margin:0 0 6px; font-size:14px; color:#cbd7ea; }
-    .q-text{ color:#d7e6ff; margin: 4px 0 8px; white-space: pre-wrap; }
-    .q-card textarea{
-      background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:10px; border-radius:8px; width:100%;
-      min-height: 110px;
-    }
+        # Apply lenient safety floor post-processing
+        for item, src in zip(perq, qa):
+            sid = item.get("id","?")
+            sc = int(item.get("score", 0))
+            ans = (src.get("answer") or "")
+            has_relevance = len(ans.strip()) >= 60 and (SYM_RE.search(ans) or SET_RE.search(ans) or any(m.lower() in ans.lower() for m in MINERAL_KEYWORDS))
+            if has_relevance and sc < 6:
+                sc = 6  # floor for relevant multi-sentence attempts
+            sc = max(0, min(10, sc))
+            total += sc
+            fb = (item.get("feedback") or "Good effort. Add one more detail for full credit.").strip()
+            clean.append({"id": sid, "score": sc, "feedback": fb})
 
-    .score{
-      display:flex; align-items:center; gap:8px; padding:2px 6px; border-radius:10px;
-      background: rgba(14,21,35,0.6); border:1px solid #223045; margin-top: 10px;
-    }
-    .score .bar{ width:230px; height:8px; border:1px solid #263243; background:#0e1523; border-radius:999px; overflow:hidden; }
-    .score .fill{ height:100%; width:0%; background: linear-gradient(90deg, #16a34a, #22c55e); }
-    .pill{ display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #223045; background:#0e1523; color:#a7b8cc; }
+        overall = obj.get("overall_pct")
+        if overall is None:
+            overall = round(total / (len(clean) * 10) * 100) if clean else 0
+        passed = bool(obj.get("pass", overall >= PASS_THRESHOLD))
+        summary = obj.get("summary", "Supportive grading applied.")
 
-    .perq{ display:grid; gap:6px; margin-top:8px; }
-    .perq .item{ display:flex; justify-content:space-between; gap:8px; border:1px dashed #2a394e; border-radius:10px; padding:6px 8px; }
-    .good{ color:#34d399; font-weight:700; }
-    .bad{ color:#ef4444; font-weight:700; }
-
-    @media print {
-      header, .controls { display:none !important; }
-      body { background: #fff; }
-      .q-card{ page-break-inside: avoid; }
-      .rule-card{ page-break-inside: avoid; }
-    }
-  </style>
-
-  <div class="assign-wrap">
-    <!-- 1) Identity -->
-    <div class="id-card">
-      <div class="id-row">
-        <label for="studentName" id="lblName">Student Name</label>
-        <input type="text" id="studentName" placeholder="Your full name / Teljes név" required />
-      </div>
-      <div class="id-row">
-        <label for="neptun" id="lblNeptun">Neptun Code</label>
-        <input type="text" id="neptun" placeholder="ABC123" maxlength="6" pattern="[A-Za-z0-9]{6}" required />
-      </div>
-      <div class="id-row">
-        <label for="language" id="lblLang">Language / Nyelv</label>
-        <select id="language">
-          <option value="English">English</option>
-          <option value="Hungarian">Hungarian (Magyar)</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- 2) Instruction -->
-    <div class="rule-card">
-      <h3 id="instTitle">Instruction</h3>
-      <ul id="instList">
-        <li>Use the <strong>Set Theory Minerals Game</strong> to think about regions (∩, ∪, \, Δ, triple, outside).</li>
-        <li>Answer each question in 2–5 sentences. You may write in <em>any language</em>.</li>
-        <li>Click <strong>Start Assignment</strong> to load your 10 personalized questions.</li>
-        <li>Click <strong>Check & Grade</strong> for instant feedback. If your score is <strong>≥ 70%</strong>, you can <strong>Generate PDF</strong> and then <strong>upload it</strong> to the University learning system under this assignment.</li>
-      </ul>
-    </div>
-
-    <!-- 3) Questions -->
-    <div id="questionsBox"></div>
-
-    <!-- 4) Bottom: Grading & feedback -->
-    <div class="q-card" id="gradingBox" style="display:none;">
-      <h4 id="gradeTitle">Grading</h4>
-      <div class="score">
-        <span id="scoreText">Score: 0%</span>
-        <div class="bar"><div id="scoreFill" class="fill"></div></div>
-        <span id="passPill" class="pill">—</span>
-      </div>
-      <div class="perq" id="perQuestion"></div>
-      <div class="rule-card" style="margin-top:10px;">
-        <h3 id="sumTitle">Summary</h3>
-        <div id="summaryText" class="q-text">—</div>
-      </div>
-      <div class="rule-card" style="margin-top:10px;">
-        <strong id="submitNote">Submission:</strong>
-        <span id="submitText">After generating your PDF, please <u>upload it to the University learning system</u> under this assignment.</span>
-      </div>
-    </div>
-  </div>
-</section>
-{% endblock %}
-
-{% block scripts %}
-<script>
-(() => {
-  const $ = (id) => document.getElementById(id);
-
-  const btnStart = $("btnStart");
-  const btnGrade = $("btnGrade");
-  const btnPdf   = $("btnPdf");
-  const langSel  = $("language");
-
-  const questionsBox = $("questionsBox");
-  const gradingBox   = $("gradingBox");
-  const scoreText    = $("scoreText");
-  const scoreFill    = $("scoreFill");
-  const passPill     = $("passPill");
-  const perQuestion  = $("perQuestion");
-  const summaryText  = $("summaryText");
-
-  let currentQuestions = []; // [{id,text}]
-  let gradingResult = null;
-
-  // Simple UI translations
-  const I18N = {
-    EN: {
-      openGame: "Open Set Theory Game",
-      start: "Start Assignment",
-      grade: "Check & Grade",
-      pdf: "Generate PDF",
-      name: "Student Name",
-      neptun: "Neptun Code",
-      instructionTitle: "Instruction",
-      instructionList: [
-        "Use the Set Theory Minerals Game to think about regions (∩, ∪, \\, Δ, triple, outside).",
-        "Answer each question in 2–5 sentences. You may write in any language.",
-        "Click Start Assignment to load your 10 personalized questions.",
-        "Click Check & Grade for instant feedback. If your score is ≥ 70%, you can Generate PDF and then upload it to the University learning system under this assignment."
-      ],
-      grading: "Grading",
-      summary: "Summary",
-      submissionNote: "Submission:",
-      submissionText: "After generating your PDF, please upload it to the University learning system under this assignment.",
-      scoreLabel: (pct)=>`Score: ${pct}%`,
-      pass: "PASS (≥ 70%)",
-      revise: "REVISE (< 70%)",
-      answerPlaceholder: "Type your answer (2–5 sentences). Any language is ok."
-    },
-    HU: {
-      openGame: "Halmazjáték megnyitása",
-      start: "Feladat indítása",
-      grade: "Ellenőrzés és értékelés",
-      pdf: "PDF készítése",
-      name: "Hallgató neve",
-      neptun: "Neptun-kód",
-      instructionTitle: "Utasítás",
-      instructionList: [
-        "Használd a Halmazelmélet–Ásványok játékot a régiók megértéséhez (∩, ∪, \\, Δ, hármas metszet, kívül).",
-        "Minden kérdésre 2–5 mondatban válaszolj. Bármely nyelven írhatsz.",
-        "Kattints a Feladat indítása gombra a 10 személyre szabott kérdés betöltéséhez.",
-        "Kattints az Ellenőrzés és értékelés gombra az azonnali visszajelzéshez. Ha az eredményed ≥ 70%, készíts PDF‑et, majd töltsd fel az egyetemi oktatási rendszerbe ehhez a feladathoz."
-      ],
-      grading: "Értékelés",
-      summary: "Összegzés",
-      submissionNote: "Leadás:",
-      submissionText: "A PDF elkészítése után töltsd fel az egyetemi oktatási rendszerbe ehhez a feladathoz.",
-      scoreLabel: (pct)=>`Pontszám: ${pct}%`,
-      pass: "SIKERES (≥ 70%)",
-      revise: "JAVÍTANDÓ (< 70%)",
-      answerPlaceholder: "Írd meg a választ (2–5 mondat). Bármely nyelv elfogadott."
-    }
-  };
-
-  function uiLangCode(){
-    const v = (langSel.value || "English").toLowerCase();
-    return v.startsWith("hungarian") ? "HU" : "EN";
-  }
-
-  function applyUIStrings(){
-    const L = I18N[uiLangCode()];
-    $("lblOpenGame").textContent = L.openGame;
-    $("btnStart").textContent = L.start;
-    $("btnGrade").textContent = L.grade;
-    $("btnPdf").textContent   = L.pdf;
-
-    $("lblName").textContent   = L.name;
-    $("lblNeptun").textContent = L.neptun;
-    $("lblLang").textContent   = "Language / Nyelv";
-
-    $("instTitle").textContent = L.instructionTitle;
-    const ul = $("instList"); ul.innerHTML = "";
-    L.instructionList.forEach(t => { const li = document.createElement("li"); li.innerHTML = t; ul.appendChild(li); });
-
-    $("gradeTitle").textContent = L.grading;
-    $("sumTitle").textContent   = L.summary;
-    $("submitNote").textContent = L.submissionNote;
-    $("submitText").innerHTML   = L.submissionText;
-
-    // Update score label if already graded
-    const cur = parseInt((scoreText.textContent.match(/\d+/)||[0])[0], 10) || 0;
-    scoreText.textContent = L.scoreLabel(cur);
-
-    // Update textareas' placeholders
-    currentQuestions.forEach(q => {
-      const ta = document.getElementById(`ans_${q.id}`);
-      if (ta) ta.placeholder = L.answerPlaceholder;
-    });
-  }
-  langSel.addEventListener("change", applyUIStrings);
-
-  function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-  function saveKey(qid){
-    const name = ($("studentName").value || "").trim();
-    const neptun = ($("neptun").value || "").trim().toUpperCase();
-    const L = uiLangCode();
-    return `assign1:${neptun}:${name}:${L}:${qid}`;
-  }
-
-  function renderQuestions(list){
-    const L = I18N[uiLangCode()];
-    questionsBox.innerHTML = "";
-    list.forEach(q => {
-      const card = document.createElement("div");
-      card.className = "q-card";
-      card.innerHTML = `
-        <h4>${q.id}</h4>
-        <div class="q-text">${escapeHtml(q.text)}</div>
-        <textarea id="ans_${q.id}" placeholder="${escapeHtml(L.answerPlaceholder)}"></textarea>
-      `;
-      questionsBox.appendChild(card);
-    });
-    // restore any saved drafts
-    list.forEach(q => {
-      const saved = localStorage.getItem(saveKey(q.id));
-      if (saved){
-        const ta = document.getElementById(`ans_${q.id}`); if (ta) ta.value = saved;
-      }
-    });
-  }
-
-  function autosaveWire(list){
-    list.forEach(q => {
-      const ta = document.getElementById(`ans_${q.id}`);
-      if (!ta) return;
-      ta.addEventListener("input", () => localStorage.setItem(saveKey(q.id), ta.value));
-    });
-  }
-
-  // Start / Generate
-  $("btnStart").addEventListener("click", async () => {
-    const name = $("studentName").value.trim();
-    const neptun = $("neptun").value.trim().toUpperCase();
-    const language = $("language").value;
-    const isHU = uiLangCode()==="HU";
-    if (!name){ alert(isHU ? "Add meg a nevedet!" : "Please enter your name."); return; }
-    if (!/^[A-Za-z0-9]{6}$/.test(neptun)){
-      alert(isHU ? "Adj meg érvényes 6 karakteres Neptun‑kódot!" : "Please enter a valid 6‑character Neptun code.");
-      return;
-    }
-    btnStart.disabled = true; btnStart.textContent = isHU ? "Betöltés…" : "Loading…";
-    try {
-      const r = await fetch("/assignment/api/generate", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ name, neptun, language })
-      });
-      const data = await r.json();
-      if (data.error){ alert(data.error); return; }
-      currentQuestions = data.questions || [];
-      renderQuestions(currentQuestions);
-      autosaveWire(currentQuestions);
-      gradingBox.style.display = "none";
-      gradingResult = null;
-      btnPdf.disabled = true;
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-    } catch (e){
-      console.error(e);
-      alert(isHU ? "Hiba a kérdések betöltésekor." : "Could not load questions.");
-    } finally {
-      btnStart.disabled = false; btnStart.textContent = I18N[uiLangCode()].start;
-    }
-  });
-
-  // Grade
-  $("btnGrade").addEventListener("click", async () => {
-    const name = $("studentName").value.trim();
-    const neptun = $("neptun").value.trim().toUpperCase();
-    const language = $("language").value;
-    const isHU = uiLangCode()==="HU";
-    if (!currentQuestions.length){
-      alert(isHU ? "Előbb indítsd el a feladatot." : "Please start the assignment first.");
-      return;
-    }
-    const qa = currentQuestions.map(q => ({
-      id: q.id,
-      question: q.text,
-      answer: (document.getElementById(`ans_${q.id}`)?.value || "").trim()
-    }));
-    btnGrade.disabled = true; btnGrade.textContent = isHU ? "Értékelés…" : "Grading…";
-    try {
-      const r = await fetch("/assignment/api/grade", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ name, neptun, language, qa })
-      });
-      const data = await r.json();
-      gradingResult = data;
-      showGrading(data);
-      gradingBox.style.display = "block";
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-    } catch (e){
-      console.error(e);
-      alert(isHU ? "Hiba az értékelés során." : "Grading failed.");
-    } finally {
-      btnGrade.disabled = false; btnGrade.textContent = I18N[uiLangCode()].grade;
-    }
-  });
-
-  function showGrading(res){
-    const L = I18N[uiLangCode()];
-    const pct = res.overall_pct || 0;
-    scoreText.textContent = L.scoreLabel(pct);
-    scoreFill.style.width = `${Math.max(0,Math.min(100,pct))}%`;
-    const pass = pct >= 70;
-    passPill.textContent = pass ? L.pass : L.revise;
-    passPill.style.color = pass ? "#a8f0c4" : "#ffb4bf";
-    passPill.style.background = pass ? "#11281f" : "#2a1115";
-    passPill.style.border = pass ? "1px solid #1f6f4f" : "1px solid #5a2831";
-
-    perQuestion.innerHTML = "";
-    (res.per_question || []).forEach(item => {
-      const div = document.createElement("div");
-      div.className = "item";
-      div.innerHTML = `
-        <span><strong>${item.id}</strong></span>
-        <span class="${item.score>=7 ? 'good':'bad'}">${item.score}/10</span>
-      `;
-      perQuestion.appendChild(div);
-    });
-    summaryText.textContent = res.summary || "—";
-    btnPdf.disabled = !pass;
-  }
-
-  // PDF (print)
-  $("btnPdf").addEventListener("click", () => {
-    if (!gradingResult || (gradingResult.overall_pct||0) < 70){
-      alert(uiLangCode()==="HU" ? "PDF készítéséhez legalább 70% szükséges." : "You must score ≥ 70% to generate the PDF.");
-      return;
-    }
-    const name = $("studentName").value.trim();
-    const neptun = $("neptun").value.trim().toUpperCase();
-    const today = new Date().toISOString().slice(0,10);
-    const L = I18N[uiLangCode()];
-
-    // Printable header
-    const hdr = document.createElement("div");
-    hdr.id = "printHeader";
-    hdr.style.padding = "8px 16px";
-    hdr.style.borderBottom = "1px solid #233040";
-    hdr.style.marginBottom = "8px";
-    hdr.style.fontSize = "13px";
-    hdr.style.background = "#0e1523";
-    hdr.style.color = "#cfe0ff";
-    hdr.innerHTML = `<strong>Assignment 1 — Set Theory with Minerals / Halmazelmélet ásványokkal</strong> | `
-      + `Name/Név: ${name.replace(/</g,"&lt;").replace(/>/g,"&gt;")} | Neptun: ${neptun} | Date: ${today} | `
-      + `${L.scoreLabel(gradingResult.overall_pct)}<br>`
-      + `<em>${L.submissionText}</em>`;
-    document.body.prepend(hdr);
-
-    const originalTitle = document.title;
-    document.title = `Assignment1_${neptun}_${name.replace(/\s+/g,'_')}`;
-    window.print();
-    document.title = originalTitle;
-    hdr.remove();
-  });
-
-  // Neptun uppercase
-  $("neptun").addEventListener("input", e => e.target.value = e.target.value.toUpperCase());
-
-  // Apply initial language strings
-  (function init(){ 
-    // If your base layout sets default fonts/styles, this will just update strings
-    applyUIStrings();
-  })();
-
-  function applyUIStrings(){
-    const L = I18N[uiLangCode()];
-    $("lblOpenGame").textContent = L.openGame;
-    $("btnStart").textContent = L.start;
-    $("btnGrade").textContent = L.grade;
-    $("btnPdf").textContent   = L.pdf;
-    $("lblName").textContent   = L.name;
-    $("lblNeptun").textContent = L.neptun;
-    $("lblLang").textContent   = "Language / Nyelv";
-    $("instTitle").textContent = L.instructionTitle;
-    const ul = $("instList"); ul.innerHTML = "";
-    L.instructionList.forEach(t => { const li = document.createElement("li"); li.innerHTML = t; ul.appendChild(li); });
-    $("gradeTitle").textContent = L.grading;
-    $("sumTitle").textContent   = L.summary;
-    $("submitNote").textContent = L.submissionNote;
-    $("submitText").innerHTML   = L.submissionText;
-    const cur = parseInt((scoreText.textContent.match(/\d+/)||[0])[0], 10) || 0;
-    scoreText.textContent = L.scoreLabel(cur);
-    currentQuestions.forEach(q => {
-      const ta = document.getElementById(`ans_${q.id}`);
-      if (ta) ta.placeholder = L.answerPlaceholder;
-    });
-  }
-})();
-</script>
-{% endblock %}
+        return jsonify({
+            "per_question": clean,
+            "overall_pct": int(overall),
+            "pass": passed,
+            "summary": summary
+        })
+    except Exception:
+        # Fallback to heuristic
+        perq, total = [], 0
+        for item in qa:
+            score, fb = _soft_score_and_feedback(item.get("answer",""))
+            total += score
+            perq.append({"id": item.get("id","?"), "score": score, "feedback": fb})
+        overall = round(total / (len(qa) * 10) * 100) if qa else 0
+        return jsonify({
+            "per_question": perq,
+            "overall_pct": overall,
+            "pass": overall >= PASS_THRESHOLD,
+            "summary": "GPT error — lenient offline grading used."
+        })
