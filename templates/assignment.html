@@ -1,0 +1,406 @@
+{% extends "index.html" %}
+{% block page_title %}Assignment — Set Theory with Minerals{% endblock %}
+
+{% block controls %}
+<div class="controls" aria-label="Assignment controls">
+  <a href="/" class="btn" target="_blank" rel="noopener">Open Set Theory Game</a>
+  <button id="btnPdf" class="btn">Generate PDF</button>
+  <button id="btnClear" class="btn">Clear All</button>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="canvas-card" aria-label="Assignment form container">
+  <style>
+    .assign-wrap{ padding: 14px; }
+    .grid-2{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 980px){ .grid-2{ grid-template-columns: 1fr; } }
+    .id-card{
+      display:grid; gap:8px; background:#0f141c; border:1px solid #233040; border-radius:12px; padding:10px;
+    }
+    .id-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .id-row label{ min-width: 120px; color:#cbd7ea; }
+    .id-row input[type="text"], .id-row input[type="date"]{
+      background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:8px 10px; border-radius:8px; width: 260px;
+    }
+    .id-row small{ color:#9fb2c7; }
+
+    .rule-card{ background: var(--card); border:1px solid #233040; border-radius:14px; padding:12px; }
+    .rule-card h3{ margin:0 0 6px; font-size:14px; color:#cbd7ea; }
+    .rule-card ul{ margin:6px 0 0 18px; color:#d7e6ff; }
+
+    .q-card{
+      background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px; margin-top:12px;
+    }
+    .q-card h4{ margin:0 0 6px; font-size:14px; color:#cbd7ea; }
+    .q-card .subtitle{ color:#a9b8cc; font-size:12px; margin-bottom:6px; }
+
+    .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0; }
+    .row label{ color:#cbd7ea; min-width: 120px; }
+    .row input[type="number"], .row input[type="text"]{
+      background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:6px 8px; border-radius:8px; width: 120px;
+    }
+    .row textarea{
+      background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:8px 10px; border-radius:8px; width: 100%;
+      min-height: 70px;
+    }
+    .row .note{ color:#9fb2c7; font-size:12px; }
+
+    .file-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .file-row input[type="file"]{
+      background:#0d1320; border:1px dashed #2a394e; color:#cfe0ff; padding:6px 8px; border-radius:8px;
+    }
+    .thumbs{ display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+    .thumbs img{ max-height:140px; border-radius:8px; border:1px solid #233040; }
+
+    .footer-note{
+      margin-top: 12px; padding:10px; background:#0e1523; border:1px solid #223045; border-radius:10px; color:#cfe0ff;
+      font-size: 13px;
+    }
+
+    /* Print styling */
+    @media print {
+      header, .controls { display:none !important; }
+      body { background: #fff; }
+      .canvas-card{ border: none; }
+      .q-card{ page-break-inside: avoid; }
+      .footer-note{ page-break-inside: avoid; }
+      a[href]:after{ content: " (" attr(href) ")"; font-size: 10px; color:#666; }
+    }
+  </style>
+
+  <div class="assign-wrap">
+    <!-- Student / Submission identity -->
+    <div class="id-card">
+      <div class="id-row">
+        <label for="studentName">Student Name</label>
+        <input type="text" id="studentName" placeholder="Your full name" required />
+      </div>
+      <div class="id-row">
+        <label for="neptun">Neptun Code</label>
+        <input type="text" id="neptun" placeholder="e.g. ABC123 (6 chars)" maxlength="6" pattern="[A-Za-z0-9]{6}" required />
+        <small>Exactly 6 letters/numbers. Will be uppercased automatically.</small>
+      </div>
+      <div class="id-row">
+        <label for="dateSub">Date</label>
+        <input type="date" id="dateSub" />
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="rule-card" style="margin-top:12px;">
+      <h3>Instructions</h3>
+      <ul class="help-list">
+        <li>Open the <strong>Set Theory Minerals Game</strong> and click <em>New Puzzle</em>. Arrange minerals until your score is high (≥ 90%).</li>
+        <li>Use the right‑hand panel to read counts (Singles, Intersections, <strong>Differences</strong>, <strong>Symmetric Differences</strong>, Unions, Triples).</li>
+        <li>Click any row to highlight the region; use <span class="kbd">Esc</span> to clear. Keep <em>Show Labels</em> enabled.</li>
+        <li>Type your answers below. Where a screenshot is requested, attach it (PNG/JPG).</li>
+        <li>When finished, click <strong>Generate PDF</strong>. The PDF header will include your <em>Name</em> and <em>Neptun code</em>.</li>
+        <li><strong>Upload the generated PDF</strong> to the <u>University learning system</u> under this assignment.</li>
+      </ul>
+    </div>
+
+    <!-- Q1 -->
+    <div class="q-card" id="q1">
+      <h4>Q1 — Solve the puzzle</h4>
+      <div class="subtitle">Reach Score ≥ 90% and attach one screenshot that shows the canvas and score bar.</div>
+      <div class="row">
+        <label for="q1score">Final Score (%)</label>
+        <input type="number" id="q1score" min="0" max="100" step="1" placeholder="e.g. 96" />
+      </div>
+      <div class="file-row">
+        <label for="q1shot">Screenshot (PNG/JPG)</label>
+        <input type="file" id="q1shot" accept="image/*" />
+      </div>
+      <div class="thumbs" id="q1thumbs"></div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="q-card" id="q2">
+      <h4>Q2 — Pairwise intersections</h4>
+      <div class="row">
+        <label>|I ∩ S|</label><input type="number" id="q2_is" min="0" />
+        <label>|I ∩ M|</label><input type="number" id="q2_im" min="0" />
+        <label>|S ∩ M|</label><input type="number" id="q2_sm" min="0" />
+      </div>
+      <div class="row"><label>List I ∩ S</label><textarea id="q2_is_list" placeholder="Mineral names, comma‑separated"></textarea></div>
+      <div class="row"><label>List I ∩ M</label><textarea id="q2_im_list" placeholder="Mineral names, comma‑separated"></textarea></div>
+      <div class="row"><label>List S ∩ M</label><textarea id="q2_sm_list" placeholder="Mineral names, comma‑separated"></textarea></div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="q-card" id="q3">
+      <h4>Q3 — Triple intersection</h4>
+      <div class="row">
+        <label>|I ∩ S ∩ M|</label><input type="number" id="q3_n" min="0" />
+      </div>
+      <div class="row"><label>Minerals</label><textarea id="q3_list" placeholder="Mineral names"></textarea></div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="q-card" id="q4">
+      <h4>Q4 — Inclusion–exclusion (two sets)</h4>
+      <div class="row">
+        <label>|I|</label><input type="number" id="q4_I" min="0" />
+        <label>|S|</label><input type="number" id="q4_S" min="0" />
+        <label>|I ∩ S|</label><input type="number" id="q4_IS" min="0" />
+        <label>|I ∪ S|</label><input type="number" id="q4_IuS" min="0" />
+      </div>
+      <div class="row"><span class="note">Verify: |I ∪ S| = |I| + |S| − |I ∩ S|</span> <span id="q4_check" class="pill">—</span></div>
+    </div>
+
+    <!-- Q5 -->
+    <div class="q-card" id="q5">
+      <h4>Q5 — Symmetric difference three ways (I Δ S)</h4>
+      <div class="row">
+        <label>|I Δ S|</label><input type="number" id="q5_delta" min="0" />
+      </div>
+      <div class="row"><label>I Δ S (list)</label><textarea id="q5_delta_list"></textarea></div>
+      <div class="row">
+        <label>|I|</label><input type="number" id="q5_I" min="0" />
+        <label>|S|</label><input type="number" id="q5_S" min="0" />
+        <label>|I ∩ S|</label><input type="number" id="q5_IS" min="0" />
+      </div>
+      <div class="row"><span class="note">Check: |I Δ S| = |I| + |S| − 2|I ∩ S|</span> <span id="q5_check1" class="pill">—</span></div>
+      <div class="row"><label>I \ S (list)</label><textarea id="q5_IminusS"></textarea></div>
+      <div class="row"><label>S \ I (list)</label><textarea id="q5_SminusI"></textarea></div>
+      <div class="row"><span class="note">Check: I Δ S = (I \ S) ∪ (S \ I)</span> <span id="q5_check2" class="pill">—</span></div>
+    </div>
+
+    <!-- Q6 -->
+    <div class="q-card" id="q6">
+      <h4>Q6 — Differences with interpretation</h4>
+      <div class="row"><label>I \ M (3+ minerals)</label><textarea id="q6_IminusM"></textarea></div>
+      <div class="row"><label>M \ I (3+ minerals)</label><textarea id="q6_MminusI"></textarea></div>
+      <div class="row"><label>Interpretation (2–3 sentences)</label><textarea id="q6_explain"></textarea></div>
+    </div>
+
+    <!-- Q7 -->
+    <div class="q-card" id="q7">
+      <h4>Q7 — Outside vs. solved</h4>
+      <div class="row">
+        <label>Outside (before)</label><input type="number" id="q7_before" min="0" />
+        <label>Outside (after)</label><input type="number" id="q7_after" min="0" />
+      </div>
+      <div class="row"><label>Two minerals moved inside (name + final set(s))</label><textarea id="q7_moved"></textarea></div>
+      <div class="file-row">
+        <label for="q7shot">Screenshot (optional)</label>
+        <input type="file" id="q7shot" accept="image/*" />
+      </div>
+      <div class="thumbs" id="q7thumbs"></div>
+    </div>
+
+    <!-- Q8 -->
+    <div class="q-card" id="q8">
+      <h4>Q8 — Largest symmetric difference</h4>
+      <div class="row">
+        <label>|I Δ S|</label><input type="number" id="q8_ids" min="0" />
+        <label>|I Δ M|</label><input type="number" id="q8_idm" min="0" />
+        <label>|S Δ M|</label><input type="number" id="q8_sdm" min="0" />
+      </div>
+      <div class="row"><label>Which is largest & why?</label><textarea id="q8_why"></textarea></div>
+    </div>
+
+    <!-- Q9 -->
+    <div class="q-card" id="q9">
+      <h4>Q9 — Sensitivity to set boundaries</h4>
+      <div class="row"><label>Effect on |I Δ M| and |S Δ M| when M grows slightly</label><textarea id="q9_obs" placeholder="Increase / decrease / same + short explanation"></textarea></div>
+    </div>
+
+    <!-- Q10 -->
+    <div class="q-card" id="q10">
+      <h4>Q10 — Inclusion–exclusion (three sets)</h4>
+      <div class="row">
+        <label>|I|</label><input type="number" id="q10_I" min="0" />
+        <label>|S|</label><input type="number" id="q10_S" min="0" />
+        <label>|M|</label><input type="number" id="q10_M" min="0" />
+      </div>
+      <div class="row">
+        <label>|I ∩ S|</label><input type="number" id="q10_IS" min="0" />
+        <label>|I ∩ M|</label><input type="number" id="q10_IM" min="0" />
+        <label>|S ∩ M|</label><input type="number" id="q10_SM" min="0" />
+        <label>|I ∩ S ∩ M|</label><input type="number" id="q10_ISM" min="0" />
+      </div>
+      <div class="row">
+        <label>Union (all sets)</label><input type="number" id="q10_unionAll" min="0" />
+        <label>Total minerals</label><input type="number" id="q10_total" min="0" />
+        <label>Outside</label><input type="number" id="q10_outside" min="0" />
+      </div>
+      <div class="row"><span class="note">Check 1: |I∪S∪M| = |I|+|S|+|M| − |I∩S| − |I∩M| − |S∩M| + |I∩S∩M|</span> <span id="q10_check1" class="pill">—</span></div>
+      <div class="row"><span class="note">Check 2: |I∪S∪M| = Total − Outside</span> <span id="q10_check2" class="pill">—</span></div>
+    </div>
+
+    <div class="footer-note">
+      <strong>Submission:</strong> After generating the PDF, <u>upload it to the University learning system</u> under the same assignment.  
+      The PDF will include your <em>Name</em> and <em>Neptun code</em> in the header.
+    </div>
+  </div>
+</section>
+
+<!-- Right: concise help (optional) -->
+<aside>
+  <div>
+    <h2>Quick Help</h2>
+    <div class="sets-top">
+      <div class="badge">Universe: <strong>Set Theory Minerals</strong></div>
+      <div class="tips">
+        <div class="pill" style="margin:6px 0;">Tip</div>
+        <div>Use the game’s right panel to read counts; click rows to highlight regions.</div>
+        <div>Symmetric Difference: <code>A Δ B = (A \ B) ∪ (B \ A)</code></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rule-card">
+    <h3>Symbols</h3>
+    <ul class="help-list">
+      <li><strong>I</strong> = Igneous, <strong>S</strong> = Sedimentary, <strong>M</strong> = Metamorphic</li>
+      <li><strong>Δ</strong> = Symmetric difference, <strong>∩</strong> = Intersection, <strong>∪</strong> = Union, <strong>\</strong> = Difference</li>
+    </ul>
+  </div>
+
+  <div class="rule-card" style="margin-top:10px;">
+    <h3>Print to PDF</h3>
+    <ul class="help-list">
+      <li>Click <strong>Generate PDF</strong> (uses browser’s print to PDF).</li>
+      <li>Ensure images and answers are visible on the preview pages.</li>
+      <li>File name suggestion: <code>SetTheory_Assignment_[NEPTUN].pdf</code></li>
+    </ul>
+  </div>
+</aside>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  // ---- Helpers ----
+  const $ = (id) => document.getElementById(id);
+  const setPill = (el, ok) => {
+    if (!el) return;
+    el.textContent = ok ? "✓ Verified" : "✗ Check again";
+    el.style.background = ok ? "#11281f" : "#2a1115";
+    el.style.border = ok ? "1px solid #1f6f4f" : "1px solid #5a2831";
+    el.style.color = ok ? "#a8f0c4" : "#ffb4bf";
+    el.style.borderRadius = "999px";
+    el.style.padding = "2px 8px";
+  };
+
+  const parseN = (v) => {
+    const n = parseInt(v, 10);
+    return isNaN(n) ? 0 : n;
+  };
+
+  // ---- Identity defaults ----
+  const todayISO = new Date().toISOString().slice(0,10);
+  $("dateSub").value = todayISO;
+  $("neptun").addEventListener("input", (e) => e.target.value = e.target.value.toUpperCase());
+
+  // ---- Image previews ----
+  function hookPreview(inputId, thumbsId){
+    const inp = $(inputId), box = $(thumbsId);
+    if (!inp || !box) return;
+    inp.addEventListener("change", () => {
+      box.innerHTML = "";
+      const files = Array.from(inp.files || []);
+      files.slice(0, 4).forEach(file => {
+        const img = new Image();
+        img.alt = file.name;
+        img.onload = () => box.appendChild(img);
+        const fr = new FileReader();
+        fr.onload = (ev) => { img.src = ev.target.result; };
+        fr.readAsDataURL(file);
+      });
+    });
+  }
+  hookPreview("q1shot","q1thumbs");
+  hookPreview("q7shot","q7thumbs");
+
+  // ---- Lightweight checks (auto-updated) ----
+  function checkQ4(){
+    const I = parseN($("q4_I").value), S = parseN($("q4_S").value), IS = parseN($("q4_IS").value), IuS = parseN($("q4_IuS").value);
+    setPill($("q4_check"), (I + S - IS) === IuS);
+  }
+  ["q4_I","q4_S","q4_IS","q4_IuS"].forEach(id => $(id).addEventListener("input", checkQ4));
+
+  function checkQ5(){
+    const I = parseN($("q5_I").value), S = parseN($("q5_S").value), IS = parseN($("q5_IS").value), d = parseN($("q5_delta").value);
+    setPill($("q5_check1"), (I + S - 2*IS) === d);
+
+    // Very light textual check for union of lists (ignores duplicates/spacing)
+    const a = new Set(($("q5_IminusS").value || "").split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean));
+    const b = new Set(($("q5_SminusI").value || "").split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean));
+    const u = new Set([...a, ...b]);
+    const dlist = new Set(($("q5_delta_list").value || "").split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean));
+
+    // compare sets: all in u must be in dlist and same size
+    const sameSize = u.size === dlist.size;
+    const allIn = [...u].every(x => dlist.has(x));
+    setPill($("q5_check2"), sameSize && allIn);
+  }
+  ["q5_I","q5_S","q5_IS","q5_delta","q5_IminusS","q5_SminusI","q5_delta_list"].forEach(id => $(id).addEventListener("input", checkQ5));
+
+  function checkQ10(){
+    const I = parseN($("q10_I").value), S = parseN($("q10_S").value), M = parseN($("q10_M").value);
+    const IS = parseN($("q10_IS").value), IM = parseN($("q10_IM").value), SM = parseN($("q10_SM").value), ISM = parseN($("q10_ISM").value);
+    const unionAll = parseN($("q10_unionAll").value), total = parseN($("q10_total").value), outside = parseN($("q10_outside").value);
+
+    const rhs = I + S + M - IS - IM - SM + ISM;
+    setPill($("q10_check1"), rhs === unionAll);
+    setPill($("q10_check2"), unionAll === (total - outside));
+  }
+  ["q10_I","q10_S","q10_M","q10_IS","q10_IM","q10_SM","q10_ISM","q10_unionAll","q10_total","q10_outside"].forEach(id => $(id).addEventListener("input", checkQ10));
+
+  // ---- Generate PDF (print) ----
+  $("btnPdf").addEventListener("click", () => {
+    const name = $("studentName").value.trim();
+    const neptun = $("neptun").value.trim().toUpperCase();
+    if (!name){
+      alert("Please enter your name.");
+      return;
+    }
+    if (!neptun || !/^[A-Z0-9]{6}$/.test(neptun)){
+      alert("Please enter a valid 6‑character Neptun code.");
+      return;
+    }
+
+    // Put ID into document title for an informative PDF filename
+    const originalTitle = document.title;
+    document.title = `SetTheory_Assignment_${neptun}_${name.replace(/\s+/g,'_')}`;
+
+    // Add a printable header line (temporarily)
+    const hdr = document.createElement("div");
+    hdr.id = "printHeader";
+    hdr.style.padding = "8px 16px";
+    hdr.style.borderBottom = "1px solid #233040";
+    hdr.style.marginBottom = "8px";
+    hdr.style.fontSize = "13px";
+    hdr.style.background = "#0e1523";
+    hdr.style.color = "#cfe0ff";
+    hdr.innerHTML = `<strong>Assignment — Set Theory with Minerals</strong> &nbsp;|&nbsp; Name: ${name} &nbsp;|&nbsp; Neptun: ${neptun} &nbsp;|&nbsp; Date: ${$("dateSub").value || new Date().toISOString().slice(0,10)}`;
+    document.body.prepend(hdr);
+
+    window.print();
+
+    // Cleanup/restore
+    hdr.remove();
+    document.title = originalTitle;
+  });
+
+  // ---- Clear All ----
+  $("btnClear").addEventListener("click", () => {
+    if (!confirm("Clear all fields? This cannot be undone.")) return;
+    document.querySelectorAll("#q1 input, #q1 textarea, #q2 input, #q2 textarea, #q3 input, #q3 textarea, #q4 input, #q4 textarea, #q5 input, #q5 textarea, #q6 textarea, #q7 input, #q7 textarea, #q8 input, #q8 textarea, #q9 textarea, #q10 input, #q10 textarea").forEach(el => {
+      if (el.type === "file"){ el.value = ""; }
+      else { el.value = ""; }
+    });
+    $("q1thumbs").innerHTML = "";
+    $("q7thumbs").innerHTML = "";
+    setPill($("q4_check"), false);
+    setPill($("q5_check1"), false);
+    setPill($("q5_check2"), false);
+    setPill($("q10_check1"), false);
+    setPill($("q10_check2"), false);
+  });
+})();
+</script>
+{% endblock %}
