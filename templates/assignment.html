@@ -1,9 +1,9 @@
 {% extends "index.html" %}
-{% block page_title %}Assignment 1 — Set Theory with Minerals{% endblock %}
+{% block page_title %}Assignment 1 — Set Theory with Minerals / Halmazelmélet ásványokkal{% endblock %}
 
 {% block controls %}
 <div class="controls" aria-label="Assignment controls">
-  <a href="/" class="btn" target="_blank" rel="noopener">Open Set Theory Game</a>
+  <a href="/" class="btn" target="_blank" rel="noopener" id="lblOpenGame">Open Set Theory Game</a>
   <button id="btnStart" class="btn">Start Assignment</button>
   <button id="btnGrade" class="btn">Check & Grade</button>
   <button id="btnPdf" class="btn" disabled>Generate PDF</button>
@@ -20,7 +20,7 @@
     }
     .id-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .id-row label{ min-width: 140px; color:#cbd7ea; }
-    .id-row input[type="text"]{
+    .id-row input[type="text"], .id-row select{
       background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:8px 10px; border-radius:8px; width: 280px;
     }
 
@@ -63,23 +63,30 @@
     <!-- 1) Identity -->
     <div class="id-card">
       <div class="id-row">
-        <label for="studentName">Student Name</label>
-        <input type="text" id="studentName" placeholder="Your full name" required />
+        <label for="studentName" id="lblName">Student Name</label>
+        <input type="text" id="studentName" placeholder="Your full name / Teljes név" required />
       </div>
       <div class="id-row">
-        <label for="neptun">Neptun Code</label>
+        <label for="neptun" id="lblNeptun">Neptun Code</label>
         <input type="text" id="neptun" placeholder="ABC123" maxlength="6" pattern="[A-Za-z0-9]{6}" required />
+      </div>
+      <div class="id-row">
+        <label for="language" id="lblLang">Language / Nyelv</label>
+        <select id="language">
+          <option value="English">English</option>
+          <option value="Hungarian">Hungarian (Magyar)</option>
+        </select>
       </div>
     </div>
 
-    <!-- 2) Short instruction -->
+    <!-- 2) Instruction -->
     <div class="rule-card">
-      <h3>Instruction</h3>
-      <ul>
+      <h3 id="instTitle">Instruction</h3>
+      <ul id="instList">
         <li>Use the <strong>Set Theory Minerals Game</strong> to think about regions (∩, ∪, \, Δ, triple, outside).</li>
         <li>Answer each question in 2–5 sentences. You may write in <em>any language</em>.</li>
         <li>Click <strong>Start Assignment</strong> to load your 10 personalized questions.</li>
-        <li>When done, click <strong>Check & Grade</strong> for instant feedback. If your score is <strong>≥ 70%</strong>, you can <strong>Generate PDF</strong> and then <strong>upload it</strong> to the University learning system under this assignment.</li>
+        <li>Click <strong>Check & Grade</strong> for instant feedback. If your score is <strong>≥ 70%</strong>, you can <strong>Generate PDF</strong> and then <strong>upload it</strong> to the University learning system under this assignment.</li>
       </ul>
     </div>
 
@@ -88,7 +95,7 @@
 
     <!-- 4) Bottom: Grading & feedback -->
     <div class="q-card" id="gradingBox" style="display:none;">
-      <h4>Grading</h4>
+      <h4 id="gradeTitle">Grading</h4>
       <div class="score">
         <span id="scoreText">Score: 0%</span>
         <div class="bar"><div id="scoreFill" class="fill"></div></div>
@@ -96,11 +103,12 @@
       </div>
       <div class="perq" id="perQuestion"></div>
       <div class="rule-card" style="margin-top:10px;">
-        <h3>Summary</h3>
+        <h3 id="sumTitle">Summary</h3>
         <div id="summaryText" class="q-text">—</div>
       </div>
       <div class="rule-card" style="margin-top:10px;">
-        <strong>Submission:</strong> After generating your PDF, please <u>upload it to the University learning system</u> under this assignment.
+        <strong id="submitNote">Submission:</strong>
+        <span id="submitText">After generating your PDF, please <u>upload it to the University learning system</u> under this assignment.</span>
       </div>
     </div>
   </div>
@@ -115,22 +123,117 @@
   const btnStart = $("btnStart");
   const btnGrade = $("btnGrade");
   const btnPdf   = $("btnPdf");
+  const langSel  = $("language");
 
   const questionsBox = $("questionsBox");
-  const gradingBox = $("gradingBox");
-  const scoreText = $("scoreText");
-  const scoreFill = $("scoreFill");
-  const passPill  = $("passPill");
-  const perQuestion = $("perQuestion");
-  const summaryText = $("summaryText");
+  const gradingBox   = $("gradingBox");
+  const scoreText    = $("scoreText");
+  const scoreFill    = $("scoreFill");
+  const passPill     = $("passPill");
+  const perQuestion  = $("perQuestion");
+  const summaryText  = $("summaryText");
 
   let currentQuestions = []; // [{id,text}]
   let gradingResult = null;
 
-  // Helpers
+  // Simple UI translations
+  const I18N = {
+    EN: {
+      openGame: "Open Set Theory Game",
+      start: "Start Assignment",
+      grade: "Check & Grade",
+      pdf: "Generate PDF",
+      name: "Student Name",
+      neptun: "Neptun Code",
+      instructionTitle: "Instruction",
+      instructionList: [
+        "Use the Set Theory Minerals Game to think about regions (∩, ∪, \\, Δ, triple, outside).",
+        "Answer each question in 2–5 sentences. You may write in any language.",
+        "Click Start Assignment to load your 10 personalized questions.",
+        "Click Check & Grade for instant feedback. If your score is ≥ 70%, you can Generate PDF and then upload it to the University learning system under this assignment."
+      ],
+      grading: "Grading",
+      summary: "Summary",
+      submissionNote: "Submission:",
+      submissionText: "After generating your PDF, please upload it to the University learning system under this assignment.",
+      scoreLabel: (pct)=>`Score: ${pct}%`,
+      pass: "PASS (≥ 70%)",
+      revise: "REVISE (< 70%)",
+      answerPlaceholder: "Type your answer (2–5 sentences). Any language is ok."
+    },
+    HU: {
+      openGame: "Halmazjáték megnyitása",
+      start: "Feladat indítása",
+      grade: "Ellenőrzés és értékelés",
+      pdf: "PDF készítése",
+      name: "Hallgató neve",
+      neptun: "Neptun-kód",
+      instructionTitle: "Utasítás",
+      instructionList: [
+        "Használd a Halmazelmélet–Ásványok játékot a régiók megértéséhez (∩, ∪, \\, Δ, hármas metszet, kívül).",
+        "Minden kérdésre 2–5 mondatban válaszolj. Bármely nyelven írhatsz.",
+        "Kattints a Feladat indítása gombra a 10 személyre szabott kérdés betöltéséhez.",
+        "Kattints az Ellenőrzés és értékelés gombra az azonnali visszajelzéshez. Ha az eredményed ≥ 70%, készíts PDF‑et, majd töltsd fel az egyetemi oktatási rendszerbe ehhez a feladathoz."
+      ],
+      grading: "Értékelés",
+      summary: "Összegzés",
+      submissionNote: "Leadás:",
+      submissionText: "A PDF elkészítése után töltsd fel az egyetemi oktatási rendszerbe ehhez a feladathoz.",
+      scoreLabel: (pct)=>`Pontszám: ${pct}%`,
+      pass: "SIKERES (≥ 70%)",
+      revise: "JAVÍTANDÓ (< 70%)",
+      answerPlaceholder: "Írd meg a választ (2–5 mondat). Bármely nyelv elfogadott."
+    }
+  };
+
+  function uiLangCode(){
+    const v = (langSel.value || "English").toLowerCase();
+    return v.startsWith("hungarian") ? "HU" : "EN";
+  }
+
+  function applyUIStrings(){
+    const L = I18N[uiLangCode()];
+    $("lblOpenGame").textContent = L.openGame;
+    $("btnStart").textContent = L.start;
+    $("btnGrade").textContent = L.grade;
+    $("btnPdf").textContent   = L.pdf;
+
+    $("lblName").textContent   = L.name;
+    $("lblNeptun").textContent = L.neptun;
+    $("lblLang").textContent   = "Language / Nyelv";
+
+    $("instTitle").textContent = L.instructionTitle;
+    const ul = $("instList"); ul.innerHTML = "";
+    L.instructionList.forEach(t => { const li = document.createElement("li"); li.innerHTML = t; ul.appendChild(li); });
+
+    $("gradeTitle").textContent = L.grading;
+    $("sumTitle").textContent   = L.summary;
+    $("submitNote").textContent = L.submissionNote;
+    $("submitText").innerHTML   = L.submissionText;
+
+    // Update score label if already graded
+    const cur = parseInt((scoreText.textContent.match(/\d+/)||[0])[0], 10) || 0;
+    scoreText.textContent = L.scoreLabel(cur);
+
+    // Update textareas' placeholders
+    currentQuestions.forEach(q => {
+      const ta = document.getElementById(`ans_${q.id}`);
+      if (ta) ta.placeholder = L.answerPlaceholder;
+    });
+  }
+  langSel.addEventListener("change", applyUIStrings);
+
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+  function saveKey(qid){
+    const name = ($("studentName").value || "").trim();
+    const neptun = ($("neptun").value || "").trim().toUpperCase();
+    const L = uiLangCode();
+    return `assign1:${neptun}:${name}:${L}:${qid}`;
+  }
+
   function renderQuestions(list){
+    const L = I18N[uiLangCode()];
     questionsBox.innerHTML = "";
     list.forEach(q => {
       const card = document.createElement("div");
@@ -138,62 +241,47 @@
       card.innerHTML = `
         <h4>${q.id}</h4>
         <div class="q-text">${escapeHtml(q.text)}</div>
-        <textarea id="ans_${q.id}" placeholder="Type your answer (2–5 sentences). Any language is ok."></textarea>
+        <textarea id="ans_${q.id}" placeholder="${escapeHtml(L.answerPlaceholder)}"></textarea>
       `;
       questionsBox.appendChild(card);
     });
-    // Autosave restore (if any)
+    // restore any saved drafts
     list.forEach(q => {
-      const key = saveKey(q.id);
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        const ta = document.getElementById(`ans_${q.id}`);
-        if (ta) ta.value = saved;
+      const saved = localStorage.getItem(saveKey(q.id));
+      if (saved){
+        const ta = document.getElementById(`ans_${q.id}`); if (ta) ta.value = saved;
       }
     });
-  }
-
-  function saveKey(qid){ 
-    const name = ($("studentName").value || "").trim();
-    const neptun = ($("neptun").value || "").trim().toUpperCase();
-    return `assign1:${neptun}:${name}:${qid}`;
   }
 
   function autosaveWire(list){
     list.forEach(q => {
       const ta = document.getElementById(`ans_${q.id}`);
       if (!ta) return;
-      ta.addEventListener("input", () => {
-        localStorage.setItem(saveKey(q.id), ta.value);
-      });
+      ta.addEventListener("input", () => localStorage.setItem(saveKey(q.id), ta.value));
     });
   }
 
   // Start / Generate
-  btnStart.addEventListener("click", async () => {
+  $("btnStart").addEventListener("click", async () => {
     const name = $("studentName").value.trim();
     const neptun = $("neptun").value.trim().toUpperCase();
-    if (!name){
-      alert("Please enter your name.");
-      return;
-    }
+    const language = $("language").value;
+    const isHU = uiLangCode()==="HU";
+    if (!name){ alert(isHU ? "Add meg a nevedet!" : "Please enter your name."); return; }
     if (!/^[A-Za-z0-9]{6}$/.test(neptun)){
-      alert("Please enter a valid 6-character Neptun code (letters/numbers).");
+      alert(isHU ? "Adj meg érvényes 6 karakteres Neptun‑kódot!" : "Please enter a valid 6‑character Neptun code.");
       return;
     }
-    btnStart.disabled = true;
-    btnStart.textContent = "Loading…";
+    btnStart.disabled = true; btnStart.textContent = isHU ? "Betöltés…" : "Loading…";
     try {
       const r = await fetch("/assignment/api/generate", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ name, neptun })
+        body: JSON.stringify({ name, neptun, language })
       });
       const data = await r.json();
-      if (data.error){
-        alert(data.error);
-        return;
-      }
+      if (data.error){ alert(data.error); return; }
       currentQuestions = data.questions || [];
       renderQuestions(currentQuestions);
       autosaveWire(currentQuestions);
@@ -203,19 +291,20 @@
       window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     } catch (e){
       console.error(e);
-      alert("Could not load questions. Please try again.");
+      alert(isHU ? "Hiba a kérdések betöltésekor." : "Could not load questions.");
     } finally {
-      btnStart.disabled = false;
-      btnStart.textContent = "Start Assignment";
+      btnStart.disabled = false; btnStart.textContent = I18N[uiLangCode()].start;
     }
   });
 
   // Grade
-  btnGrade.addEventListener("click", async () => {
+  $("btnGrade").addEventListener("click", async () => {
     const name = $("studentName").value.trim();
     const neptun = $("neptun").value.trim().toUpperCase();
+    const language = $("language").value;
+    const isHU = uiLangCode()==="HU";
     if (!currentQuestions.length){
-      alert("Please click Start Assignment first.");
+      alert(isHU ? "Előbb indítsd el a feladatot." : "Please start the assignment first.");
       return;
     }
     const qa = currentQuestions.map(q => ({
@@ -223,13 +312,12 @@
       question: q.text,
       answer: (document.getElementById(`ans_${q.id}`)?.value || "").trim()
     }));
-    btnGrade.disabled = true;
-    btnGrade.textContent = "Grading…";
+    btnGrade.disabled = true; btnGrade.textContent = isHU ? "Értékelés…" : "Grading…";
     try {
       const r = await fetch("/assignment/api/grade", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ name, neptun, qa })
+        body: JSON.stringify({ name, neptun, language, qa })
       });
       const data = await r.json();
       gradingResult = data;
@@ -238,21 +326,22 @@
       window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     } catch (e){
       console.error(e);
-      alert("Grading failed. Please try again.");
+      alert(isHU ? "Hiba az értékelés során." : "Grading failed.");
     } finally {
-      btnGrade.disabled = false;
-      btnGrade.textContent = "Check & Grade";
+      btnGrade.disabled = false; btnGrade.textContent = I18N[uiLangCode()].grade;
     }
   });
 
   function showGrading(res){
+    const L = I18N[uiLangCode()];
     const pct = res.overall_pct || 0;
-    scoreText.textContent = `Score: ${pct}%`;
+    scoreText.textContent = L.scoreLabel(pct);
     scoreFill.style.width = `${Math.max(0,Math.min(100,pct))}%`;
-    passPill.textContent = pct >= 70 ? "PASS (≥ 70%)" : "REVISE (< 70%)";
-    passPill.style.color = pct >= 70 ? "#a8f0c4" : "#ffb4bf";
-    passPill.style.background = pct >= 70 ? "#11281f" : "#2a1115";
-    passPill.style.border = pct >= 70 ? "1px solid #1f6f4f" : "1px solid #5a2831";
+    const pass = pct >= 70;
+    passPill.textContent = pass ? L.pass : L.revise;
+    passPill.style.color = pass ? "#a8f0c4" : "#ffb4bf";
+    passPill.style.background = pass ? "#11281f" : "#2a1115";
+    passPill.style.border = pass ? "1px solid #1f6f4f" : "1px solid #5a2831";
 
     perQuestion.innerHTML = "";
     (res.per_question || []).forEach(item => {
@@ -265,21 +354,21 @@
       perQuestion.appendChild(div);
     });
     summaryText.textContent = res.summary || "—";
-
-    btnPdf.disabled = !(pct >= 70);
+    btnPdf.disabled = !pass;
   }
 
   // PDF (print)
   $("btnPdf").addEventListener("click", () => {
     if (!gradingResult || (gradingResult.overall_pct||0) < 70){
-      alert("You must score ≥ 70% to generate the PDF.");
+      alert(uiLangCode()==="HU" ? "PDF készítéséhez legalább 70% szükséges." : "You must score ≥ 70% to generate the PDF.");
       return;
     }
     const name = $("studentName").value.trim();
     const neptun = $("neptun").value.trim().toUpperCase();
     const today = new Date().toISOString().slice(0,10);
+    const L = I18N[uiLangCode()];
 
-    // Inject printable header
+    // Printable header
     const hdr = document.createElement("div");
     hdr.id = "printHeader";
     hdr.style.padding = "8px 16px";
@@ -288,20 +377,51 @@
     hdr.style.fontSize = "13px";
     hdr.style.background = "#0e1523";
     hdr.style.color = "#cfe0ff";
-    hdr.innerHTML = `<strong>Assignment 1 — Set Theory with Minerals</strong> | Name: ${escapeHtml(name)} | Neptun: ${escapeHtml(neptun)} | Date: ${today} | Score: ${gradingResult.overall_pct}%<br><em>Upload this PDF to the University learning system under the same assignment.</em>`;
+    hdr.innerHTML = `<strong>Assignment 1 — Set Theory with Minerals / Halmazelmélet ásványokkal</strong> | `
+      + `Name/Név: ${name.replace(/</g,"&lt;").replace(/>/g,"&gt;")} | Neptun: ${neptun} | Date: ${today} | `
+      + `${L.scoreLabel(gradingResult.overall_pct)}<br>`
+      + `<em>${L.submissionText}</em>`;
     document.body.prepend(hdr);
 
     const originalTitle = document.title;
-    document.title = `Assignment1_SetTheory_${neptun}_${name.replace(/\s+/g,'_')}`;
+    document.title = `Assignment1_${neptun}_${name.replace(/\s+/g,'_')}`;
     window.print();
-
-    // Cleanup
     document.title = originalTitle;
     hdr.remove();
   });
 
-  // Minor UX: uppercase Neptun as they type
+  // Neptun uppercase
   $("neptun").addEventListener("input", e => e.target.value = e.target.value.toUpperCase());
+
+  // Apply initial language strings
+  (function init(){ 
+    // If your base layout sets default fonts/styles, this will just update strings
+    applyUIStrings();
+  })();
+
+  function applyUIStrings(){
+    const L = I18N[uiLangCode()];
+    $("lblOpenGame").textContent = L.openGame;
+    $("btnStart").textContent = L.start;
+    $("btnGrade").textContent = L.grade;
+    $("btnPdf").textContent   = L.pdf;
+    $("lblName").textContent   = L.name;
+    $("lblNeptun").textContent = L.neptun;
+    $("lblLang").textContent   = "Language / Nyelv";
+    $("instTitle").textContent = L.instructionTitle;
+    const ul = $("instList"); ul.innerHTML = "";
+    L.instructionList.forEach(t => { const li = document.createElement("li"); li.innerHTML = t; ul.appendChild(li); });
+    $("gradeTitle").textContent = L.grading;
+    $("sumTitle").textContent   = L.summary;
+    $("submitNote").textContent = L.submissionNote;
+    $("submitText").innerHTML   = L.submissionText;
+    const cur = parseInt((scoreText.textContent.match(/\d+/)||[0])[0], 10) || 0;
+    scoreText.textContent = L.scoreLabel(cur);
+    currentQuestions.forEach(q => {
+      const ta = document.getElementById(`ans_${q.id}`);
+      if (ta) ta.placeholder = L.answerPlaceholder;
+    });
+  }
 })();
 </script>
 {% endblock %}
