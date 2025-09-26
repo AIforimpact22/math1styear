@@ -45,7 +45,7 @@ def _leq_pairs() -> List[Tuple[str, str]]:
     return pairs
 
 # -----------------------------
-# SCENES (with bilingual titles & notes)
+# SCENES (bilingual metadata)
 # -----------------------------
 SCENES: Dict[str, Any] = {
     # Relation: R ⊆ Fossils × Beds
