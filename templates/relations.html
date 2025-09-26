@@ -1,12 +1,27 @@
 {% extends "index.html" %}
-{% block page_title %}Relációk & Függvények — Fosszíliák / Relations & Functions — Fossils{% endblock %}
+{% block page_title %}Relations & Functions — Fossils / Relációk & Függvények — Fosszíliák{% endblock %}
 
 {% block controls %}
 <div class="controls" aria-label="Relations controls">
   <div id="sceneTabs" class="chips"></div>
+
   <button id="btnReset" class="btn">Reset scene</button>
-  <label class="switch btn"><input id="lockNodes" type="checkbox" /> Lock nodes</label>
-  <label class="switch btn"><input id="showLabels" type="checkbox" checked /> Show labels</label>
+
+  <label class="switch btn">
+    <input id="lockNodes" type="checkbox" />
+    <span id="txtLock">Lock nodes</span>
+  </label>
+
+  <label class="switch btn">
+    <input id="showLabels" type="checkbox" checked />
+    <span id="txtShow">Show labels</span>
+  </label>
+
+  <!-- NEW: Language toggle beside "Show labels" -->
+  <div class="chips" style="display:inline-flex; gap:6px;">
+    <div id="langEN" class="chip" title="English">ENG</div>
+    <div id="langHU" class="chip" title="Magyar">HUN</div>
+  </div>
 </div>
 {% endblock %}
 
@@ -17,31 +32,29 @@
 
 <aside>
   <div>
-    <h2 id="sceneTitleHu" style="margin-bottom:4px;">—</h2>
-    <div id="sceneTitleEn" style="margin:0 0 6px; color:#9fb2c7; font-size:12px;">—</div>
-    <div class="sets-top">
-      <div class="badge">Adatkészlet / Dataset: <strong>Fosszíliák • Kőzetágyak • Környezetek</strong></div>
+    <h2 id="sceneTitle">—</h2>
+    <div class="sets-top" style="margin-top:6px;">
+      <div class="badge"><span id="datasetLabel">Dataset</span>: <strong>Fossils • Beds • Environments</strong></div>
       <div class="tips">
-        <div class="pill" style="margin:6px 0;">Tipp / Tip</div>
-        <div>Húzd az objektumokat • Kattints először a forrásra, majd a célra, hogy nyilat hozz létre / törölj.</div>
-        <div>Switch scenes to learn each concept; explanations are shown in <strong>HU / EN</strong>.</div>
+        <div class="pill" id="tipLabel" style="margin:6px 0;">Tip</div>
+        <div id="tipLine1">Drag objects • Click source then target to add/remove an arrow.</div>
+        <div id="tipLine2">Switch scenes to learn each concept.</div>
       </div>
     </div>
   </div>
 
   <div class="summary">
-    <h2>Magyarázat / Explanation</h2>
-    <div id="explainHu" class="q-text" style="margin-bottom:6px;">—</div>
-    <div id="explainEn" class="q-text" style="opacity:.9;">—</div>
+    <h2 id="explainHeader">Explanation</h2>
+    <div id="explainText" class="q-text">—</div>
 
     <!-- Scene 2 selector -->
     <div id="propSwitcher" style="display:none; margin-top:8px;">
-      <div class="row subhead">Reláció kiválasztása / Pick a relation (Beds):</div>
+      <div class="row subhead" id="propSwitchHead">Pick a relation (Beds):</div>
       <div class="chips" id="propChips"></div>
     </div>
 
     <div id="checks" class="rule-card" style="margin-top:10px; display:none;">
-      <h3>Ellenőrzések / Checks</h3>
+      <h3 id="checksHeader">Checks</h3>
       <ul id="checkList" class="help-list"></ul>
     </div>
   </div>
@@ -49,12 +62,10 @@
 
 <section class="explain-card" aria-live="polite" aria-label="Bottom legend">
   <div class="explain-head">
-    <span class="badge">Jelmagyarázat / Legend</span>
+    <span class="badge" id="legendHeader">Legend</span>
   </div>
   <div id="footerMsg" class="explain-body">
-    <span style="color:#58c6ff;">R</span> = reláció / relation, &nbsp;
-    <span style="color:#34d399;">f</span>, <span style="color:#f59e0b;">g</span>, &nbsp;
-    <span style="color:#facc15;">g∘f</span> = összetett / composite.
+    R = relation, f, g, g∘f = composite.
   </div>
 </section>
 {% endblock %}
@@ -68,26 +79,81 @@
   const $ = (id)=>document.getElementById(id);
   const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-  const COLORS = {
-    R: "#58c6ff",   // relation pairs
-    f: "#34d399",   // function f
-    g: "#f59e0b",   // function g
-    comp: "#facc15" // composition g∘f
+  // Language pack
+  const L = {
+    en: {
+      btnReset: "Reset scene",
+      lockNodes: "Lock nodes",
+      showLabels: "Show labels",
+      dataset: "Dataset",
+      tip: "Tip",
+      tip1: "Drag objects • Click source then target to add/remove an arrow.",
+      tip2: "Switch scenes to learn each concept.",
+      explanation: "Explanation",
+      pickRelation: "Pick a relation (Beds):",
+      checks: "Checks",
+      legend: "Legend",
+      legendText: `<span style="color:#58c6ff;">R</span> = relation, <span style="color:#34d399;">f</span>, <span style="color:#f59e0b;">g</span>, <span style="color:#facc15;">g∘f</span> = composite.`,
+      check_reflexive: "Reflexive",
+      check_symmetric: "Symmetric",
+      check_antisym: "Antisymmetric",
+      check_trans: "Transitive",
+      check_funcF: "Function? (each fossil maps to 1 bed)",
+      check_inj: "Injective? (no collisions)",
+      check_funcIso: "Function?",
+      check_surj: "Surjective?",
+      check_bij: "Bijective?",
+      check_comp_ok: "g∘f computed",
+      check_num_f: "number of f-arrows",
+      check_num_comp: "number of g∘f arrows",
+      check_bij_inv: "Bijection? (then invertible)"
+    },
+    hu: {
+      btnReset: "Jelenet visszaállítása",
+      lockNodes: "Objektumok zárolása",
+      showLabels: "Címkék mutatása",
+      dataset: "Adatkészlet",
+      tip: "Tipp",
+      tip1: "Húzd az objektumokat • Kattints először a forrásra, majd a célra nyíl létrehozásához/törléséhez.",
+      tip2: "Válts jelenetek között, hogy megismerd a fogalmakat.",
+      explanation: "Magyarázat",
+      pickRelation: "Reláció kiválasztása (Kőzetágyak):",
+      checks: "Ellenőrzések",
+      legend: "Jelmagyarázat",
+      legendText: `<span style="color:#58c6ff;">R</span> = reláció, <span style="color:#34d399;">f</span>, <span style="color:#f59e0b;">g</span>, <span style="color:#facc15;">g∘f</span> = összetett.`,
+      check_reflexive: "Reflexív",
+      check_symmetric: "Szimmetrikus",
+      check_antisym: "Antiszimmetrikus",
+      check_trans: "Tranzitív",
+      check_funcF: "Függvény? (minden fosszília 1 ágyba)",
+      check_inj: "Injektív? (nincs ütközés)",
+      check_funcIso: "Függvény?",
+      check_surj: "Szürjektív?",
+      check_bij: "Bijektív?",
+      check_comp_ok: "g∘f kiszámítva",
+      check_num_f: "f nyilak száma",
+      check_num_comp: "g∘f nyilak száma",
+      check_bij_inv: "Bijekció? (ekkor invertálható)"
+    }
   };
+
+  // Colors for edges
+  const COLORS = { R:"#58c6ff", f:"#34d399", g:"#f59e0b", comp:"#facc15" };
 
   // ---------------- State ----------------
   const canvas = $("stage");
   const ctx = canvas.getContext("2d");
 
   const state = {
-    assets: null,   // { fossils, beds, envs, scenes }
+    assets: null,    // { fossils, beds, envs, scenes }
     sceneKey: null,
     scene: null,
     nodes: [],
     edges: [],
     pending: null,
     needsDraw: true,
-    propKey: "identity"
+    propKey: "identity",
+    lang: (localStorage.getItem("relations.lang") || "en") // 'en' | 'hu'
   };
 
   // ---------------- Layout ----------------
@@ -109,7 +175,7 @@
 
     const rowsFor = (n) => {
       const base = 0.18, step = (0.64)/(Math.max(1,n)-1 || 1);
-      return Array.from({length:n}, (_,i)=> clamp(base + i*step, 0.12, 0.86));
+      return Array.from({length:n}, (_,i)=> Math.max(0.12, Math.min(0.86, base + i*step)));
     };
 
     const foss = state.nodes.filter(n => n.type==='fossil');
@@ -141,7 +207,6 @@
     }
     state.needsDraw = true;
   }
-
   function placeColumn(list, nx, nys){ list.forEach((n,i)=>{ n.x=nx; n.y=nys[i]??0.5; }); }
   function placeCircle(list, cx, cy, rad){
     const n = Math.max(1, list.length);
@@ -194,9 +259,7 @@
       });
     } else if (state.sceneKey === "poset"){
       const beds = state.nodes.filter(n=>n.type==='bed').sort((a,b)=>a.order-b.order);
-      for (let i=0;i<beds.length-1;i++){
-        state.edges.push({from:beds[i].id, to:beds[i+1].id, kind:'R'});
-      }
+      for (let i=0;i<beds.length-1;i++) state.edges.push({from:beds[i].id, to:beds[i+1].id, kind:'R'});
       beds.forEach(b => state.edges.push({from:b.id,to:b.id,kind:'R'}));
     } else if (state.sceneKey === "function"){
       (state.scene.suggest || []).forEach(([a,b]) => state.edges.push({from:a,to:b,kind:'f'}));
@@ -232,21 +295,11 @@
   function setScene(key){
     state.sceneKey = key;
     state.scene = state.assets.scenes[key];
-
-    // Titles + bilingual notes
-    $("sceneTitleHu").textContent = state.scene.title_hu;
-    $("sceneTitleEn").textContent = state.scene.title_en;
-    $("explainHu").textContent = state.scene.note_hu;
-    $("explainEn").textContent = state.scene.note_en;
-
-    // Property scene switcher
-    $("propSwitcher").style.display = (key === "properties") ? "block" : "none";
-
-    // Build nodes/edges and layout
     buildNodesForScene();
     relayout();
     buildEdgesForScene();
-    updateChecks();
+    applyLang();       // update texts in the current language
+    updateChecks();    // rebuild checks using current language
     state.needsDraw = true;
   }
 
@@ -257,8 +310,8 @@
       const sc = state.assets.scenes[k];
       const chip = document.createElement("div");
       chip.className = "chip";
-      chip.textContent = sc.short;           // <<< show real titles, not numbers
-      chip.title = `${sc.title_hu} / ${sc.title_en}`;
+      chip.textContent = sc.short;   // short label on tabs
+      chip.title = (state.lang==='hu' ? sc.title_hu : sc.title_en);
       chip.addEventListener("click", ()=> {
         document.querySelectorAll("#sceneTabs .chip").forEach(c=>c.classList.remove("selected"));
         chip.classList.add("selected");
@@ -276,7 +329,7 @@
       const r = rels[key];
       const chip = document.createElement("div");
       chip.className = "chip";
-      chip.textContent = `${r.label_hu} / ${r.label_en}`;
+      chip.textContent = (state.lang==='hu' ? r.label_hu : r.label_en);
       chip.addEventListener("click", () => {
         document.querySelectorAll("#propChips .chip").forEach(c=>c.classList.remove("selected"));
         chip.classList.add("selected");
@@ -287,6 +340,57 @@
       if (key === state.propKey) chip.classList.add("selected");
     });
   }
+
+  // ---------------- Language toggle ----------------
+  function applyLang(){
+    const lang = state.lang;
+    // Controls
+    $("btnReset").textContent = L[lang].btnReset;
+    $("txtLock").textContent = L[lang].lockNodes;
+    $("txtShow").textContent = L[lang].showLabels;
+
+    // Title + note
+    $("sceneTitle").textContent = (lang==='hu' ? state.scene.title_hu : state.scene.title_en);
+    $("explainHeader").textContent = L[lang].explanation;
+    $("explainText").textContent = (lang==='hu' ? state.scene.note_hu : state.scene.note_en);
+
+    // Dataset + tips
+    $("datasetLabel").textContent = L[lang].dataset;
+    $("tipLabel").textContent = L[lang].tip;
+    $("tipLine1").textContent = L[lang].tip1;
+    $("tipLine2").textContent = L[lang].tip2;
+
+    // Property switcher
+    $("propSwitchHead").textContent = L[lang].pickRelation;
+    $("checksHeader").textContent = L[lang].checks;
+
+    // Legend
+    $("legendHeader").textContent = L[lang].legend;
+    $("footerMsg").innerHTML = L[lang].legendText;
+
+    // Rebuild property chips in new language if visible
+    if (state.sceneKey === "properties") buildPropChips();
+
+    // Toggle selected chip
+    $("langEN").classList.toggle("selected", lang==='en');
+    $("langHU").classList.toggle("selected", lang==='hu');
+
+    // Update tab tooltips (titles)
+    document.querySelectorAll("#sceneTabs .chip").forEach((chip, i) => {
+      const order = ["relation","properties","equiv","poset","function","iso","compose","inverse"];
+      const k = order[i]; const sc = state.assets.scenes[k];
+      chip.title = (lang==='hu' ? sc.title_hu : sc.title_en);
+    });
+  }
+
+  $("langEN").addEventListener("click", () => {
+    state.lang = "en"; localStorage.setItem("relations.lang","en");
+    applyLang(); updateChecks();
+  });
+  $("langHU").addEventListener("click", () => {
+    state.lang = "hu"; localStorage.setItem("relations.lang","hu");
+    applyLang(); updateChecks();
+  });
 
   // ---------------- Interaction ----------------
   let drag = null;
@@ -363,10 +467,10 @@
     }
   }
 
-  // ---------------- Checks (bilingual) ----------------
-  function addCheck(ul, hu, en, ok){
+  // ---------------- Checks (per scene, localized) ----------------
+  function addCheck(ul, label, ok){
     const li = document.createElement("li");
-    li.innerHTML = `<strong>${hu}</strong> / <strong>${en}</strong>: ${ok===true ? "✓ Igen / Yes" : ok===false ? "✗ Nem / No" : ok}`;
+    li.innerHTML = `<strong>${label}</strong>: ${ok===true ? "✓" : ok===false ? "✗" : ok}`;
     ul.appendChild(li);
   }
 
@@ -374,6 +478,7 @@
     const list = $("checkList");
     list.innerHTML = "";
     $("checks").style.display = "none";
+    const T = L[state.lang];
 
     if (state.sceneKey === "properties"){
       $("checks").style.display = "block";
@@ -390,10 +495,10 @@
           if (b===c && !has(a,d)){ isTrans=false; break outer; }
         }
       }
-      addCheck(list, "Reflexív", "Reflexive", isReflexive);
-      addCheck(list, "Szimmetrikus", "Symmetric", isSym);
-      addCheck(list, "Antiszimmetrikus", "Antisymmetric", isAnti);
-      addCheck(list, "Tranzitív", "Transitive", isTrans);
+      addCheck(list, T.check_reflexive, isReflexive);
+      addCheck(list, T.check_symmetric, isSym);
+      addCheck(list, T.check_antisym, isAnti);
+      addCheck(list, T.check_trans, isTrans);
     }
 
     if (state.sceneKey === "function"){
@@ -406,8 +511,8 @@
       f.forEach(e => { outCount.set(e.from, (outCount.get(e.from)||0)+1); inCount.set(e.to, (inCount.get(e.to)||0)+1); });
       const totalSet = fossils.every(a => (outCount.get(a)||0)===1);
       const injective = beds.every(b => (inCount.get(b)||0) <= 1);
-      addCheck(list, "Függvény? (minden fosszília 1 ágy)", "Function? (each fossil maps to 1 bed)", totalSet);
-      addCheck(list, "Injektív? (nincs ütközés)", "Injective? (no collisions)", injective);
+      addCheck(list, T.check_funcF, totalSet);
+      addCheck(list, T.check_inj, injective);
     }
 
     if (state.sceneKey === "iso"){
@@ -422,19 +527,19 @@
       const injective = envs.every(b => (inCount.get(b)||0) <= 1);
       const surjective = envs.every(b => (inCount.get(b)||0) >= 1);
       const bijective = isFunc && injective && surjective;
-      addCheck(list, "Függvény?", "Function?", isFunc);
-      addCheck(list, "Injektív?", "Injective?", injective);
-      addCheck(list, "Szürjektív?", "Surjective?", surjective);
-      addCheck(list, "Bijektív?", "Bijective?", bijective);
+      addCheck(list, T.check_funcIso, isFunc);
+      addCheck(list, T.check_inj, injective);
+      addCheck(list, T.check_surj, surjective);
+      addCheck(list, T.check_bij, bijective);
     }
 
     if (state.sceneKey === "compose"){
       $("checks").style.display = "block";
       const f = state.edges.filter(e=>e.kind==='f').length;
       const comp = state.edges.filter(e=>e.kind==='comp').length;
-      addCheck(list, "g∘f kiszámítva", "g∘f computed", comp>0);
-      addCheck(list, "f nyilak száma", "number of f-arrows", f);
-      addCheck(list, "g∘f nyilak száma", "number of g∘f arrows", comp);
+      addCheck(list, T.check_comp_ok, comp>0);
+      addCheck(list, T.check_num_f, f);
+      addCheck(list, T.check_num_comp, comp);
     }
 
     if (state.sceneKey === "inverse"){
@@ -449,12 +554,9 @@
       const injective = envs.every(b => (inCount.get(b)||0) <= 1);
       const surjective = envs.every(b => (inCount.get(b)||0) >= 1);
       const bij = isFunc && injective && surjective;
-      addCheck(list, "Bijekció? (ekkor invertálható)", "Bijection? (then invertible)", bij);
-      if (bij) footer("Bijekció / Bijection: a nyilak megfordíthatók; f⁻¹ értelmezett. / arrows can be reversed; f⁻¹ exists.");
+      addCheck(list, T.check_bij_inv, bij);
     }
   }
-
-  function footer(msg){ $("footerMsg").textContent = msg; }
 
   // ---------------- Drawing ----------------
   const imgCache = new Map();
@@ -462,7 +564,7 @@
     return new Promise((resolve) => {
       if (imgCache.has(url)) { resolve(imgCache.get(url)); return; }
       const im = new Image();
-      im.crossOrigin = "anonymous";
+      im.crossOrigin = "anonymous"; // allow imgur
       im.onload = () => { imgCache.set(url, im); resolve(im); };
       im.onerror = () => resolve(null);
       im.src = url;
@@ -474,6 +576,7 @@
     const w = canvas.clientWidth, h = canvas.clientHeight;
     ctx.clearRect(0,0,w,h);
 
+    // Frame
     ctx.fillStyle = "#0c1220";
     ctx.strokeStyle = "#223045";
     ctx.lineWidth = 1.5;
@@ -548,7 +651,6 @@
 
   // ---------------- Loop & boot ----------------
   function loop(){ if (state.needsDraw) draw(); requestAnimationFrame(loop); }
-
   $("btnReset").addEventListener("click", () => setScene(state.sceneKey));
 
   (async function boot(){
@@ -556,7 +658,12 @@
     await loadAssets();
     buildTabs();
     buildPropChips();
-    setScene("relation");
+    setScene("relation");   // default scene
+    // apply initial language selection
+    applyLang(); updateChecks();
+    // set initial chip selection
+    $("langEN").classList.toggle("selected", state.lang==='en');
+    $("langHU").classList.toggle("selected", state.lang==='hu');
     loop();
   })();
 })();
