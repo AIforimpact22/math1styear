@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import random
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Sequence, Tuple
 
 from flask import Blueprint, jsonify, render_template, request
 
@@ -427,6 +429,174 @@ QUESTIONS: List[Question] = [
 QUESTION_LOOKUP: Dict[str, Question] = {q.id: q for q in QUESTIONS}
 
 
+QUESTION_HU: Dict[str, str] = {
+    "Q01": (
+        "Az „és” állítás akkor és csak akkor igaz, ha mindkét része ________.\n"
+        "Az „vagy” állítás akkor és csak akkor hamis, ha mindkét része ________.\n"
+        "Két állításforma akkor és csak akkor logikailag ekvivalens, ha mindig ________ igazságértékeik vannak.\n"
+        "De Morgan törvényei szerint (1) egy „és” állítás tagadása ekvivalens egy „vagy” állítással, amelyben mindegyik rész ________,"
+        " és (2) egy „vagy” állítás tagadása ekvivalens egy „és” állítással, amelyben mindegyik rész ________.\n"
+        "Tautológia az az állítás, amely mindig ________.\n"
+        "Kontradikció az az állítás, amely mindig ________."
+    ),
+    "Q02": (
+        "(a) Ha minden bazaltfolyam mafikus, akkor az A folyás mafikus.\n"
+        "Minden bazaltfolyam mafikus.\n"
+        "Ezért az A folyás mafikus.\n"
+        "Forma: Ha p akkor q; p; tehát q.\n\n"
+        "(b) Ha minden keresztágy tervnézetben leírható, akkor ________.\n"
+        "________.\n"
+        "Ezért az X keresztágy-készlet tervnézetben leírható."
+    ),
+    "Q03": (
+        "(a) Ha minden szeizmikus szelvényben van valamilyen zaj, akkor a 12-es szelvény zajos.\n"
+        "A 12-es szelvény nem zajos.\n"
+        "Ezért nem igaz, hogy minden szeizmikus szelvény zajos.\n"
+        "Forma: Ha p akkor q; ¬q; tehát ¬p.\n\n"
+        "(b) Ha ________, akkor a prímek páratlanok.\n"
+        "A 2 nem páratlan.\n"
+        "Ezért ________."
+    ),
+    "Q04": (
+        "(a) Ez a kő mészkő vagy ez a kő dolomit.\n"
+        "Ez a kő nem mészkő.\n"
+        "Ezért ez a kő dolomit.\n"
+        "Forma: p ∨ q; ¬p; tehát q.\n\n"
+        "(b) Vagy kvarc fordul elő, vagy a logika zavaros.\n"
+        "Az elmém nincs kikészülve.\n"
+        "Ezért ________."
+    ),
+    "Q05": (
+        "(a) Ha a magleírás hibás, akkor a labor hibát jelez.\n"
+        "Ha a labor hibát jelez, akkor a jelentés nem kerül kiadásra.\n"
+        "Ezért ha a magleírás hibás, akkor a jelentés nem kerül kiadásra.\n"
+        "Forma: Ha p akkor q; ha q akkor r; tehát ha p akkor r.\n\n"
+        "(b) Ha ez a homokkő magas kvarctartalmú, akkor érett.\n"
+        "Ha ez a homokkő érett, akkor jól kerekített szemcséi vannak.\n"
+        "Ezért ha ez a homokkő magas kvarctartalmú, akkor ________."
+    ),
+    "Q06": (
+        "Döntsd el, hogy az alábbiak közül melyek kijelentések (igazságértékkel bírnak):\n"
+        "a) „Sok tengerparti homok mutat hullámnyomokat.”\n"
+        "b) „Mérd meg a 4. réteg vastagságát!”\n"
+        "c) „Porozitás ≥ 0,25.”\n"
+        "d) „Mélység = d₀.”"
+    ),
+    "Q07": (
+        "Legyen o = „a feltárásban fosszíliák vannak”, s = „a minta homokkő”.\n"
+        "Fordítsd le: (i) „A feltárásban fosszíliák vannak, és a minta homokkő.”\n"
+        "(ii) „Sem a feltárásban nincsenek fosszíliák, sem a minta nem homokkő.”"
+    ),
+    "Q08": "Legyen c = „a mag karbonát”, d = „a mag dolomit”. Fordítsd le: „A mag karbonát, de nem dolomit.”",
+    "Q09": (
+        "Legyen h = „a réteg szénhidrogént tartalmaz”, t = „a réteg vastag”, q = „a réteg jó minőségű”.\n"
+        "Add meg a szimbólumos alakokat: (a) „H szénhidrogéntartalmú és vastag, de nem jó minőségű.”\n"
+        "(b) „H nem vastag, de szénhidrogéntartalmú és jó minőségű.”\n"
+        "(c) „H sem szénhidrogéntartalmú, sem vastag, sem jó minőségű.”\n"
+        "(d) „H sem vastag, sem jó minőségű, de szénhidrogéntartalmú.”\n"
+        "(e) „H jó minőségű, de nem mind szénhidrogéntartalmú és vastag.”"
+    ),
+    "Q10": (
+        "Legyen p = „a szemcseméret > 0,5 mm”, q = „a szemcseméret = 0,5 mm”, r = „a szemcseméret < 2 mm”.\n"
+        "Fordítsd le: (a) „a szemcseméret ≥ 0,5 mm”\n"
+        "(b) „2 mm > szemcseméret > 0,5 mm”\n"
+        "(c) „2 mm ≥ szemcseméret ≥ 0,5 mm.”"
+    ),
+    "Q11": "Döntsd el, hogy a „Minta átmegy a szűrésen, ha kerek szemcséi vannak vagy a szemcsesorrend ≥ ‘közepes’” mondatban az „vagy” inkluzív vagy exkluzív.",
+    "Q12": (
+        "Válaszolj tömören:\n"
+        "• Mikor igaz a ¬p ∧ q?\n"
+        "• Mindig igaz-e a ¬(p ∧ q) ∨ (p ∨ q)?\n"
+        "• Mikor igaz a p ∧ (q ∧ r)?\n"
+        "• Mikor igaz a p ∧ (¬q ∨ r)?"
+    ),
+    "Q13": (
+        "Döntsd el minden párnál, hogy logikailag ekvivalensek-e, és adj rövid indoklást (abszorpció, De Morgan stb.).\n"
+        "Használd a felsorolást a feladatban (p ∨ (p ∧ q) vs p, ¬(p ∧ q) vs ¬p ∨ ¬q, … , (p ∨ q) ∨ (p ∧ r) vs (p ∨ q) ∧ r)."
+    ),
+    "Q14": "Add meg a geológiai példamondatok negációját De Morgan szabályai szerint (vidd be a tagadást a mondatokba).",
+    "Q15": "Add meg az egyes egyenlőtlenségek negációját (porozitás φ, szemcseméret d).",
+    "Q16": "Írd át az adatszűrő kifejezéseket úgy, hogy a negációk a belső részekre kerüljenek (∧/∨ használatával).",
+    "Q17": "Osztályozd az egyes kifejezéseket (tautológia/ellentmondás/esetleges) a megadott érvelés alapján.",
+    "Q18": "Legyenek a pozíciók {S,L,B} × {F,X}. Azonosítsd a kódhalmazokat a megadott kifejezésekhez (31a–31c).",
+    "Q19": "Döntsd el, hogy az (a) és (b) állítás logikailag ekvivalens-e, és indokold rövid ellenpéldával vagy magyarázattal.",
+}
+
+
+VARIANT_HINTS: Sequence[Tuple[str, str]] = (
+    ("Highlight the logical connectors you rely on.", "Emeld ki, mely logikai kötőszavakat használod."),
+    ("State any assumptions explicitly in one sentence.", "Egy mondatban írd le a felhasznált feltevéseidet."),
+    ("Give at least one example or mini-scenario to illustrate your answer.", "Adj legalább egy példát vagy rövid szituációt a válasz szemléltetésére."),
+    ("Keep your notation consistent throughout the response.", "Ügyelj rá, hogy a jelöléseid következetesek legyenek a teljes válaszban."),
+    ("Mention the key law (modus ponens, De Morgan, etc.) by name.", "Nevezd meg a kulcsfontosságú szabályt (modus ponens, De Morgan stb.)."),
+    ("Conclude with a short check that your result matches the form.", "Zárásként ellenőrizd röviden, hogy az eredmény megfelel-e a formának."),
+    ("Underline, metaphorically, the term that changes in your variant.", "Hangsúlyozd, hogy a változatban melyik kifejezés módosul."),
+    ("List the sub-clauses in the same order as you interpret them.", "Sorold fel az alciklusokat abban a sorrendben, ahogyan értelmezed őket."),
+)
+
+
+TITLE_VARIANTS: Sequence[Tuple[str, str]] = (
+    ("Variant A", "Változat A"),
+    ("Variant B", "Változat B"),
+    ("Variant C", "Változat C"),
+    ("Variant D", "Változat D"),
+    ("Variant E", "Változat E"),
+    ("Variant F", "Változat F"),
+    ("Variant G", "Változat G"),
+    ("Variant H", "Változat H"),
+)
+
+
+def _seed_from_identifiers(name: str, neptun: str) -> int:
+    key = f"{name.strip().lower()}|{neptun.strip().upper()}"
+    digest = hashlib.sha256(key.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big", signed=False)
+
+
+def _format_bilingual_text(qid: str, english: str, hint_pair: Tuple[str, str]) -> str:
+    base_hu = QUESTION_HU.get(qid, "")
+    extra_en, extra_hu = hint_pair
+    sections = [english.strip(), "", "Magyarul:", base_hu.strip()]
+    if extra_en:
+        sections.extend(
+            [
+                "",
+                f"Variant prompt: {extra_en}",
+                "Magyar változat:",
+                f"{extra_hu}",
+            ]
+        )
+    return "\n".join(section for section in sections if section)
+
+
+def _personalize_questions(name: str, neptun: str) -> List[Dict[str, str]]:
+    seed = _seed_from_identifiers(name, neptun)
+    rng = random.Random(seed)
+    shuffled = list(QUESTIONS)
+    rng.shuffle(shuffled)
+
+    hint_choices = list(VARIANT_HINTS)
+    rng.shuffle(hint_choices)
+    if not hint_choices:
+        hint_choices = [("", "")]
+
+    title_variants = list(TITLE_VARIANTS)
+    rng.shuffle(title_variants)
+    if not title_variants:
+        title_variants = [("Variant", "Változat")]
+
+    personalized: List[Dict[str, str]] = []
+
+    for idx, question in enumerate(shuffled):
+        hint_pair = hint_choices[idx % len(hint_choices)]
+        title_variant_en, title_variant_hu = title_variants[idx % len(title_variants)]
+        bilingual_title = f"{question.title} — {title_variant_en} / {title_variant_hu}"
+        bilingual_text = _format_bilingual_text(question.id, question.text, hint_pair)
+        personalized.append({"id": question.id, "title": bilingual_title, "text": bilingual_text})
+
+    return personalized
+
+
 def _score_answer(answer: str, question: Question) -> Dict[str, Any]:
     text = (answer or "").strip()
     if not text:
@@ -491,17 +661,12 @@ def logic_assignment_generate():
     if not name or not neptun:
         return jsonify({"error": "Missing name or Neptun code"}), 400
 
+    personalized = _personalize_questions(name, neptun)
+
     return jsonify(
         {
             "assignment": "Logic for Geoscience",
-            "questions": [
-                {
-                    "id": q.id,
-                    "title": q.title,
-                    "text": q.text,
-                }
-                for q in QUESTIONS
-            ],
+            "questions": personalized,
         }
     )
 
