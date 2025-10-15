@@ -17,6 +17,7 @@ from set_theory import (
 # Assignment 1 page (typing-based, PDF export after ≥ 70%)
 from assignment import assignment_bp
 from logic_assignment import logic_assignment_bp
+from assignment_three import assignment_three_bp
 
 # NEW: Relations & Functions (Fossils) interactive page
 from relations import relations_bp
@@ -61,6 +62,9 @@ def create_app():
 
     # Assignment 2 (Logic) at /logic-assignment
     app.register_blueprint(logic_assignment_bp)
+
+    # Assignment 3 (Functions) at /assignment-three
+    app.register_blueprint(assignment_three_bp)
 
     # NEW: Relations & Functions (Fossils) at /relations
     # - Page route:            GET /relations
