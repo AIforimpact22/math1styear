@@ -137,7 +137,7 @@ def equivalent(expr_a: str, expr_b: str, vars_used: List[str]) -> Tuple[bool, Op
     return True, None
 
 # -----------------------
-# Manifest — Lecture 3 (Q2a–Q2c REMOVED)
+# Manifest — Lecture 3 (Q2a–Q2c, Q10b REMOVED)
 # -----------------------
 
 def _tt_rows(varnames: List[str]) -> List[Dict[str, bool]]:
@@ -249,10 +249,6 @@ def _manifest_lecture3() -> Dict[str, Any]:
              "en": "Use o: olivine, y: pyroxene, i: igneous.",
              "hu": "o: olivin, y: piroxén, i: magmás.",
              "expected": ",(o ~ y) ~ i"},
-            {"id": "L3Q10b", "kind": "formula_plus_text", "vars": ["o", "y", "i"],
-             "title": "10b) Contrapositive — formula + words (EN + HU)",
-             "expected": ",(,i) ~ (,o ` ,y)",
-             "text_keywords_en": [], "text_keywords_hu": []},  # text graded by GPT
             {"id": "L3Q10c", "kind": "yesno_plus_text",
              "title": "10c) Is 'Porosity > 0.25 ` Porosity < 0.10' contradictory?",
              "expected_yes": True,
