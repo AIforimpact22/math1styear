@@ -133,7 +133,7 @@ def _soft_score_and_feedback(ans: str) -> tuple[int, str]:
     Lenient scoring:
       • Baseline 6/10 for any relevant multi-sentence answer (≥ ~60 chars).
       • + up to 2 for length/clarity.
-      • +1 if uses set symbols (∩ ∪ \ Δ U).
+      • +1 if uses set symbols (∩ ∪ \\ Δ U).
       • +1 if mentions a valid set (I/S/M or names) or a mineral from the example.
       • Cap at 10. Floor at 4 for very short text.
     """
