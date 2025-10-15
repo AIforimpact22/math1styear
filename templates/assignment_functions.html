@@ -2,342 +2,112 @@
 {% block page_title %}Assignment 3 — Functions & Collaboration{% endblock %}
 
 {% block controls %}
-<div class="controls" aria-label="Assignment controls">
-  <a href="/" class="btn" target="_blank" rel="noopener">Open Home</a>
-  <button id="btnStart" class="btn">Load Functions Assignment</button>
-  <button id="btnGrade" class="btn">Check &amp; Grade</button>
-  <button id="btnPdf" class="btn" disabled>Generate PDF</button>
+<div class="controls" aria-label="Assignment navigation">
+  <a href="/assignment" class="btn" rel="noopener">Assignment 1</a>
+  <a href="/logic-assignment" class="btn" rel="noopener">Assignment 2</a>
+  <a href="/assignment-3" class="btn" rel="noopener" aria-current="page">Assignment 3</a>
 </div>
 {% endblock %}
 
 {% block content %}
-<section class="canvas-card" aria-label="Functions assignment container">
+<section class="canvas-card" aria-label="Assignment 3 planning guide">
   <style>
-    .assign-wrap{ padding:14px; }
-    .id-card{
-      display:grid; gap:8px; background:#0f141c; border:1px solid #233040; border-radius:12px; padding:10px;
-      margin-bottom: 12px;
-    }
-    .id-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .id-row label{ min-width: 140px; color:#cbd7ea; }
-    .id-row input[type="text"]{
-      background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:8px 10px; border-radius:8px; width: 280px;
-    }
-
-    .rule-card{
-      background: var(--card); border:1px solid #233040; border-radius:14px; padding:12px; margin-bottom:12px;
-    }
-    .rule-card h3{ margin:0 0 6px; font-size:14px; color:#cbd7ea; }
-    .rule-card ul{ margin:6px 0 0 18px; color:#d7e6ff; }
-    .rule-card li{ margin-bottom:4px; }
-
-    .dataset-card{
-      background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px; margin-bottom:12px;
-      color:#d7e6ff;
-    }
-    .dataset-card h3{ margin:0 0 8px; font-size:15px; color:#cbd7ea; }
-    .dataset-card table{ width:100%; border-collapse:collapse; margin:8px 0; }
-    .dataset-card th, .dataset-card td{ border:1px solid #233040; padding:6px 8px; text-align:left; }
-    .dataset-card th{ background:#111a2a; color:#9fb2c7; }
-    .dataset-card .thresholds{ margin:6px 0 0; font-size:13px; color:#9fb2c7; }
-
-    .q-card{
-      background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px; margin-top:10px;
-    }
-    .q-card h4{ margin:0 0 6px; font-size:14px; color:#cbd7ea; }
-    .q-title{ font-weight:600; color:#9fb2c7; margin-bottom:4px; }
-    .q-text{ color:#d7e6ff; margin: 4px 0 8px; white-space: pre-wrap; }
-    .q-card textarea{
-      background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:10px; border-radius:8px; width:100%;
-      min-height: 140px;
-    }
-
-    .score{
-      display:flex; align-items:center; gap:8px; padding:2px 6px; border-radius:10px;
-      background: rgba(14,21,35,0.6); border:1px solid #223045; margin-top: 10px;
-    }
-    .score .bar{ width:230px; height:8px; border:1px solid #263243; background:#0e1523; border-radius:999px; overflow:hidden; }
-    .score .fill{ height:100%; width:0%; background: linear-gradient(90deg, #16a34a, #22c55e); }
-    .pill{ display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #223045; background:#0e1523; color:#a7b8cc; }
-
-    .perq{ display:grid; gap:8px; margin-top:10px; }
-    .perq .item{ border:1px dashed #2a394e; border-radius:10px; padding:8px; background:#0e1523; color:#dbe6ff; }
-    .perq .item-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
-    .good{ color:#34d399; font-weight:700; }
-    .bad{ color:#ef4444; font-weight:700; }
-    .feedback{ color:#cbd7ea; font-size:13px; }
-
-    @media print {
-      header, .controls { display:none !important; }
-      body { background: #fff; }
-      .q-card{ page-break-inside: avoid; }
-      .rule-card, .dataset-card{ page-break-inside: avoid; }
-    }
+    .assign3-wrap{ padding:16px; display:grid; gap:16px; }
+    .assign3-grid{ display:grid; gap:14px; }
+    .card{ background:var(--card); border:1px solid #1d2939; border-radius:14px; padding:16px; }
+    .card h2, .card h3{ margin:0 0 10px; color:#e8f0ff; }
+    .card h3{ font-size:18px; }
+    .flex{ display:flex; gap:16px; flex-wrap:wrap; }
+    .dual p{ margin:0 0 8px; }
+    .dual strong{ color:#9fb7d8; display:block; margin-bottom:4px; }
+    .questions{ display:grid; gap:12px; }
+    .question{ background:#0d1320; border:1px solid #233046; border-radius:12px; padding:14px; }
+    .question h4{ margin:0 0 8px; color:#d7e6ff; }
+    .badge{ display:inline-block; padding:2px 10px; border-radius:999px; background:#192233; border:1px solid #25344a; color:#a9bedf; font-size:12px; margin-bottom:6px; }
+    .ai-example{ margin-top:10px; padding:10px; background:#10192b; border:1px dashed #2a3d58; border-radius:10px; }
+    .workflow{ display:grid; gap:12px; }
+    .workflow li{ margin-left:18px; color:#dbe6ff; }
+    .workflow strong{ color:#95b4e3; }
   </style>
 
-  <div class="assign-wrap">
-    <div class="id-card">
-      <div class="id-row">
-        <label for="studentName">Student Name</label>
-        <input type="text" id="studentName" placeholder="Your full name" required />
-      </div>
-      <div class="id-row">
-        <label for="neptun">Neptun Code</label>
-        <input type="text" id="neptun" placeholder="ABC123" maxlength="6" pattern="[A-Za-z0-9]{6}" required />
-      </div>
-    </div>
+  <div class="assign3-wrap">
+    <header class="card" aria-label="Assignment overview">
+      <h2>Assignment 3 — Functions in Well Logging / Függvények a kútmérésben</h2>
+      <p>
+        Collaborative plan for a three-student team. GPT assists with question generation and grading,
+        following the approach from Assignments 1 and 2.
+      </p>
+      <p>
+        Háromfős csapat számára készült együttműködési terv. A GPT segít a kérdésgenerálásban és az értékelésben,
+        az 1. és 2. beadandó mintájára.
+      </p>
+    </header>
 
-    <div class="rule-card">
-      <h3>Instruction</h3>
-      <ul>
-        <li>This assignment practises <strong>functions on well-log porosity data</strong> (domain/codomain, quantifiers, thresholds).</li>
-        <li>Click <strong>Load Functions Assignment</strong> to generate a personalised dataset and six open-ended prompts.</li>
-        <li>Answer in full sentences in both languages if possible — the grader checks for key mathematical ideas.</li>
-        <li>Click <strong>Check &amp; Grade</strong> for instant feedback. Score ≥ <strong>70%</strong> unlocks the PDF export.</li>
-      </ul>
-    </div>
+    <section class="card assign3-grid" aria-label="Context cards">
+      {% for section in sections %}
+      <article class="dual" aria-labelledby="{{ section.slug }}-en">
+        <h3 id="{{ section.slug }}-en">{{ section.heading_en }}</h3>
+        <p>{{ section.body_en }}</p>
+        <strong id="{{ section.slug }}-hu">{{ section.heading_hu }}</strong>
+        <p>{{ section.body_hu }}</p>
+      </article>
+      {% endfor %}
+    </section>
 
-    <div id="datasetCard" class="dataset-card" style="display:none;" aria-live="polite"></div>
+    <section class="card" aria-label="Workflow">
+      <h3>Workflow / Munkamenet</h3>
+      <ol class="workflow">
+        {% for title, en, hu in workflow %}
+        <li>
+          <strong>{{ title }}</strong>
+          <div>{{ en }}</div>
+          <div>{{ hu }}</div>
+        </li>
+        {% endfor %}
+      </ol>
+    </section>
 
-    <div id="questionsBox"></div>
+    <section class="card" aria-label="Question plan">
+      <h3>Question plan / Kérdés-terv</h3>
+      <div class="questions">
+        {% for q in questions %}
+        <article class="question">
+          <span class="badge">{{ q.id }}</span>
+          <h4>{{ q.prompt_en }}</h4>
+          <p>{{ q.prompt_hu }}</p>
+          <div class="flex">
+            <div>
+              <strong>Focus</strong>
+              <p>{{ q.focus_en }}</p>
+            </div>
+            <div>
+              <strong>Fókusz</strong>
+              <p>{{ q.focus_hu }}</p>
+            </div>
+          </div>
+          {% if q.ai_example_en %}
+          <div class="ai-example" aria-label="AI example answer">
+            <strong>AI example / MI példa</strong>
+            <p>{{ q.ai_example_en }}</p>
+            <p>{{ q.ai_example_hu }}</p>
+          </div>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </section>
 
-    <div class="q-card" id="gradingBox" style="display:none;">
-      <h4>Grading</h4>
-      <div class="score">
-        <span id="scoreText">Score: 0%</span>
-        <div class="bar"><div id="scoreFill" class="fill"></div></div>
-        <span id="passPill" class="pill">—</span>
-      </div>
-      <div class="perq" id="perQuestion"></div>
-      <div class="rule-card" style="margin-top:10px;">
-        <h3>Summary</h3>
-        <div id="summaryText" class="q-text">—</div>
-      </div>
-      <div class="rule-card" style="margin-top:10px;">
-        <strong>Submission:</strong> After generating your PDF, please <u>upload it to the University learning system</u> under this assignment.
-      </div>
-    </div>
+    <footer class="card" aria-label="Submission guidance">
+      <h3>Next steps / Következő lépések</h3>
+      <p>
+        Prepare GPT prompts to deliver ten customised questions per group, keep collaborative notes in both
+        languages, and export a shared PDF once the AI rubric reports a passing score (≥ 70%).
+      </p>
+      <p>
+        Készítsetek GPT-promptokat a csoportonkénti tíz egyedi kérdéshez, vezessetek kétnyelvű közös jegyzetet,
+        és exportáljátok a közös PDF-et, amint az MI-rubrika eléri a legalább 70%-os pontszámot.
+      </p>
+    </footer>
   </div>
 </section>
-{% endblock %}
-
-{% block scripts %}
-<script>
-(() => {
-  const $ = (id) => document.getElementById(id);
-
-  const btnStart = $("btnStart");
-  const btnGrade = $("btnGrade");
-  const btnPdf   = $("btnPdf");
-
-  const questionsBox = $("questionsBox");
-  const gradingBox = $("gradingBox");
-  const datasetCard = $("datasetCard");
-  const scoreText = $("scoreText");
-  const scoreFill = $("scoreFill");
-  const passPill  = $("passPill");
-  const perQuestion = $("perQuestion");
-  const summaryText = $("summaryText");
-
-  let currentQuestions = [];
-  let currentDataset = null;
-  let gradingResult = null;
-
-  function escapeHtml(s){
-    return (s || "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] || c));
-  }
-
-  function saveKey(qid){
-    const name = ($("studentName").value || "").trim();
-    const neptun = ($("neptun").value || "").trim().toUpperCase();
-    return `functions3:${neptun}:${name}:${qid}`;
-  }
-
-  function renderDataset(data){
-    if (!data){
-      datasetCard.style.display = "none";
-      datasetCard.innerHTML = "";
-      return;
-    }
-    datasetCard.style.display = "block";
-    const rows = (data.pairs || []).map(pair => `
-      <tr>
-        <td>${escapeHtml(String(pair.depth))} m</td>
-        <td>φ = ${escapeHtml(String(pair.phi))}</td>
-      </tr>
-    `).join("");
-    datasetCard.innerHTML = `
-      <h3>Porosity log D</h3>
-      <p>${escapeHtml(data.summary_en || "")}</p>
-      <p><strong>Magyarul:</strong> ${escapeHtml(data.summary_hu || "")}</p>
-      <table aria-label="Porosity pairs">
-        <thead><tr><th>Depth (m)</th><th>φ</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <p class="thresholds">Threshold cues: φ ≥ ${escapeHtml(data.exists_threshold || "")} (existence), φ ≤ ${escapeHtml(data.forall_threshold || "")} (universal test).</p>
-      <p class="thresholds">Küszöb emlékeztető: φ ≥ ${escapeHtml(data.exists_threshold || "")} (létezés), φ ≤ ${escapeHtml(data.forall_threshold || "")} (univerzális vizsgálat).</p>
-    `;
-  }
-
-  function renderQuestions(list){
-    questionsBox.innerHTML = "";
-    list.forEach(q => {
-      const card = document.createElement("div");
-      card.className = "q-card";
-      card.innerHTML = `
-        <div class="q-title">${escapeHtml(q.title || "")}</div>
-        <h4>${escapeHtml(q.id)}</h4>
-        <div class="q-text">${escapeHtml(q.text)}</div>
-        <textarea id="ans_${q.id}" placeholder="Answer every part of this prompt. Use full sentences."></textarea>
-      `;
-      questionsBox.appendChild(card);
-    });
-    list.forEach(q => {
-      const key = saveKey(q.id);
-      const saved = localStorage.getItem(key);
-      if (saved){
-        const ta = document.getElementById(`ans_${q.id}`);
-        if (ta) ta.value = saved;
-      }
-    });
-    list.forEach(q => {
-      const ta = document.getElementById(`ans_${q.id}`);
-      if (!ta) return;
-      ta.addEventListener("input", () => {
-        localStorage.setItem(saveKey(q.id), ta.value);
-      });
-    });
-  }
-
-  btnStart.addEventListener("click", async () => {
-    const name = $("studentName").value.trim();
-    const neptun = $("neptun").value.trim().toUpperCase();
-    if (!name){ alert("Please enter your name."); return; }
-    if (!/^[A-Za-z0-9]{6}$/.test(neptun)){ alert("Please enter a valid 6-character Neptun code."); return; }
-
-    btnStart.disabled = true;
-    btnStart.textContent = "Loading…";
-    try {
-      const r = await fetch("/assignment-3/api/generate", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ name, neptun })
-      });
-      const data = await r.json();
-      if (data.error){ alert(data.error); return; }
-      currentQuestions = data.questions || [];
-      currentDataset = data.dataset || null;
-      renderDataset(currentDataset);
-      renderQuestions(currentQuestions);
-      gradingBox.style.display = "none";
-      gradingResult = null;
-      btnPdf.disabled = true;
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-    } catch (e){
-      console.error(e);
-      alert("Could not load questions. Please try again.");
-    } finally {
-      btnStart.disabled = false;
-      btnStart.textContent = "Load Functions Assignment";
-    }
-  });
-
-  btnGrade.addEventListener("click", async () => {
-    const name = $("studentName").value.trim();
-    const neptun = $("neptun").value.trim().toUpperCase();
-    if (!currentQuestions.length){ alert("Please click Load Functions Assignment first."); return; }
-
-    const qa = currentQuestions.map(q => ({
-      id: q.id,
-      question: q.text,
-      answer: (document.getElementById(`ans_${q.id}`)?.value || "").trim()
-    }));
-
-    btnGrade.disabled = true;
-    btnGrade.textContent = "Grading…";
-    try {
-      const r = await fetch("/assignment-3/api/grade", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ name, neptun, qa })
-      });
-      const data = await r.json();
-      if (data.error){ alert(data.error); return; }
-      gradingResult = data;
-      if (data.dataset){
-        currentDataset = data.dataset;
-        renderDataset(currentDataset);
-      }
-      showGrading(data);
-      gradingBox.style.display = "block";
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-    } catch (e){
-      console.error(e);
-      alert("Grading failed. Please try again.");
-    } finally {
-      btnGrade.disabled = false;
-      btnGrade.textContent = "Check & Grade";
-    }
-  });
-
-  function showGrading(res){
-    const pct = res.overall_pct || 0;
-    scoreText.textContent = `Score: ${pct}%`;
-    scoreFill.style.width = `${Math.max(0,Math.min(100,pct))}%`;
-    const passed = pct >= 70;
-    passPill.textContent = passed ? "PASS (≥ 70%)" : "REVISE (< 70%)";
-    passPill.style.color = passed ? "#a8f0c4" : "#ffb4bf";
-    passPill.style.background = passed ? "#11281f" : "#2a1115";
-    passPill.style.border = passed ? "1px solid #1f6f4f" : "1px solid #5a2831";
-
-    perQuestion.innerHTML = "";
-    (res.per_question || []).forEach(item => {
-      const div = document.createElement("div");
-      div.className = "item";
-      const goodClass = item.score >= 7 ? "good" : "bad";
-      div.innerHTML = `
-        <div class="item-head">
-          <span><strong>${escapeHtml(item.id || "")}</strong></span>
-          <span class="${goodClass}">${escapeHtml(String(item.score || 0))}/10</span>
-        </div>
-        <div class="feedback">${escapeHtml(item.feedback || "")}</div>
-      `;
-      perQuestion.appendChild(div);
-    });
-    summaryText.textContent = res.summary || "—";
-
-    btnPdf.disabled = !passed;
-  }
-
-  $("btnPdf").addEventListener("click", () => {
-    if (!gradingResult || (gradingResult.overall_pct||0) < 70){
-      alert("You must score ≥ 70% to generate the PDF.");
-      return;
-    }
-    const name = $("studentName").value.trim();
-    const neptun = $("neptun").value.trim().toUpperCase();
-    const today = new Date().toISOString().slice(0,10);
-
-    const hdr = document.createElement("div");
-    hdr.id = "printHeader";
-    hdr.style.padding = "8px 16px";
-    hdr.style.borderBottom = "1px solid #233040";
-    hdr.style.marginBottom = "8px";
-    hdr.style.fontSize = "13px";
-    hdr.style.background = "#0e1523";
-    hdr.style.color = "#cfe0ff";
-    hdr.innerHTML = `<strong>Assignment 3 — Functions in Well Logging</strong> | Name: ${escapeHtml(name)} | Neptun: ${escapeHtml(neptun)} | Date: ${today} | Score: ${gradingResult.overall_pct}%<br><em>Upload this PDF to the University learning system under the same assignment.</em>`;
-    document.body.prepend(hdr);
-
-    const originalTitle = document.title;
-    document.title = `Assignment3_Functions_${neptun}_${name.replace(/\s+/g,'_')}`;
-    window.print();
-
-    document.title = originalTitle;
-    hdr.remove();
-  });
-
-  $("neptun").addEventListener("input", e => e.target.value = e.target.value.toUpperCase());
-})();
-</script>
 {% endblock %}
