@@ -6,50 +6,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root { --bg:#0b0e14; --panel:#111827; --ink:#e5e7eb; --muted:#9ca3af; --accent:#8b5cf6; --ok:#10b981; --warn:#f59e0b; --bad:#ef4444; --border:#374151; }
-    * { box-sizing: border-box; }
+    * { box-sizing:border-box; }
     body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; background:var(--bg); color:var(--ink); margin:0; }
-    header { padding: 20px; border-bottom:1px solid var(--border); background:linear-gradient(180deg, rgba(139,92,246,.15), transparent); }
-    h1 { margin:0; font-size: 1.4rem; }
+    header { padding:20px; border-bottom:1px solid var(--border); background:linear-gradient(180deg, rgba(139,92,246,.15), transparent); }
+    h1 { margin:0; font-size:1.35rem; }
     main { max-width: 980px; margin: 20px auto 120px; padding: 0 16px; }
     .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
     label { font-size:.95rem; color:var(--muted); }
     input[type=text] { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#0e1525; color:var(--ink); }
-    textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#0e1525; color:var(--ink); }
+    textarea { width:100%; min-height:110px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#0e1525; color:var(--ink); }
     button { background:var(--accent); color:#fff; border:none; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer; }
     button.secondary { background:transparent; color:var(--ink); border:1px solid var(--border); }
     .small { font-size:.9rem; color:var(--muted); }
-    table { border-collapse: collapse; width:100%; }
-    th, td { border:1px solid var(--border); padding:6px 8px; text-align:center; }
-    th { background:#0f172a; position:sticky; top:0; z-index:1; }
+    .title { margin:8px 0; }
     .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; border:1px solid var(--border); background:#0d1323; }
     .status { padding:6px 10px; border-radius:999px; font-weight:600; }
     .ok { background:rgba(16,185,129,.15); color:#34d399; }
     .bad { background:rgba(239,68,68,.15); color:#f87171; }
     .warn { background:rgba(245,158,11,.15); color:#fbbf24; }
-    .grid { display:grid; grid-template-columns: repeat(2, minmax(280px,1fr)); gap:12px; }
-    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
-    .footer-actions { position:fixed; inset:auto 0 0 0; background:linear-gradient(180deg, transparent, rgba(17,24,39,.92)); padding:16px; border-top:1px solid var(--border); }
-    .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
-    .muted { color: var(--muted); }
-    select { background:#0e1525; color:var(--ink); border:1px solid var(--border); border-radius:8px; padding:6px 8px; }
     .hr { height:1px; background:var(--border); margin:14px 0; }
-    /* Print styles for clean PDF via jsPDF.html/print */
+    .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .footer-actions { position:fixed; inset:auto 0 0 0; background:linear-gradient(180deg, transparent, rgba(17,24,39,.92)); padding:16px; border-top:1px solid var(--border); }
+    .muted { color:var(--muted); }
+    .grid2 { display:grid; grid-template-columns: 1fr; gap:12px; }
     @media print {
-      .footer-actions, #loadBtn, #submitBtn, #resetBtn, #pdfBtn { display:none !important; }
-      body { background: #fff; color: #000; }
-      .card { page-break-inside: avoid; }
+      .footer-actions, #loadCard { display:none !important; }
+      body { background:#fff; color:#000; }
+      .card { border:1px solid #ddd; }
     }
   </style>
 </head>
 <body>
   <header>
     <h1>Assignment / Feladatlap — Lecture 3</h1>
-    <div class="small">Use only: <span class="mono">,</span> (NOT), <span class="mono">`</span> (AND), <span class="mono">~</span> (OR). / Csak ezek: <span class="mono">,</span> (NEM), <span class="mono">`</span> (ÉS), <span class="mono">~</span> (VAGY).</div>
+    <div class="small">Use only: <span class="mono">,</span> (NOT), <span class="mono">`</span> (AND), <span class="mono">~</span> (OR). / Csak ezeket: <span class="mono">,</span> (NEM), <span class="mono">`</span> (ÉS), <span class="mono">~</span> (VAGY).</div>
   </header>
 
   <main>
-    <div class="card">
+    <div id="loadCard" class="card">
       <div class="row">
         <div style="flex:1 1 260px;">
           <label>Full name</label>
@@ -59,7 +54,7 @@
           <label>Neptun</label>
           <input id="neptun" type="text" placeholder="ABC123" />
         </div>
-        <div style="align-self:flex-end;">
+        <div>
           <button id="loadBtn">Load assignment</button>
         </div>
       </div>
@@ -75,22 +70,17 @@
           <span id="status" class="status warn">Not graded</span>
         </div>
         <div class="row">
+          <button class="secondary" id="printBtn" title="Download PDF">Download PDF</button>
           <button class="secondary" id="resetBtn">Reset</button>
-          <button class="secondary" id="pdfBtn">Export PDF</button>
           <button id="submitBtn">Submit / Grade</button>
         </div>
       </div>
     </div>
   </main>
 
-  <!-- jsPDF & html2canvas (for client-side PDF) -->
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-
 <script>
 let manifest = null;
 
-// ---------- UI helpers ----------
 const E = (tag, attrs={}, ...children) => {
   const el = document.createElement(tag);
   Object.entries(attrs || {}).forEach(([k,v])=>{
@@ -98,133 +88,39 @@ const E = (tag, attrs={}, ...children) => {
     else if (k === 'html') el.innerHTML = v;
     else el.setAttribute(k, v);
   });
-  children.forEach(c => {
-    if (c == null) return;
+  for (const c of children) {
+    if (c == null) continue;
     if (typeof c === 'string') el.appendChild(document.createTextNode(c));
     else el.appendChild(c);
-  });
+  }
   return el;
 };
 
-const TFSelect = () => {
-  const s = E('select');
-  s.appendChild(E('option', {value:''}, ''));
-  s.appendChild(E('option', {value:'T'}, 'T'));
-  s.appendChild(E('option', {value:'F'}, 'F'));
-  return s;
-};
-
-// ---------- Rendering ----------
 function renderAssignment(m) {
   const wrap = document.getElementById('assignment');
   wrap.innerHTML = '';
   document.getElementById('opsHint').textContent = m.allowed_ops || '';
 
-  m.items.forEach(item => {
+  const info = E('div', {class:'small muted'},
+    'Answer in English or Hungarian. One input per question. / Válasz angolul vagy magyarul. Feladatonként egy beviteli mező.');
+  wrap.appendChild(E('div', {class:'card'}, info));
+
+  (m.items || []).forEach(item => {
     const card = E('div', {class:'card'});
-    card.appendChild(E('h3', {}, item.title || item.id));
-
-    if (item.kind === 'formula') {
-      const inp = E('input', {type:'text', class:'mono', placeholder:'Enter formula using , ` ~ and ()'});
-      inp.dataset.id = item.id;
-      inp.dataset.kind = 'formula';
-      card.appendChild(E('div', {class:'hr'}));
-      card.appendChild(inp);
-    }
-
-    if (item.kind === 'truth_table' || item.kind === 'truth_table_plus_text' || item.kind === 'truth_table_plus_yesno') {
-      const table = E('table');
-      const thead = E('thead'); const trh = E('tr');
-      (item.vars || []).forEach(v => trh.appendChild(E('th', {}, v)));
-      (item.columns || []).forEach(c => trh.appendChild(E('th', {}, c.label)));
-      thead.appendChild(trh); table.appendChild(thead);
-      const tbody = E('tbody');
-
-      (item.rows || []).forEach((row, ridx) => {
-        const tr = E('tr');
-        (item.vars || []).forEach(v => tr.appendChild(E('td', {class:'mono'}, row[v] ? 'T' : 'F')));
-        (item.columns || []).forEach(c => {
-          const sel = TFSelect();
-          sel.dataset.id = item.id;
-          sel.dataset.col = c.label;
-          sel.dataset.row = String(ridx);
-          tr.appendChild(E('td', {}, sel));
-        });
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      card.appendChild(table);
-
-      if (item.kind === 'truth_table_plus_text') {
-        card.appendChild(E('div', {class:'hr'}));
-        const ph = (item.text_prompt_en || '');
-        card.appendChild(E('div', {class:'small'}, ph));
-        card.appendChild(E('textarea', {'data-id': item.id, 'data-kind':'tt-text', placeholder: ph}));
-      }
-      if (item.kind === 'truth_table_plus_yesno') {
-        card.appendChild(E('div', {class:'hr'}));
-        card.appendChild(E('div', {class:'small'}, item.yesno_prompt || 'Question:'));
-        const sel = E('select', {'data-id': item.id, 'data-kind':'tt-yesno'});
-        sel.appendChild(E('option', {value:''}, ''));
-        sel.appendChild(E('option', {value:'yes'}, 'Yes / Igen'));
-        sel.appendChild(E('option', {value:'no'}, 'No / Nem'));
-        card.appendChild(sel);
-      }
-    }
-
-    if (item.kind === 'yesno') {
-      const sel = E('select', {'data-id': item.id, 'data-kind':'yesno'});
-      sel.appendChild(E('option', {value:''}, ''));
-      sel.appendChild(E('option', {value:'yes'}, 'Yes / Igen'));
-      sel.appendChild(E('option', {value:'no'}, 'No / Nem'));
-      card.appendChild(sel);
-    }
-
-    if (item.kind === 'yesno_plus_text') {
-      const sel = E('select', {'data-id': item.id, 'data-kind':'yesno'});
-      sel.appendChild(E('option', {value:''}, ''));
-      sel.appendChild(E('option', {value:'yes'}, 'Yes / Igen'));
-      sel.appendChild(E('option', {value:'no'}, 'No / Nem'));
-      const txt = E('textarea', {'data-id': item.id, 'data-kind':'ypt-text', placeholder: 'Brief reason (EN/HU)'});
-      card.appendChild(sel);
-      card.appendChild(E('div', {class:'hr'}));
-      card.appendChild(txt);
-    }
-
-    document.getElementById('assignment').appendChild(card);
+    card.appendChild(E('div', {class:'title'}, E('strong', {}, item.title || item.id)));
+    card.appendChild(E('div', {class:'small'}, item.en || ''));
+    card.appendChild(E('div', {class:'small'}, item.hu || ''));
+    card.appendChild(E('div', {class:'hr'}));
+    const ta = E('textarea', {'data-id': item.id, placeholder:'Type your answer (EN or HU) / Írd be a választ (EN vagy HU)'});
+    card.appendChild(ta);
+    wrap.appendChild(card);
   });
 }
 
-// ---------- Collect & submit ----------
 function collectAnswers() {
   const answers = [];
-  // FORMULA
-  document.querySelectorAll('input[data-kind="formula"]').forEach(inp => {
-    answers.push({ id: inp.dataset.id, expr: inp.value.trim() });
-  });
-  // TRUTH TABLES
-  const tables = {};
-  document.querySelectorAll('select[data-col]').forEach(sel => {
-    const id = sel.dataset.id, col = sel.dataset.col;
-    tables[id] = tables[id] || { id, cols: {} };
-    tables[id].cols[col] = tables[id].cols[col] || [];
-    const idx = parseInt(sel.dataset.row, 10);
-    tables[id].cols[col][idx] = sel.value || "";
-  });
-  Object.values(tables).forEach(x => answers.push(x));
-  // TT + TEXT
-  document.querySelectorAll('textarea[data-kind="tt-text"]').forEach(t => {
+  document.querySelectorAll('textarea[data-id]').forEach(t => {
     answers.push({ id: t.dataset.id, text: t.value });
-  });
-  // YES/NO
-  document.querySelectorAll('select[data-kind="yesno"]').forEach(s => {
-    answers.push({ id: s.dataset.id, yes: s.value });
-  });
-  // YESNO + TEXT
-  document.querySelectorAll('textarea[data-kind="ypt-text"]').forEach(t => {
-    const sel = document.querySelector(`select[data-kind="yesno"][data-id="${t.dataset.id}"]`);
-    answers.push({ id: t.dataset.id, yes: sel ? sel.value : "", text: t.value });
   });
   return answers;
 }
@@ -239,32 +135,15 @@ async function postJSON(url, payload) {
   return await res.json();
 }
 
-// ---------- PDF Export ----------
-async function exportPDF() {
-  const { jsPDF } = window.jspdf;
-  const target = document.getElementById('assignment');
-  // Create a cloned node to avoid changing the live UI while rendering
-  const clone = target.cloneNode(true);
-  clone.style.background = '#fff';
-  // Use jsPDF's html() which wraps html2canvas internally
-  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-  await doc.html(clone, {
-    autoPaging: 'text',
-    margin: [24, 24, 24, 24],
-    html2canvas: { scale: 0.8, useCORS: true, backgroundColor: '#ffffff' }
-  });
-  doc.save('lecture-3-submission.pdf');
-}
-
-// ---------- Wire up ----------
 document.getElementById('loadBtn').addEventListener('click', async ()=>{
   const name = document.getElementById('name').value.trim();
   const neptun = document.getElementById('neptun').value.trim();
   try {
     manifest = await postJSON('/logic-assignment/api/generate', { name, neptun });
     renderAssignment(manifest);
-    document.getElementById('status').className = 'status warn';
-    document.getElementById('status').textContent = 'Loaded — not graded';
+    const st = document.getElementById('status');
+    st.textContent = 'Loaded — not graded';
+    st.className = 'status warn';
   } catch (e) {
     alert('Failed to load assignment.');
   }
@@ -272,21 +151,35 @@ document.getElementById('loadBtn').addEventListener('click', async ()=>{
 
 document.getElementById('submitBtn').addEventListener('click', async ()=>{
   try {
+    if (!manifest) {
+      alert('Please load the assignment first.');
+      return;
+    }
     const answers = collectAnswers();
     const result = await postJSON('/logic-assignment/api/grade', { answers });
-    // Show per-item feedback inline
-    const fb = E('div', {class:'card'});
-    fb.appendChild(E('h3', {}, 'Results'));
-    result.per_item.forEach(row => {
-      const chip = E('span', {class:'pill'}, E('span', {class:'mono'}, row.id), E('span', {class: row.score>=8 ? 'ok' : row.score>=6 ? 'warn' : 'bad' }, `${row.score}/10`));
+
+    // Results card
+    const fb = E('div', {class:'card', id:'resultsCard'});
+    fb.appendChild(E('h3', {}, 'Results / Eredmény'));
+    (result.per_item || []).forEach(row => {
+      const chip = E('span', {class:'pill'},
+        E('span', {class:'mono'}, row.id),
+        E('span', {class: row.score>=8 ? 'ok' : row.score>=6 ? 'warn' : 'bad' }, `${row.score}/10`));
       fb.appendChild(E('div', {}, chip));
-      fb.appendChild(E('div', {class:'small muted', style:'margin:6px 0 12px;'}, row.feedback));
+      fb.appendChild(E('div', {class:'small', style:'margin:6px 0;'}, row.feedback_en || ''));
+      fb.appendChild(E('div', {class:'small muted', style:'margin:0 0 12px;'}, row.feedback_hu || ''));
     });
     fb.appendChild(E('div', {class:'hr'}));
-    const overall = E('div', {}, `Overall: ${result.overall_pct}% — ${result.pass ? 'PASS' : 'REVISE'}`,);
-    fb.appendChild(overall);
-    fb.appendChild(E('div', {class:'small muted'}, result.summary));
+    fb.appendChild(E('div', {}, `Overall: ${result.overall_pct}% — ${result.pass ? 'PASS' : 'REVISE'}`));
+    if (result.summary) {
+      fb.appendChild(E('div', {class:'small', style:'margin-top:6px;'}, result.summary.en || ''));
+      fb.appendChild(E('div', {class:'small muted'}, result.summary.hu || ''));
+    }
+
+    // Insert/replace at top
     const assignment = document.getElementById('assignment');
+    const old = document.getElementById('resultsCard');
+    if (old) old.remove();
     assignment.insertBefore(fb, assignment.firstChild);
 
     const st = document.getElementById('status');
@@ -305,7 +198,10 @@ document.getElementById('resetBtn').addEventListener('click', ()=>{
   st.className = 'status warn';
 });
 
-document.getElementById('pdfBtn').addEventListener('click', exportPDF);
+document.getElementById('printBtn').addEventListener('click', ()=>{
+  // Simple, robust client-side PDF via browser print
+  window.print();
+});
 </script>
 </body>
 </html>
