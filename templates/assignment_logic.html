@@ -34,6 +34,12 @@
     .muted { color: var(--muted); }
     select { background:#0e1525; color:var(--ink); border:1px solid var(--border); border-radius:8px; padding:6px 8px; }
     .hr { height:1px; background:var(--border); margin:14px 0; }
+    /* Print styles for clean PDF via jsPDF.html/print */
+    @media print {
+      .footer-actions, #loadBtn, #submitBtn, #resetBtn, #pdfBtn { display:none !important; }
+      body { background: #fff; color: #000; }
+      .card { page-break-inside: avoid; }
+    }
   </style>
 </head>
 <body>
@@ -70,11 +76,16 @@
         </div>
         <div class="row">
           <button class="secondary" id="resetBtn">Reset</button>
+          <button class="secondary" id="pdfBtn">Export PDF</button>
           <button id="submitBtn">Submit / Grade</button>
         </div>
       </div>
     </div>
   </main>
+
+  <!-- jsPDF & html2canvas (for client-side PDF) -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <script>
 let manifest = null;
@@ -114,23 +125,11 @@ function renderAssignment(m) {
     card.appendChild(E('h3', {}, item.title || item.id));
 
     if (item.kind === 'formula') {
-      const en = E('div', {class:'small'}, item.en || '');
-      const hu = E('div', {class:'small'}, item.hu || '');
-      const inp = E('input', {type:'text', class:'mono', placeholder:'Enter symbolic formula using , ` ~ and ()'});
+      const inp = E('input', {type:'text', class:'mono', placeholder:'Enter formula using , ` ~ and ()'});
       inp.dataset.id = item.id;
       inp.dataset.kind = 'formula';
-      card.appendChild(en);
-      if (item.hu || item.en) card.appendChild(hu);
       card.appendChild(E('div', {class:'hr'}));
       card.appendChild(inp);
-    }
-
-    if (item.kind === 'natlang') {
-      const g = E('div', {class:'grid'});
-      const en = E('div', {}, E('label', {}, 'English'), E('textarea', {placeholder:'Clear English translation', 'data-id': item.id, 'data-kind':'natlang-en'}));
-      const hu = E('div', {}, E('label', {}, 'Magyarul'), E('textarea', {placeholder:'Magyar fordítás', 'data-id': item.id, 'data-kind':'natlang-hu'}));
-      g.appendChild(en); g.appendChild(hu);
-      card.appendChild(g);
     }
 
     if (item.kind === 'truth_table' || item.kind === 'truth_table_plus_text' || item.kind === 'truth_table_plus_yesno') {
@@ -159,8 +158,9 @@ function renderAssignment(m) {
 
       if (item.kind === 'truth_table_plus_text') {
         card.appendChild(E('div', {class:'hr'}));
-        card.appendChild(E('div', {class:'small'}, (item.text_prompt_en || '') + (item.text_prompt_hu ? ' / ' + item.text_prompt_hu : '')));
-        card.appendChild(E('textarea', {'data-id': item.id, 'data-kind':'tt-text'}));
+        const ph = (item.text_prompt_en || '');
+        card.appendChild(E('div', {class:'small'}, ph));
+        card.appendChild(E('textarea', {'data-id': item.id, 'data-kind':'tt-text', placeholder: ph}));
       }
       if (item.kind === 'truth_table_plus_yesno') {
         card.appendChild(E('div', {class:'hr'}));
@@ -171,17 +171,6 @@ function renderAssignment(m) {
         sel.appendChild(E('option', {value:'no'}, 'No / Nem'));
         card.appendChild(sel);
       }
-    }
-
-    if (item.kind === 'formula_plus_text') {
-      const inp = E('input', {type:'text', class:'mono', placeholder:'Enter formula using , ` ~ and ()'});
-      inp.dataset.id = item.id; inp.dataset.kind = 'formula';
-      const grid = E('div', {class:'grid'});
-      grid.appendChild(E('div', {}, E('label', {}, 'English explanation'), E('textarea', {'data-id': item.id, 'data-kind':'fpt-en'})));
-      grid.appendChild(E('div', {}, E('label', {}, 'Magyarázat magyarul'), E('textarea', {'data-id': item.id, 'data-kind':'fpt-hu'})));
-      card.appendChild(inp);
-      card.appendChild(E('div', {class:'hr'}));
-      card.appendChild(grid);
     }
 
     if (item.kind === 'yesno') {
@@ -197,7 +186,7 @@ function renderAssignment(m) {
       sel.appendChild(E('option', {value:''}, ''));
       sel.appendChild(E('option', {value:'yes'}, 'Yes / Igen'));
       sel.appendChild(E('option', {value:'no'}, 'No / Nem'));
-      const txt = E('textarea', {'data-id': item.id, 'data-kind':'ypt-text', placeholder: (item.text_prompt_en || '') + (item.text_prompt_hu ? ' / ' + item.text_prompt_hu : '')});
+      const txt = E('textarea', {'data-id': item.id, 'data-kind':'ypt-text', placeholder: 'Brief reason (EN/HU)'});
       card.appendChild(sel);
       card.appendChild(E('div', {class:'hr'}));
       card.appendChild(txt);
@@ -214,17 +203,6 @@ function collectAnswers() {
   document.querySelectorAll('input[data-kind="formula"]').forEach(inp => {
     answers.push({ id: inp.dataset.id, expr: inp.value.trim() });
   });
-  // NATLANG
-  const natById = {};
-  document.querySelectorAll('textarea[data-kind="natlang-en"]').forEach(t => {
-    natById[t.dataset.id] = natById[t.dataset.id] || { id: t.dataset.id };
-    natById[t.dataset.id].en = t.value;
-  });
-  document.querySelectorAll('textarea[data-kind="natlang-hu"]').forEach(t => {
-    natById[t.dataset.id] = natById[t.dataset.id] || { id: t.dataset.id };
-    natById[t.dataset.id].hu = t.value;
-  });
-  Object.values(natById).forEach(x => answers.push(x));
   // TRUTH TABLES
   const tables = {};
   document.querySelectorAll('select[data-col]').forEach(sel => {
@@ -239,32 +217,15 @@ function collectAnswers() {
   document.querySelectorAll('textarea[data-kind="tt-text"]').forEach(t => {
     answers.push({ id: t.dataset.id, text: t.value });
   });
-  // TT + YESNO
-  document.querySelectorAll('select[data-kind="tt-yesno"]').forEach(s => {
+  // YES/NO
+  document.querySelectorAll('select[data-kind="yesno"]').forEach(s => {
     answers.push({ id: s.dataset.id, yes: s.value });
-  });
-  // FORMULA + TEXT
-  const fpt = {};
-  document.querySelectorAll('textarea[data-kind="fpt-en"]').forEach(t => {
-    fpt[t.dataset.id] = fpt[t.dataset.id] || { id: t.dataset.id };
-    fpt[t.dataset.id].en = t.value;
-  });
-  document.querySelectorAll('textarea[data-kind="fpt-hu"]').forEach(t => {
-    fpt[t.dataset.id] = fpt[t.dataset.id] || { id: t.dataset.id };
-    fpt[t.dataset.id].hu = t.value;
-  });
-  Object.values(fpt).forEach(x => {
-    // ensure we also send the formula for this id
-    const f = document.querySelector(`input[data-kind="formula"][data-id="${x.id}"]`);
-    if (f) x.expr = f.value.trim();
-    answers.push(x);
   });
   // YESNO + TEXT
   document.querySelectorAll('textarea[data-kind="ypt-text"]').forEach(t => {
     const sel = document.querySelector(`select[data-kind="yesno"][data-id="${t.dataset.id}"]`);
     answers.push({ id: t.dataset.id, yes: sel ? sel.value : "", text: t.value });
   });
-
   return answers;
 }
 
@@ -276,6 +237,23 @@ async function postJSON(url, payload) {
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
+}
+
+// ---------- PDF Export ----------
+async function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const target = document.getElementById('assignment');
+  // Create a cloned node to avoid changing the live UI while rendering
+  const clone = target.cloneNode(true);
+  clone.style.background = '#fff';
+  // Use jsPDF's html() which wraps html2canvas internally
+  const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+  await doc.html(clone, {
+    autoPaging: 'text',
+    margin: [24, 24, 24, 24],
+    html2canvas: { scale: 0.8, useCORS: true, backgroundColor: '#ffffff' }
+  });
+  doc.save('lecture-3-submission.pdf');
 }
 
 // ---------- Wire up ----------
@@ -326,6 +304,8 @@ document.getElementById('resetBtn').addEventListener('click', ()=>{
   st.textContent = 'Reset — not graded';
   st.className = 'status warn';
 });
+
+document.getElementById('pdfBtn').addEventListener('click', exportPDF);
 </script>
 </body>
 </html>
