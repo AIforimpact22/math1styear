@@ -6,56 +6,62 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root { --bg:#0b0e14; --panel:#111827; --ink:#e5e7eb; --muted:#9ca3af; --accent:#8b5cf6; --ok:#10b981; --warn:#f59e0b; --bad:#ef4444; --border:#374151; }
-    * { box-sizing:border-box; }
+    * { box-sizing: border-box; }
     body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; background:var(--bg); color:var(--ink); margin:0; }
-    header { padding:20px; border-bottom:1px solid var(--border); background:linear-gradient(180deg, rgba(139,92,246,.15), transparent); }
-    h1 { margin:0; font-size:1.35rem; }
+    header { padding: 20px; border-bottom:1px solid var(--border); background:linear-gradient(180deg, rgba(139,92,246,.15), transparent); }
+    h1 { margin:0; font-size: 1.4rem; }
     main { max-width: 980px; margin: 20px auto 120px; padding: 0 16px; }
     .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
     label { font-size:.95rem; color:var(--muted); }
     input[type=text] { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#0e1525; color:var(--ink); }
-    textarea { width:100%; min-height:110px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#0e1525; color:var(--ink); }
+    textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#0e1525; color:var(--ink); }
     button { background:var(--accent); color:#fff; border:none; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer; }
     button.secondary { background:transparent; color:var(--ink); border:1px solid var(--border); }
     .small { font-size:.9rem; color:var(--muted); }
-    .title { margin:8px 0; }
+    table { border-collapse: collapse; width:100%; }
+    th, td { border:1px solid var(--border); padding:6px 8px; text-align:center; }
+    th { background:#0f172a; position:sticky; top:0; z-index:1; }
     .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; border:1px solid var(--border); background:#0d1323; }
     .status { padding:6px 10px; border-radius:999px; font-weight:600; }
     .ok { background:rgba(16,185,129,.15); color:#34d399; }
     .bad { background:rgba(239,68,68,.15); color:#f87171; }
     .warn { background:rgba(245,158,11,.15); color:#fbbf24; }
-    .hr { height:1px; background:var(--border); margin:14px 0; }
-    .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(280px,1fr)); gap:12px; }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
     .footer-actions { position:fixed; inset:auto 0 0 0; background:linear-gradient(180deg, transparent, rgba(17,24,39,.92)); padding:16px; border-top:1px solid var(--border); }
-    .muted { color:var(--muted); }
-    .grid2 { display:grid; grid-template-columns: 1fr; gap:12px; }
+    .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .muted { color: var(--muted); }
+    select { background:#0e1525; color:var(--ink); border:1px solid var(--border); border-radius:8px; padding:6px 8px; }
+    .hr { height:1px; background:var(--border); margin:14px 0; }
+    /* Print to PDF */
     @media print {
-      .footer-actions, #loadCard { display:none !important; }
-      body { background:#fff; color:#000; }
-      .card { border:1px solid #ddd; }
+      body { background: #fff; color: #000; }
+      header, .footer-actions, #loadBtn, #submitBtn, #resetBtn, #pdfBtn { display: none !important; }
+      .card { background:#fff; border-color:#ddd; }
+      a[href]:after { content: ""; }
     }
   </style>
 </head>
 <body>
   <header>
     <h1>Assignment / Feladatlap — Lecture 3</h1>
-    <div class="small">Use only: <span class="mono">,</span> (NOT), <span class="mono">`</span> (AND), <span class="mono">~</span> (OR). / Csak ezeket: <span class="mono">,</span> (NEM), <span class="mono">`</span> (ÉS), <span class="mono">~</span> (VAGY).</div>
+    <div class="small">Use only: <span class="mono">,</span> (NOT), <span class="mono">`</span> (AND), <span class="mono">~</span> (OR). / Csak ezek: <span class="mono">,</span> (NEM), <span class="mono">`</span> (ÉS), <span class="mono">~</span> (VAGY).</div>
   </header>
 
   <main>
-    <div id="loadCard" class="card">
+    <div class="card">
       <div class="row">
         <div style="flex:1 1 260px;">
-          <label>Full name</label>
+          <label>Full name / Név</label>
           <input id="name" type="text" placeholder="Student name (optional)" />
         </div>
         <div style="flex:0 0 180px;">
           <label>Neptun</label>
           <input id="neptun" type="text" placeholder="ABC123" />
         </div>
-        <div>
-          <button id="loadBtn">Load assignment</button>
+        <div style="align-self:flex-end;" class="row">
+          <button id="loadBtn">Load assignment / Feladat betöltése</button>
         </div>
       </div>
       <div class="hr"></div>
@@ -67,12 +73,12 @@
     <div class="footer-actions">
       <div class="row" style="justify-content: space-between; align-items:center;">
         <div>
-          <span id="status" class="status warn">Not graded</span>
+          <span id="status" class="status warn">Not graded / Nincs értékelve</span>
         </div>
         <div class="row">
-          <button class="secondary" id="printBtn" title="Download PDF">Download PDF</button>
-          <button class="secondary" id="resetBtn">Reset</button>
-          <button id="submitBtn">Submit / Grade</button>
+          <button class="secondary" id="resetBtn">Reset / Visszaállítás</button>
+          <button class="secondary" id="pdfBtn">Download PDF / PDF letöltése</button>
+          <button id="submitBtn">Submit / Grade • Beküldés / Értékelés</button>
         </div>
       </div>
     </div>
@@ -81,6 +87,7 @@
 <script>
 let manifest = null;
 
+// ---------- UI helpers ----------
 const E = (tag, attrs={}, ...children) => {
   const el = document.createElement(tag);
   Object.entries(attrs || {}).forEach(([k,v])=>{
@@ -88,104 +95,213 @@ const E = (tag, attrs={}, ...children) => {
     else if (k === 'html') el.innerHTML = v;
     else el.setAttribute(k, v);
   });
-  for (const c of children) {
-    if (c == null) continue;
+  children.forEach(c => {
+    if (c == null) return;
     if (typeof c === 'string') el.appendChild(document.createTextNode(c));
     else el.appendChild(c);
-  }
+  });
   return el;
 };
+const TFSelect = () => {
+  const s = E('select');
+  s.appendChild(E('option', {value:''}, ''));
+  s.appendChild(E('option', {value:'T'}, 'T'));
+  s.appendChild(E('option', {value:'F'}, 'F'));
+  return s;
+};
 
+// ---------- Rendering ----------
 function renderAssignment(m) {
   const wrap = document.getElementById('assignment');
   wrap.innerHTML = '';
   document.getElementById('opsHint').textContent = m.allowed_ops || '';
 
-  const info = E('div', {class:'small muted'},
-    'Answer in English or Hungarian. One input per question. / Válasz angolul vagy magyarul. Feladatonként egy beviteli mező.');
-  wrap.appendChild(E('div', {class:'card'}, info));
-
-  (m.items || []).forEach(item => {
+  m.items.forEach(item => {
     const card = E('div', {class:'card'});
-    card.appendChild(E('div', {class:'title'}, E('strong', {}, item.title || item.id)));
-    card.appendChild(E('div', {class:'small'}, item.en || ''));
-    card.appendChild(E('div', {class:'small'}, item.hu || ''));
-    card.appendChild(E('div', {class:'hr'}));
-    const ta = E('textarea', {'data-id': item.id, placeholder:'Type your answer (EN or HU) / Írd be a választ (EN vagy HU)'});
-    card.appendChild(ta);
-    wrap.appendChild(card);
+    card.appendChild(E('h3', {}, item.title || item.id));
+
+    if (item.kind === 'formula') {
+      const en = E('div', {class:'small'}, item.en || '');
+      const hu = E('div', {class:'small'}, item.hu || '');
+      const inp = E('input', {type:'text', class:'mono', placeholder:'Enter symbolic formula using , ` ~ and ()'});
+      inp.dataset.id = item.id; inp.dataset.kind = 'formula';
+      if (item.hu || item.en) { card.appendChild(en); card.appendChild(hu); }
+      card.appendChild(E('div', {class:'hr'}));
+      card.appendChild(inp);
+    }
+
+    if (item.kind === 'truth_table' || item.kind === 'truth_table_plus_text' || item.kind === 'truth_table_plus_yesno') {
+      const table = E('table');
+      const thead = E('thead'); const trh = E('tr');
+      (item.vars || []).forEach(v => trh.appendChild(E('th', {}, v)));
+      (item.columns || []).forEach(c => trh.appendChild(E('th', {}, c.label)));
+      thead.appendChild(trh); table.appendChild(thead);
+      const tbody = E('tbody');
+
+      (item.rows || []).forEach((row, ridx) => {
+        const tr = E('tr');
+        (item.vars || []).forEach(v => tr.appendChild(E('td', {class:'mono'}, row[v] ? 'T' : 'F')));
+        (item.columns || []).forEach(c => {
+          const sel = TFSelect();
+          sel.dataset.id = item.id;
+          sel.dataset.col = c.label;
+          sel.dataset.row = String(ridx);
+          tr.appendChild(E('td', {}, sel));
+        });
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      card.appendChild(table);
+
+      if (item.kind === 'truth_table_plus_text') {
+        card.appendChild(E('div', {class:'hr'}));
+        card.appendChild(E('div', {class:'small'}, (item.text_prompt_en || '') + (item.text_prompt_hu ? ' / ' + item.text_prompt_hu : '')));
+        card.appendChild(E('textarea', {'data-id': item.id, 'data-kind':'tt-text', placeholder:'English or Hungarian / Angolul vagy magyarul'}));
+      }
+      if (item.kind === 'truth_table_plus_yesno') {
+        card.appendChild(E('div', {class:'hr'}));
+        card.appendChild(E('div', {class:'small'}, item.yesno_prompt || 'Question:'));
+        const sel = E('select', {'data-id': item.id, 'data-kind':'tt-yesno'});
+        sel.appendChild(E('option', {value:''}, ''));
+        sel.appendChild(E('option', {value:'yes'}, 'Yes / Igen'));
+        sel.appendChild(E('option', {value:'no'}, 'No / Nem'));
+        card.appendChild(sel);
+      }
+    }
+
+    if (item.kind === 'formula_plus_text') {
+      const inp = E('input', {type:'text', class:'mono', placeholder:'Enter formula using , ` ~ and ()'});
+      inp.dataset.id = item.id; inp.dataset.kind = 'formula';
+      const grid = E('div', {class:'grid'});
+      grid.appendChild(E('div', {}, E('label', {}, 'English explanation'), E('textarea', {'data-id': item.id, 'data-kind':'fpt-en', placeholder:'English'})));
+      grid.appendChild(E('div', {}, E('label', {}, 'Magyarázat magyarul'), E('textarea', {'data-id': item.id, 'data-kind':'fpt-hu', placeholder:'Magyarul'})));
+      card.appendChild(inp);
+      card.appendChild(E('div', {class:'hr'}));
+      card.appendChild(grid);
+    }
+
+    if (item.kind === 'yesno') {
+      const sel = E('select', {'data-id': item.id, 'data-kind':'yesno'});
+      sel.appendChild(E('option', {value:''}, ''));
+      sel.appendChild(E('option', {value:'yes'}, 'Yes / Igen'));
+      sel.appendChild(E('option', {value:'no'}, 'No / Nem'));
+      card.appendChild(sel);
+    }
+
+    if (item.kind === 'yesno_plus_text') {
+      const sel = E('select', {'data-id': item.id, 'data-kind':'yesno'});
+      sel.appendChild(E('option', {value:''}, ''));
+      sel.appendChild(E('option', {value:'yes'}, 'Yes / Igen'));
+      sel.appendChild(E('option', {value:'no'}, 'No / Nem'));
+      const txt = E('textarea', {'data-id': item.id, 'data-kind':'ypt-text',
+        placeholder:'English or Hungarian / Angolul vagy magyarul'});
+      card.appendChild(sel);
+      card.appendChild(E('div', {class:'hr'}));
+      card.appendChild(txt);
+    }
+
+    document.getElementById('assignment').appendChild(card);
   });
 }
 
+// ---------- Collect & submit ----------
 function collectAnswers() {
   const answers = [];
-  document.querySelectorAll('textarea[data-id]').forEach(t => {
+  document.querySelectorAll('input[data-kind="formula"]').forEach(inp => {
+    answers.push({ id: inp.dataset.id, expr: inp.value.trim() });
+  });
+
+  const tables = {};
+  document.querySelectorAll('select[data-col]').forEach(sel => {
+    const id = sel.dataset.id, col = sel.dataset.col;
+    tables[id] = tables[id] || { id, cols: {} };
+    tables[id].cols[col] = tables[id].cols[col] || [];
+    const idx = parseInt(sel.dataset.row, 10);
+    tables[id].cols[col][idx] = sel.value || "";
+  });
+  Object.values(tables).forEach(x => answers.push(x));
+
+  document.querySelectorAll('textarea[data-kind="tt-text"]').forEach(t => {
     answers.push({ id: t.dataset.id, text: t.value });
   });
+  document.querySelectorAll('select[data-kind="tt-yesno"]').forEach(s => {
+    answers.push({ id: s.dataset.id, yes: s.value });
+  });
+
+  const fpt = {};
+  document.querySelectorAll('textarea[data-kind="fpt-en"]').forEach(t => {
+    fpt[t.dataset.id] = fpt[t.dataset.id] || { id: t.dataset.id };
+    fpt[t.dataset.id].en = t.value;
+  });
+  document.querySelectorAll('textarea[data-kind="fpt-hu"]').forEach(t => {
+    fpt[t.dataset.id] = fpt[t.dataset.id] || { id: t.dataset.id };
+    fpt[t.dataset.id].hu = t.value;
+  });
+  Object.values(fpt).forEach(x => {
+    const f = document.querySelector(`input[data-kind="formula"][data-id="${x.id}"]`);
+    if (f) x.expr = f.value.trim();
+    answers.push(x);
+  });
+
+  document.querySelectorAll('textarea[data-kind="ypt-text"]').forEach(t => {
+    const sel = document.querySelector(`select[data-kind="yesno"][data-id="${t.dataset.id}"]`);
+    answers.push({ id: t.dataset.id, yes: sel ? sel.value : "", text: t.value });
+  });
+
   return answers;
 }
 
 async function postJSON(url, payload) {
   const res = await fetch(url, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
+    method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify(payload)
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
 
+// ---------- Wire up ----------
 document.getElementById('loadBtn').addEventListener('click', async ()=>{
   const name = document.getElementById('name').value.trim();
   const neptun = document.getElementById('neptun').value.trim();
   try {
     manifest = await postJSON('/logic-assignment/api/generate', { name, neptun });
     renderAssignment(manifest);
-    const st = document.getElementById('status');
-    st.textContent = 'Loaded — not graded';
-    st.className = 'status warn';
-  } catch (e) {
+    document.getElementById('status').className = 'status warn';
+    document.getElementById('status').textContent = 'Loaded — not graded / Betöltve — nincs értékelve';
+  } catch {
     alert('Failed to load assignment.');
   }
 });
 
 document.getElementById('submitBtn').addEventListener('click', async ()=>{
   try {
-    if (!manifest) {
-      alert('Please load the assignment first.');
-      return;
-    }
     const answers = collectAnswers();
     const result = await postJSON('/logic-assignment/api/grade', { answers });
-
-    // Results card
+    // Show results inline
     const fb = E('div', {class:'card', id:'resultsCard'});
-    fb.appendChild(E('h3', {}, 'Results / Eredmény'));
-    (result.per_item || []).forEach(row => {
+    fb.appendChild(E('h3', {}, 'Results / Eredmények'));
+    result.per_item.forEach(row => {
+      const label = `${row.id} — ${row.score}/10`;
       const chip = E('span', {class:'pill'},
         E('span', {class:'mono'}, row.id),
-        E('span', {class: row.score>=8 ? 'ok' : row.score>=6 ? 'warn' : 'bad' }, `${row.score}/10`));
+        E('span', {class: row.score>=8 ? 'ok' : row.score>=6 ? 'warn' : 'bad' }, `${row.score}/10`)
+      );
       fb.appendChild(E('div', {}, chip));
-      fb.appendChild(E('div', {class:'small', style:'margin:6px 0;'}, row.feedback_en || ''));
-      fb.appendChild(E('div', {class:'small muted', style:'margin:0 0 12px;'}, row.feedback_hu || ''));
+      fb.appendChild(E('div', {class:'small muted', style:'margin:6px 0 12px;'}, row.feedback));
     });
     fb.appendChild(E('div', {class:'hr'}));
-    fb.appendChild(E('div', {}, `Overall: ${result.overall_pct}% — ${result.pass ? 'PASS' : 'REVISE'}`));
-    if (result.summary) {
-      fb.appendChild(E('div', {class:'small', style:'margin-top:6px;'}, result.summary.en || ''));
-      fb.appendChild(E('div', {class:'small muted'}, result.summary.hu || ''));
-    }
-
-    // Insert/replace at top
+    const overall = E('div', {}, `Overall: ${result.overall_pct}% — ${result.pass ? 'PASS' : 'REVISE'}`);
+    fb.appendChild(overall);
+    fb.appendChild(E('div', {class:'small muted'}, result.summary));
     const assignment = document.getElementById('assignment');
-    const old = document.getElementById('resultsCard');
-    if (old) old.remove();
     assignment.insertBefore(fb, assignment.firstChild);
 
     const st = document.getElementById('status');
     st.textContent = `Graded: ${result.overall_pct}%`;
     st.className = 'status ' + (result.overall_pct>=70 ? 'ok' : 'bad');
-  } catch (e) {
+  } catch {
     alert('Failed to grade.');
   }
 });
@@ -194,12 +310,12 @@ document.getElementById('resetBtn').addEventListener('click', ()=>{
   if (!manifest) return;
   renderAssignment(manifest);
   const st = document.getElementById('status');
-  st.textContent = 'Reset — not graded';
+  st.textContent = 'Reset — not graded / Visszaállítva — nincs értékelve';
   st.className = 'status warn';
 });
 
-document.getElementById('printBtn').addEventListener('click', ()=>{
-  // Simple, robust client-side PDF via browser print
+document.getElementById('pdfBtn').addEventListener('click', ()=>{
+  // The page is styled for printing; browsers can "Save as PDF".
   window.print();
 });
 </script>
