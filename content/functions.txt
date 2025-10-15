@@ -1,0 +1,170 @@
+A földtudományok matematikai alapjai
+Mathematics in Earth Sciences
+
+ABDULHAQ Hawkar
+University of Szeged
+
+Department of Atmospheric and Geospatial Data Sciences
+Rules of Functions
+1
+
+background & problem/háttér és probléma
+2
+At each meter of depth we get one porosity number (φ) from the tool.
+Minden egyes mélységnél egy porozitásértéket (φ) kapunk a műszertől.
+Goal: interpret rock properties and avoid contradictory claims.
+Cél: kőzettulajdonságok értelmezése és az ellentmondások elkerülése.
+Problem: describe the data clearly so reasoning stays precise.
+Probléma: úgy leírni az adatokat, hogy a következtetés pontos maradjon.
+We are drilling a vertical well and recording a porosity well log.
+Egy függőleges kutat fúrunk, és porozitás‑görbét rögzítünk.
+
+Rule 1
+3
+Always state domain (depths) and codomain (porosity).
+Mindig írd le az értelmezési tartományt (mélységek) és a céltartományt (porozitás).
+One input → one output if it’s a function.
+Egy bemenet → egy kimenet, ha függvényről van szó.
+Use clear symbols: f: A → B, (z, φ), ∈, ∉, ⊆, ×.
+Használj egyértelmű jeleket: f: A → B, (z, φ), ∈, ∉, ⊆, ×.
+
+ Sets & relation/Halmazok és reláció
+4
+Sets for the log: A, B, pairs, relation
+Halmazok a görbéhez: A, B, rendezett párok, reláció
+Set A = the measured depths (m). Example: {1000, 1001, 1002}.
+A halmaz (A) = a mért mélységek (m). Példa: {1000, 1001, 1002}.
+An ordered pair (z, φ) means: “at depth z, porosity is φ”.
+Egy rendezett pár (z, φ) jelentése: „z mélységben a porozitás φ”.
+Set B = all possible porosity values (0 ≤ φ ≤ 1).
+B halmaz = az összes lehetséges porozitásérték (0 ≤ φ ≤ 1).
+An ordered pair (z, φ) means: “at depth z, porosity is φ”.
+Egy rendezett pár (z, φ) jelentése: „z mélységben a porozitás φ”.
+A relation R is any collection of such pairs from the log, e.g., R = {(1000, 0.18), (1001, 0.22), (1002, 0.21)}.
+A reláció R a görbéből vett ilyen párok tetszőleges halmaza, pl. R = {(1000, 0,18), (1001, 0,22), (1002, 0,21)}.
+
+Rule 2
+5
+Write units everywhere (m, fraction for φ).
+Mindenhol tüntesd fel a mértékegységet (m, φ mint arány).
+Before reasoning, list A (depths) and B (porosity range).
+Következtetés előtt sorold fel A-t (mélységek) és B-t (porozitástartomány).
+Set a policy for duplicates/noisy readings at same depth.
+Legyen szabály duplikált/zajos mérésekre ugyanazon mélységnél.
+
+Function φ(z)
+6
+Function: porosity as a function of depth
+Függvény: porozitás a mélység függvényében
+A function f is a relation where each depth z has exactly one porosity φ.
+A függvény f olyan reláció, ahol minden z mélységhez pontosan egy φ porozitás tartozik.
+Notation: f: A → B, and f(z) = porosity at depth z.
+Jelölés: f: A → B, és f(z) = porozitás z mélységben.
+Example (tiny log): f(1001) = 0.22.
+Példa (mini log): f(1001) = 0,22.
+Quick test: if one depth maps to two φ values, it’s not a function.
+Gyors teszt: ha egy mélységhez két φ érték tartozik, az nem függvény.
+
+Relation/Reláció
+7
+Depths (m): A = {1000, 1001, 1002}
+Mélységek (m): A = {1000, 1001, 1002}
+Porosity (0–1): ϕ(1000)=0.18, ϕ(1001)=0.22, ϕ(1002)=0.21
+Porozitás (0–1): ϕ(1000)=0.18, ϕ(1001)=0.22, ϕ(1002)=0.21
+Question: How can we write these measurements compactly?
+Kérdés: Hogyan írhatjuk fel ezeket a méréseket tömören?
+Answer: As ordered pairs: M = {(1000, 0.18), (1001, 0.22), (1002, 0.21)}
+Válasz: Rendezett párokkal: M = {(1000, 0.18), (1001, 0.22), (1002, 0.21)}
+
+Rule 3
+8
+Function test: no depth repeats with different φ.
+Függvényteszt: egy mélységhez nem tartozhat két különböző φ.
+Notation: φ: A → B, read “porosity at depth z.”
+Jelölés: φ: A → B, „porozitás z mélységben”.
+If duplicates occur, clean or restrict the domain before using φ(z).
+Duplikátum esetén tisztíts vagy szűkítsd az A tartományt φ(z) előtt.
+
+Relations and all possible pairs/Relációk és az összes lehetséges pár
+9
+A relation is just some chosen pairs from all possible pairs.
+A reláció nem más, mint választott párok halmaza az összes lehetséges közül.
+All possible depth–porosity pairs form A × B (the big list we could make).
+Az összes lehetséges mélység–porozitás pár az A × B direkt szorzat.
+Your measured pairs M are one relation — pairs that are actually true in your log.
+A mért párok (M) egy reláció — azok a párok, amelyek ténylegesen igazak a logban.
+We can also define other relations. Example (depth→depth): “is shallower than”: R_shallow = { (x,y) ∈ A×A : x < y } ⇒ with our depths: {(1000,1001), (1000,1002), (1001,1002)}
+Más relációkat is definiálhatunk. Példa (mélység→mélység): „sekélyebb, mint”: R_shallow = { (x,y) ∈ A×A : x < y } ⇒ a mi mélységeinkkel: {(1000,1001), (1000,1002), (1001,1002)}
+Application/Alkalmazás
+
+How do we read the symbols?/Hogyan olvassuk a matematikai jeleket?
+10
+1198 ∈ A → “1198 is an element of set A (e.g., depths).”
+1198 ∈ A → „1198 az A halmaz eleme (pl. mélységek).”
+0.24 ∈ B → “0.24 belongs to set B (e.g., porosity values).”
+0,24 ∈ B → „0,24 a B halmazhoz tartozik (pl. porozitásértékek).”
+(1200, 0.24) ∈ R → “The pair (depth 1200, porosity 0.24) is in the relation R.”
+(1200, 0,24) ∈ R → „A (1200 m, 0,24) pár benne van az R relációban.”
+∉ means “is NOT an element of.” Example: 0.35 ∉ B if B = {0.19, 0.21, 0.24}.
+∉ = „nem eleme a halmaznak.” Példa: 0,35 ∉ B, ha B = {0,19, 0,21, 0,24}.
+Don’t mix up with subset symbols ⊆ / ⊂ → these talk about sets within sets (e.g., layers within layers). ∈ is for a single item inside a set.Quick check: If A = {1198, 1200, 1203}, which is correct? → ✅ 1193 ∈ A (not ⊆).
+Ne keverd össze az alhalmaz-jelekkel ⊆ / ⊂ → ezek halmazok halmazon belüli helyzetét jelzik (pl. rétegek rétegekben). ∈ egy egyetlen elem tagságát mutatja.Gyors ellenőrzés: Ha A = {1198, 1200, 1203}, melyik helyes? → ✅ 1198 ∈ A (nem ⊆).
+
+Rule 4
+11
+A×B lists all possible pairs;
+Az A×B felsorolja az összes lehetséges párt;
+A relation is any subset of A×B matching a rule.
+A reláció az A×B bármely részhalmaza egy szabály szerint.
+You can relate depth→depth (e.g., “shallower than”) or depth→φ.
+Lehet mélység→mélység („sekélyebb, mint”) vagy mélység→φ reláció.
+
+What’s a function (f) / Mi a függvény (f)?
+12
+A function is a tidy relation: each input (depth) appears once with one output (porosity). (Quick test: if one depth has two porosities, it’s not a function.)
+A függvény rendezett reláció: minden bemenethez (mélység) pontosan egy kimenet (porozitás) tartozik. (Gyors teszt: ha egy mélységhez két porozitás tartozik, az nem függvény.)
+Notation: φ: A → B (porosity as a function of depth).
+Jelölés: φ: A → B (porozitás a mélység függvényeként).
+Here: φ(1000)=0.18, φ(1001)=0.22, φ(1002)=0.21 ⇒ so M is the graph of a function.
+Itt: φ(1000)=0,18; φ(1001)=0,22; φ(1002)=0,21 ⇒ ezért M egy függvény grafikonja.
+Domain: A (depths). Codomain: B (porosity numbers, usually 0…1). Range: actually observed {0.18, 0.22, 0.21}.
+Értelmezési tartomány: A (mélységek). Céltartomány: B (porozitásértékek, többnyire 0…1). Értékkészlet: ténylegesen látott {0,18; 0,22; 0,21}.
+Why this helps: lets you say φ(z) and ask precise questions (∃z φ≥0.25?; ∀z φ≤0.30?).
+Miért hasznos: lehetővé teszi a φ(z) használatát és pontos kérdéseket (∃z: φ≥0,25?; ∀z: φ≤0,30?).
+(∃ z φ ≥ 0.25 ?)
+ “Is there at least one depth z where the porosity φ is ≥ 0.25?”
+ (∃ = “there exists / at least one”.)
+
+(∀ z φ ≤ 0.30 ?)
+ “At every depth z, is the porosity φ ≤ 0.30?”
+ (∀ = “for all / at every”.)
+
+Sets and Cartesian Product/Halmazok és Descartes-szorzat
+13
+Set A (depths) = {1198, 1200, 1203} meters
+A halmaz (mélységek) = {1198, 1200, 1203} méter
+Set B (porosity values) = {0.19, 0.21, 0.24}
+B halmaz (porozitás-értékek) = {0,19, 0,21, 0,24}
+All possible pairs (A × B): {(1198, 0.19), (1198, 0.21), (1198, 0.24), (1200, 0.19), (1200, 0.21), (1200, 0.24), (1203, 0.19), (1203, 0.21), (1203, 0.24)}
+Minden lehetséges pár (A × B): {(1198, 0,19), (1198, 0,21), (1198, 0,24), (1200, 0,19), (1200, 0,21), (1200, 0,24), (1203, 0,19), (1203, 0,21), (1203, 0,24)}
+
+Define the Relation/A R reláció meghatározása
+14
+Let x R y mean “at depth x, the measured porosity equals y.”
+Legyen x R y jelentése: „x mélységben a mért porozitás y.”
+Tool reports: φ(1198)=0.19, φ(1200)=0.24, φ(1203)=0.21
+A műszer adatai: φ(1198)=0,19; φ(1200)=0,24; φ(1203)=0,21
+Then R = {(1198, 0.19), (1200, 0.24), (1203, 0.21)} — these are the true pairs.
+Ekkor R = {(1198, 0,19), (1200, 0,24), (1203, 0,21)} — ezek a valós párok.
+Reading: x R y ⇔ (x, y) ∈ R (e.g. 1200 R 0.24 is true; 1198 R 0.24 is false).
+Olvasás: x R y ⇔ (x, y) ∈ R (pl. 1200 R 0,24 igaz; 1198 R 0,24 hamis).
+Domain: A (depths); Codomain: B (porosity); R is a subset of A×B. Quick check 👉 Is 1203 R 0.24 true? Why not?
+Értelmezési tartomány: A (mélységek); Céltartomány: B (porozitás); R az A×B részhalmaza. Gyors ellenőrzés 👉 1203 R 0,24 igaz? Miért nem?
+
+Rule 5
+15
+One depth → one porosity (vertical-line idea).
+Egy mélység → egy porozitás (függőleges-vonal elv).
+Always note Domain = A, Codomain = B, and the actual Range ⊆ B.
+Mindig írd: Tartomány = A, Céltartomány = B, a tényleges Értékkészlet ⊆ B.
+terminology/terminológia
