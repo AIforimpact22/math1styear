@@ -1,0 +1,113 @@
+{% extends "index.html" %}
+{% block page_title %}Assignment 3 — Functions & Collaboration{% endblock %}
+
+{% block controls %}
+<div class="controls" aria-label="Assignment navigation">
+  <a href="/assignment" class="btn" rel="noopener">Assignment 1</a>
+  <a href="/logic-assignment" class="btn" rel="noopener">Assignment 2</a>
+  <a href="/assignment-3" class="btn" rel="noopener" aria-current="page">Assignment 3</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="canvas-card" aria-label="Assignment 3 planning guide">
+  <style>
+    .assign3-wrap{ padding:16px; display:grid; gap:16px; }
+    .assign3-grid{ display:grid; gap:14px; }
+    .card{ background:var(--card); border:1px solid #1d2939; border-radius:14px; padding:16px; }
+    .card h2, .card h3{ margin:0 0 10px; color:#e8f0ff; }
+    .card h3{ font-size:18px; }
+    .flex{ display:flex; gap:16px; flex-wrap:wrap; }
+    .dual p{ margin:0 0 8px; }
+    .dual strong{ color:#9fb7d8; display:block; margin-bottom:4px; }
+    .questions{ display:grid; gap:12px; }
+    .question{ background:#0d1320; border:1px solid #233046; border-radius:12px; padding:14px; }
+    .question h4{ margin:0 0 8px; color:#d7e6ff; }
+    .badge{ display:inline-block; padding:2px 10px; border-radius:999px; background:#192233; border:1px solid #25344a; color:#a9bedf; font-size:12px; margin-bottom:6px; }
+    .ai-example{ margin-top:10px; padding:10px; background:#10192b; border:1px dashed #2a3d58; border-radius:10px; }
+    .workflow{ display:grid; gap:12px; }
+    .workflow li{ margin-left:18px; color:#dbe6ff; }
+    .workflow strong{ color:#95b4e3; }
+  </style>
+
+  <div class="assign3-wrap">
+    <header class="card" aria-label="Assignment overview">
+      <h2>Assignment 3 — Functions in Well Logging / Függvények a kútmérésben</h2>
+      <p>
+        Collaborative plan for a three-student team. GPT assists with question generation and grading,
+        following the approach from Assignments 1 and 2.
+      </p>
+      <p>
+        Háromfős csapat számára készült együttműködési terv. A GPT segít a kérdésgenerálásban és az értékelésben,
+        az 1. és 2. beadandó mintájára.
+      </p>
+    </header>
+
+    <section class="card assign3-grid" aria-label="Context cards">
+      {% for section in sections %}
+      <article class="dual" aria-labelledby="{{ section.slug }}-en">
+        <h3 id="{{ section.slug }}-en">{{ section.heading_en }}</h3>
+        <p>{{ section.body_en }}</p>
+        <strong id="{{ section.slug }}-hu">{{ section.heading_hu }}</strong>
+        <p>{{ section.body_hu }}</p>
+      </article>
+      {% endfor %}
+    </section>
+
+    <section class="card" aria-label="Workflow">
+      <h3>Workflow / Munkamenet</h3>
+      <ol class="workflow">
+        {% for title, en, hu in workflow %}
+        <li>
+          <strong>{{ title }}</strong>
+          <div>{{ en }}</div>
+          <div>{{ hu }}</div>
+        </li>
+        {% endfor %}
+      </ol>
+    </section>
+
+    <section class="card" aria-label="Question plan">
+      <h3>Question plan / Kérdés-terv</h3>
+      <div class="questions">
+        {% for q in questions %}
+        <article class="question">
+          <span class="badge">{{ q.id }}</span>
+          <h4>{{ q.prompt_en }}</h4>
+          <p>{{ q.prompt_hu }}</p>
+          <div class="flex">
+            <div>
+              <strong>Focus</strong>
+              <p>{{ q.focus_en }}</p>
+            </div>
+            <div>
+              <strong>Fókusz</strong>
+              <p>{{ q.focus_hu }}</p>
+            </div>
+          </div>
+          {% if q.ai_example_en %}
+          <div class="ai-example" aria-label="AI example answer">
+            <strong>AI example / MI példa</strong>
+            <p>{{ q.ai_example_en }}</p>
+            <p>{{ q.ai_example_hu }}</p>
+          </div>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <footer class="card" aria-label="Submission guidance">
+      <h3>Next steps / Következő lépések</h3>
+      <p>
+        Prepare GPT prompts to deliver ten customised questions per group, keep collaborative notes in both
+        languages, and export a shared PDF once the AI rubric reports a passing score (≥ 70%).
+      </p>
+      <p>
+        Készítsetek GPT-promptokat a csoportonkénti tíz egyedi kérdéshez, vezessetek kétnyelvű közös jegyzetet,
+        és exportáljátok a közös PDF-et, amint az MI-rubrika eléri a legalább 70%-os pontszámot.
+      </p>
+    </footer>
+  </div>
+</section>
+{% endblock %}
