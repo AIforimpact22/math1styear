@@ -1,704 +1,615 @@
+# logic_assignment.py
 from __future__ import annotations
 
-import hashlib
-import random
+import itertools
+import json
+import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from flask import Blueprint, jsonify, render_template, request
 
 logic_assignment_bp = Blueprint("logic_assignment", __name__)
 
+# -----------------------
+# Core parsing & eval
+# -----------------------
 
-@dataclass
-class Check:
-    keywords: List[str]
-    hint: str
-
-
-@dataclass
-class Question:
-    id: str
-    title: str
-    text: str
-    checks: List[Check]
-    praise: str = "Excellent work — you captured every required idea."
-    coach: str = "Revisit the notes and respond to each bullet explicitly."
-    length_hint: int = 80
-
-
-QUESTIONS: List[Question] = [
-    Question(
-        id="Q01",
-        title="A) Core ideas — fill in the blanks (geoscience flavored)",
-        text=(
-            "An and statement is true when, and only when, both components are ________.\n"
-            "An or statement is false when, and only when, both components are ________.\n"
-            "Two statement forms are logically equivalent when, and only when, they always have ________ truth values.\n"
-            "De Morgan’s laws say (1) the negation of an and statement is equivalent to an or statement in which each component is ________, and (2) the negation of an or statement is equivalent to an and statement in which each component is ________.\n"
-            "A tautology is a statement that is always ________.\n"
-            "A contradiction is a statement that is always ________."
-        ),
-        checks=[
-            Check(["both components are true", "both parts are true"], "say an ∧ statement needs both parts true"),
-            Check(["both components are false", "both parts are false"], "note that ∨ is only false when both parts are false"),
-            Check(["the same truth values", "matching truth values"], "mention matching/same truth values"),
-            Check(["each component is negated", "negated", "both components are negated"], "state that De Morgan negates each part"),
-            Check(["always true", "true in every case", "true no matter"], "describe a tautology as always true"),
-            Check(["always false", "false in every case", "false no matter"], "describe a contradiction as always false"),
-        ],
-        praise="Perfect — all six blanks are addressed.",
-        coach="Answer each blank directly (true/false, same values, negated, tautology/contradiction).",
-        length_hint=90,
-    ),
-    Question(
-        id="Q02",
-        title="B1) Modus ponens pattern",
-        text=(
-            "(a) If all basalt flows are mafic, then Flow A is mafic.\n"
-            "All basalt flows are mafic.\n"
-            "Therefore, Flow A is mafic.\n"
-            "Form: If p then q; p; therefore q.\n\n"
-            "(b) If all cross-beds can be described in plan-view, then ________.\n"
-            "________.\n"
-            "Therefore, Cross-bed set X can be described in plan-view."
-        ),
-        checks=[
-            Check(
-                [
-                    "then cross-bed set x can be described in plan-view",
-                    "then x can be described in plan-view",
-                    "then cross bed set x can be described in plan view",
-                ],
-                "complete the conditional with X in the consequent",
-            ),
-            Check(
-                [
-                    "all cross-beds can be described in plan-view",
-                    "all cross beds can be described in plan view",
-                ],
-                "repeat the universal premise for cross-beds",
-            ),
-        ],
-        praise="Great — you matched the modus ponens structure.",
-        coach="Match the exact structure: restate the conditional and the universal premise.",
-        length_hint=50,
-    ),
-    Question(
-        id="Q03",
-        title="B2) Modus tollens pattern",
-        text=(
-            "(a) If all seismic lines have some noise, then Line 12 has noise.\n"
-            "Line 12 does not have noise.\n"
-            "Therefore, not all seismic lines have noise.\n"
-            "Form: If p then q; ¬q; therefore ¬p.\n\n"
-            "(b) If ________, then primes are odd.\n"
-            "2 is not odd.\n"
-            "Therefore, ________."
-        ),
-        checks=[
-            Check(
-                [
-                    "if all primes are odd, then 2 is odd",
-                    "if all primes are odd then 2 is odd",
-                ],
-                "state the conditional tying all primes to 2",
-            ),
-            Check(
-                [
-                    "not all primes are odd",
-                    "therefore not all primes are odd",
-                ],
-                "finish with ¬p: not all primes are odd",
-            ),
-        ],
-        praise="Nice — the conditional and conclusion line up with modus tollens.",
-        coach="Spell out the conditional about all primes and end with ¬p (not all primes are odd).",
-        length_hint=50,
-    ),
-    Question(
-        id="Q04",
-        title="B3) Disjunctive syllogism pattern",
-        text=(
-            "(a) This rock is limestone or this rock is dolomite.\n"
-            "This rock is not limestone.\n"
-            "Therefore, this rock is dolomite.\n"
-            "Form: p ∨ q; ¬p; therefore q.\n\n"
-            "(b) Quartz occurs or logic is confusing.\n"
-            "My mind is not shot.\n"
-            "Therefore, ________."
-        ),
-        checks=[
-            Check(
-                ["logic is confusing"],
-                "end with the remaining disjunct: logic is confusing",
-            )
-        ],
-        praise="Exactly — you concluded that logic is confusing.",
-        coach="Use the disjunctive syllogism form: conclude with the remaining option (logic is confusing).",
-        length_hint=30,
-    ),
-    Question(
-        id="Q05",
-        title="B4) Hypothetical syllogism pattern",
-        text=(
-            "(a) If the core description is faulty, then the lab will flag an error.\n"
-            "If the lab flags an error, then the report won’t be released.\n"
-            "Therefore, if the core description is faulty, then the report won’t be released.\n"
-            "Form: If p then q; if q then r; therefore if p then r.\n\n"
-            "(b) If this sandstone has high quartz content, then it is mature.\n"
-            "If this sandstone is mature, then it has well-rounded grains.\n"
-            "Therefore, if this sandstone has high quartz content, then ________."
-        ),
-        checks=[
-            Check(
-                [
-                    "it has well-rounded grains",
-                    "then it has well-rounded grains",
-                    "has well rounded grains",
-                ],
-                "finish with the grains being well-rounded",
-            )
-        ],
-        praise="Great — you chained to well-rounded grains.",
-        coach="Complete the last clause with the final implication: it has well-rounded grains.",
-        length_hint=40,
-    ),
-    Question(
-        id="Q06",
-        title="C) Which are statements?",
-        text=(
-            "Decide which of the following are statements (truth-evaluable):\n"
-            "a) “Many beach sands show ripple marks.”\n"
-            "b) “Measure the thickness of Bed 4.”\n"
-            "c) “Porosity ≥ 0.25.”\n"
-            "d) “Depth = d₀.”"
-        ),
-        checks=[
-            Check(
-                ["a", "many beach sands"],
-                "mark option a as a statement",
-            ),
-            Check(
-                ["c", "porosity ≥ 0.25", "porosity >= 0.25"],
-                "include option c as a statement",
-            ),
-            Check(
-                ["d", "depth = d₀", "depth = d0"],
-                "include option d as a statement",
-            ),
-            Check(
-                ["not b", "b is not", "command"],
-                "explain that b) is a command, not a statement",
-            ),
-        ],
-        praise="Correct — you picked a, c, d and excluded b.",
-        coach="List the letters: a, c, d are statements; b is a command (not statement).",
-        length_hint=40,
-    ),
-    Question(
-        id="Q07",
-        title="D1) Translate (fossils + sandstone)",
-        text=(
-            "Let o = “the outcrop contains fossils”, s = “the sample is sandstone”.\n"
-            "Translate: (i) “The outcrop contains fossils and the sample is sandstone.”\n"
-            "(ii) “Neither does the outcrop contain fossils nor is the sample sandstone.”"
-        ),
-        checks=[
-            Check(["o ∧ s", "o and s"], "write o ∧ s for the conjunction"),
-            Check(["¬o ∧ ¬s", "not o and not s", "¬(o ∨ s)"], "show the double negation result (¬o ∧ ¬s)"),
-        ],
-        praise="Both symbolic forms look good (o ∧ s, ¬o ∧ ¬s).",
-        coach="Express each sentence with o and s: the conjunction and the negated conjunction.",
-        length_hint=60,
-    ),
-    Question(
-        id="Q08",
-        title="D2) Carbonate vs dolomite",
-        text="Let c = “core is carbonate”, d = “core is dolomite”. Translate “The core is carbonate but not dolomite.”",
-        checks=[
-            Check(["c ∧ ¬d", "c and not d"], "use c ∧ ¬d"),
-        ],
-        praise="Exactly — c ∧ ¬d.",
-        coach="Use c for carbonate and negate d to show it is not dolomite.",
-        length_hint=25,
-    ),
-    Question(
-        id="Q09",
-        title="D3) Horizon properties",
-        text=(
-            "Let h = “the horizon is hydrocarbon-bearing”, t = “the horizon is thick”, q = “the horizon is high quality”.\n"
-            "Provide symbolic forms for: (a) “H is hydrocarbon-bearing and thick but not high-quality.”\n"
-            "(b) “H is not thick but it is hydrocarbon-bearing and high-quality.”\n"
-            "(c) “H is neither hydrocarbon-bearing, thick, nor high-quality.”\n"
-            "(d) “H is neither thick nor high-quality, but it is hydrocarbon-bearing.”\n"
-            "(e) “H is high-quality, but it is not both hydrocarbon-bearing and thick.”"
-        ),
-        checks=[
-            Check(["h ∧ t ∧ ¬q", "h and t and not q"], "capture h ∧ t ∧ ¬q"),
-            Check(["¬t ∧ h ∧ q", "not t and h and q"], "show ¬t ∧ h ∧ q"),
-            Check(["¬h ∧ ¬t ∧ ¬q", "not h and not t and not q"], "include the full negation ¬h ∧ ¬t ∧ ¬q"),
-            Check(["h ∧ ¬t ∧ ¬q", "h and not t and not q"], "handle the “neither thick nor high-quality” but hydrocarbon-bearing"),
-            Check(["q ∧ ¬(h ∧ t)", "q and not (h and t)", "q ∧ ¬h ∨?"], "express q ∧ ¬(h ∧ t)"),
-        ],
-        praise="Great coverage of all five horizon statements.",
-        coach="Write each combination with ∧/¬. Include the distribution cases like q ∧ ¬(h ∧ t).",
-        length_hint=120,
-    ),
-    Question(
-        id="Q10",
-        title="D4) Grain-size ranges",
-        text=(
-            "Let p = “grain size > 0.5 mm”, q = “grain size = 0.5 mm”, r = “grain size < 2 mm”.\n"
-            "Translate: (a) “grain size ≥ 0.5 mm”\n"
-            "(b) “2 mm > grain size > 0.5 mm”\n"
-            "(c) “2 mm ≥ grain size ≥ 0.5 mm.”"
-        ),
-        checks=[
-            Check(["p ∨ q", "p or q"], "show ≥ 0.5 mm as p ∨ q"),
-            Check(["r ∧ p", "r and p"], "capture the open interval with r ∧ p"),
-            Check(["(r ∨", "≤ 2", "<= 2"], "show the upper bound (≤2) combined with ≥0.5"),
-        ],
-        praise="Nice handling of the grain-size ranges.",
-        coach="Use p/q/r to show ≥0.5, the open interval, and include the ≤2 upper bound for part (c).",
-        length_hint=90,
-    ),
-    Question(
-        id="Q11",
-        title="E) Inclusive or exclusive?",
-        text="In “A sample passes screening if it has rounded grains or sorting ≥ ‘moderate’,” decide if the “or” is inclusive or exclusive.",
-        checks=[
-            Check(["inclusive", "inclusive or"], "note that the disjunction is inclusive"),
-        ],
-        praise="Correct — it’s the inclusive ‘or’.",
-        coach="Indicate that both traits could be present, so the ‘or’ is inclusive.",
-        length_hint=20,
-    ),
-    Question(
-        id="Q12",
-        title="F) Truth-table ideas",
-        text=(
-            "Respond concisely:\n"
-            "• When is ¬p ∧ q true?\n"
-            "• Is ¬(p ∧ q) ∨ (p ∨ q) always true?\n"
-            "• When is p ∧ (q ∧ r) true?\n"
-            "• When is p ∧ (¬q ∨ r) true?"
-        ),
-        checks=[
-            Check(["p is false and q is true", "p false q true"], "state p must be false and q true"),
-            Check(["tautology", "always true"], "label the compound as a tautology"),
-            Check(["all three", "p q r are true", "when p, q, r are all true"], "require all of p, q, r"),
-            Check(["p is true and", "q is false or r is true", "either q is false or r is true"], "explain the condition for p ∧ (¬q ∨ r)"),
-        ],
-        praise="Great — you summarized each truth-table scenario accurately.",
-        coach="Answer each bullet: (F,T), tautology, all true, and p true with (¬q or r).",
-        length_hint=80,
-    ),
-    Question(
-        id="Q13",
-        title="G) Logical equivalence calls",
-        text=(
-            "For each pair, say whether they are logically equivalent and give a short justification (absorption, De Morgan, etc.).\n"
-            "Use the list from the prompt (p ∨ (p ∧ q) vs p, ¬(p ∧ q) vs ¬p ∨ ¬q, … , (p ∨ q) ∨ (p ∧ r) vs (p ∨ q) ∧ r)."
-        ),
-        checks=[
-            Check(["absorption", "p ∨ (p ∧ q)"], "mention absorption for the first pair"),
-            Check(["de morgan", "¬p ∨ ¬q"], "cite De Morgan"),
-            Check(["tautology", "t"], "note that p ∨ t ≡ t"),
-            Check(["p ∧ t", "equivalent"], "explain p ∧ t ≡ p"),
-            Check(["not equivalent", "∧ is stronger", "p ∧ c"], "point out p ∧ c vs p ∨ c not equivalent"),
-            Check(["associative", "associativity"], "reference associativity"),
-            Check(["distribution", "distributive"], "reference distribution"),
-            Check(["not equivalent", "counterexample", "p = f", "r = t"], "note p ∧ (q ∨ r) vs (p ∧ q) ∨ (p ∧ r) equivalence and contrast with the others"),
-        ],
-        praise="Nice job referencing the right laws for each equivalence/non-equivalence.",
-        coach="Walk through each bullet and name the law or counterexample that applies.",
-        length_hint=140,
-    ),
-    Question(
-        id="Q14",
-        title="H) De Morgan negations in geology wording",
-        text=(
-            "Provide the negation for each geology-flavoured sentence in De Morgan style (push ¬ inside)."
-        ),
-        checks=[
-            Check(["layer a is not sandstone", "layer a isn’t sandstone"], "negate the first component for Layer A/B"),
-            Check(["layer b is not shale", "layer b isn’t shale"], "negate the Layer B clause"),
-            Check(["sample is not carbonate", "sample isn’t carbonate"], "negate the carbonate clause"),
-            Check(["porosity is not high", "porosity isn’t high"], "negate the porosity clause"),
-            Check(["core is not broken", "core isn’t broken"], "negate the core clause"),
-            Check(["scanner is not mis-calibrated", "scanner isn’t mis-calibrated"], "negate the scanner clause"),
-            Check(["tide is not in", "tide isn’t in"], "negate the tide"),
-            Check(["watch is not fast", "watch isn’t fast"], "negate the watch"),
-            Check(["no logical error in the first ten lines", "no logical error"], "negate the program clause"),
-            Check(["dataset is complete", "dataset is not incomplete"], "affirm the dataset completeness"),
-            Check(["quartz content is not at an all-time high", "quartz content isn’t at an all-time high"], "negate the quartz clause"),
-            Check(["feldspar is not at a record low", "feldspar isn’t at a record low"], "negate the feldspar clause"),
-        ],
-        praise="Solid — you pushed the negations inside each geology sentence.",
-        coach="Write each negation explicitly: “not sandstone or not shale”, “core not broken and scanner not mis-calibrated”, etc.",
-        length_hint=160,
-    ),
-    Question(
-        id="Q15",
-        title="I) Range/inequality negations",
-        text=(
-            "Provide the negation for each inequality statement in the list (porosity φ, grain size d)."
-        ),
-        checks=[
-            Check(["φ ≤ -2", "phi ≤ -2", "phi <= -2"], "include φ ≤ -2"),
-            Check(["φ ≥ 0.35", "phi ≥ 0.35", "phi >= 0.35"], "include φ ≥ 0.35"),
-            Check(["d ≤ -10", "d <= -10"], "include d ≤ -10"),
-            Check(["d ≥ 2", "d >= 2"], "include d ≥ 2"),
-            Check(["0.0625 ≤ d ≤ 2", "0.0625 <= d <= 2"], "describe the closed interval for sand/gravel"),
-            Check(["0.10 < φ ≤ 0.25", "0.10 < phi ≤ 0.25", "0.10 < phi <= 0.25"], "show the mid-porosity band"),
-            Check(["d ≥ 1", "d >= 1"], "include d ≥ 1"),
-            Check(["d < 0.25"], "include d < 0.25"),
-            Check(["φ ≥ 0", "phi ≥ 0", "phi >= 0"], "include φ ≥ 0"),
-            Check(["φ < -0.07", "phi < -0.07"], "include φ < -0.07"),
-        ],
-        praise="Great — you described each negated range precisely.",
-        coach="State each negation explicitly (≤/≥ switched).",
-        length_hint=140,
-    ),
-    Question(
-        id="Q16",
-        title="J) Data-filter negations",
-        text=(
-            "Rewrite the data-filter expressions with negations pushed inside (using ∧/∨)."
-        ),
-        checks=[
-            Check(["n_samples ≤ 100", "n samples ≤ 100", "n_samples <= 100"], "include n_samples ≤ 100"),
-            Check(["n_valid > 500", "n valid > 500"], "include n_valid > 500"),
-            Check(["n_valid ≥ 200", "n_valid >= 200"], "require n_valid ≥ 200"),
-            Check(["depth ≥ 50", "depth >= 50"], "include depth ≥ 50"),
-            Check(["porosity ≤ 0.25", "porosity <= 0.25"], "include porosity ≤ 0.25"),
-            Check(["depth < 50", "depth <50"], "include depth < 50"),
-            Check(["depth ≥ 75", "depth >= 75"], "include depth ≥ 75"),
-            Check(["porosity ≤ 0.30", "porosity <= 0.30"], "include porosity ≤ 0.30"),
-        ],
-        praise="Well done — both negated filters are written correctly.",
-        coach="Spell out each clause after the negation (≤/≥ swapped, distribute ¬ over ∨).",
-        length_hint=140,
-    ),
-    Question(
-        id="Q17",
-        title="K) Tautology or contradiction?",
-        text="Classify each expression (tautology/contradiction/contingent) using the provided reasoning.",
-        checks=[
-            Check(["tautology", "covers all cases"], "label (p ∧ q) ∨ (¬p ∨ (p ∧ ¬q)) as a tautology"),
-            Check(["contradiction", "requires p and ¬p"], "label (p ∧ ¬q) ∧ (¬p ∨ q) as a contradiction"),
-            Check(["implication", "always true", "tautology"], "note the third expression is always true"),
-            Check(["law of excluded middle", "tautology", "always true"], "state the last expression is a tautology"),
-        ],
-        praise="Great classifications for each expression.",
-        coach="Name whether each is a tautology or contradiction and justify briefly.",
-        length_hint=100,
-    ),
-    Question(
-        id="Q18",
-        title="L) Geologic code strings",
-        text=(
-            "Let positions be {S,L,B} × {F,X}. Identify the code sets for the given expressions (31a–31c)."
-        ),
-        checks=[
-            Check(["sf", "sx", "lf", "lx"], "list SF, SX, LF, LX"),
-            Check(["bf", "bx"], "list BF, BX"),
-            Check(["bf", "lf"], "include BF and LF"),
-        ],
-        praise="Perfect — you mapped each logical condition to the correct code list.",
-        coach="List the code pairs explicitly (e.g., SF, SX, LF, LX).",
-        length_hint=80,
-    ),
-    Question(
-        id="Q19",
-        title="M) Natural-language equivalence?",
-        text=(
-            "Decide whether statements (a) and (b) are logically equivalent and justify with a short counter-scenario or explanation."
-        ),
-        checks=[
-            Check(["not equivalent", "different", "scope"], "state they are not equivalent"),
-            Check(["layer a", "layer b"], "mention the roles of Layer A and Layer B"),
-        ],
-        praise="Good — you explained why the wording is not logically equivalent.",
-        coach="State that the sentences are not equivalent and reference the roles of Layer A/B.",
-        length_hint=70,
-    ),
-]
-
-QUESTION_LOOKUP: Dict[str, Question] = {q.id: q for q in QUESTIONS}
-
-
-QUESTION_HU: Dict[str, str] = {
-    "Q01": (
-        "Az „és” állítás akkor és csak akkor igaz, ha mindkét része ________.\n"
-        "Az „vagy” állítás akkor és csak akkor hamis, ha mindkét része ________.\n"
-        "Két állításforma akkor és csak akkor logikailag ekvivalens, ha mindig ________ igazságértékeik vannak.\n"
-        "De Morgan törvényei szerint (1) egy „és” állítás tagadása ekvivalens egy „vagy” állítással, amelyben mindegyik rész ________,"
-        " és (2) egy „vagy” állítás tagadása ekvivalens egy „és” állítással, amelyben mindegyik rész ________.\n"
-        "Tautológia az az állítás, amely mindig ________.\n"
-        "Kontradikció az az állítás, amely mindig ________."
-    ),
-    "Q02": (
-        "(a) Ha minden bazaltfolyam mafikus, akkor az A folyás mafikus.\n"
-        "Minden bazaltfolyam mafikus.\n"
-        "Ezért az A folyás mafikus.\n"
-        "Forma: Ha p akkor q; p; tehát q.\n\n"
-        "(b) Ha minden keresztágy tervnézetben leírható, akkor ________.\n"
-        "________.\n"
-        "Ezért az X keresztágy-készlet tervnézetben leírható."
-    ),
-    "Q03": (
-        "(a) Ha minden szeizmikus szelvényben van valamilyen zaj, akkor a 12-es szelvény zajos.\n"
-        "A 12-es szelvény nem zajos.\n"
-        "Ezért nem igaz, hogy minden szeizmikus szelvény zajos.\n"
-        "Forma: Ha p akkor q; ¬q; tehát ¬p.\n\n"
-        "(b) Ha ________, akkor a prímek páratlanok.\n"
-        "A 2 nem páratlan.\n"
-        "Ezért ________."
-    ),
-    "Q04": (
-        "(a) Ez a kő mészkő vagy ez a kő dolomit.\n"
-        "Ez a kő nem mészkő.\n"
-        "Ezért ez a kő dolomit.\n"
-        "Forma: p ∨ q; ¬p; tehát q.\n\n"
-        "(b) Vagy kvarc fordul elő, vagy a logika zavaros.\n"
-        "Az elmém nincs kikészülve.\n"
-        "Ezért ________."
-    ),
-    "Q05": (
-        "(a) Ha a magleírás hibás, akkor a labor hibát jelez.\n"
-        "Ha a labor hibát jelez, akkor a jelentés nem kerül kiadásra.\n"
-        "Ezért ha a magleírás hibás, akkor a jelentés nem kerül kiadásra.\n"
-        "Forma: Ha p akkor q; ha q akkor r; tehát ha p akkor r.\n\n"
-        "(b) Ha ez a homokkő magas kvarctartalmú, akkor érett.\n"
-        "Ha ez a homokkő érett, akkor jól kerekített szemcséi vannak.\n"
-        "Ezért ha ez a homokkő magas kvarctartalmú, akkor ________."
-    ),
-    "Q06": (
-        "Döntsd el, hogy az alábbiak közül melyek kijelentések (igazságértékkel bírnak):\n"
-        "a) „Sok tengerparti homok mutat hullámnyomokat.”\n"
-        "b) „Mérd meg a 4. réteg vastagságát!”\n"
-        "c) „Porozitás ≥ 0,25.”\n"
-        "d) „Mélység = d₀.”"
-    ),
-    "Q07": (
-        "Legyen o = „a feltárásban fosszíliák vannak”, s = „a minta homokkő”.\n"
-        "Fordítsd le: (i) „A feltárásban fosszíliák vannak, és a minta homokkő.”\n"
-        "(ii) „Sem a feltárásban nincsenek fosszíliák, sem a minta nem homokkő.”"
-    ),
-    "Q08": "Legyen c = „a mag karbonát”, d = „a mag dolomit”. Fordítsd le: „A mag karbonát, de nem dolomit.”",
-    "Q09": (
-        "Legyen h = „a réteg szénhidrogént tartalmaz”, t = „a réteg vastag”, q = „a réteg jó minőségű”.\n"
-        "Add meg a szimbólumos alakokat: (a) „H szénhidrogéntartalmú és vastag, de nem jó minőségű.”\n"
-        "(b) „H nem vastag, de szénhidrogéntartalmú és jó minőségű.”\n"
-        "(c) „H sem szénhidrogéntartalmú, sem vastag, sem jó minőségű.”\n"
-        "(d) „H sem vastag, sem jó minőségű, de szénhidrogéntartalmú.”\n"
-        "(e) „H jó minőségű, de nem mind szénhidrogéntartalmú és vastag.”"
-    ),
-    "Q10": (
-        "Legyen p = „a szemcseméret > 0,5 mm”, q = „a szemcseméret = 0,5 mm”, r = „a szemcseméret < 2 mm”.\n"
-        "Fordítsd le: (a) „a szemcseméret ≥ 0,5 mm”\n"
-        "(b) „2 mm > szemcseméret > 0,5 mm”\n"
-        "(c) „2 mm ≥ szemcseméret ≥ 0,5 mm.”"
-    ),
-    "Q11": "Döntsd el, hogy a „Minta átmegy a szűrésen, ha kerek szemcséi vannak vagy a szemcsesorrend ≥ ‘közepes’” mondatban az „vagy” inkluzív vagy exkluzív.",
-    "Q12": (
-        "Válaszolj tömören:\n"
-        "• Mikor igaz a ¬p ∧ q?\n"
-        "• Mindig igaz-e a ¬(p ∧ q) ∨ (p ∨ q)?\n"
-        "• Mikor igaz a p ∧ (q ∧ r)?\n"
-        "• Mikor igaz a p ∧ (¬q ∨ r)?"
-    ),
-    "Q13": (
-        "Döntsd el minden párnál, hogy logikailag ekvivalensek-e, és adj rövid indoklást (abszorpció, De Morgan stb.).\n"
-        "Használd a felsorolást a feladatban (p ∨ (p ∧ q) vs p, ¬(p ∧ q) vs ¬p ∨ ¬q, … , (p ∨ q) ∨ (p ∧ r) vs (p ∨ q) ∧ r)."
-    ),
-    "Q14": "Add meg a geológiai példamondatok negációját De Morgan szabályai szerint (vidd be a tagadást a mondatokba).",
-    "Q15": "Add meg az egyes egyenlőtlenségek negációját (porozitás φ, szemcseméret d).",
-    "Q16": "Írd át az adatszűrő kifejezéseket úgy, hogy a negációk a belső részekre kerüljenek (∧/∨ használatával).",
-    "Q17": "Osztályozd az egyes kifejezéseket (tautológia/ellentmondás/esetleges) a megadott érvelés alapján.",
-    "Q18": "Legyenek a pozíciók {S,L,B} × {F,X}. Azonosítsd a kódhalmazokat a megadott kifejezésekhez (31a–31c).",
-    "Q19": "Döntsd el, hogy az (a) és (b) állítás logikailag ekvivalens-e, és indokold rövid ellenpéldával vagy magyarázattal.",
+# Course operators: ',' (NOT), '`' (AND), '~' (OR)
+_ALLOWED_VARS = set(list("pqroiy"))
+_ALLOWED_TOKENS = set(list("pqroiy(),`~")) | {","}
+# Allow common math symbols as aliases (students sometimes type these)
+_ALIAS_MAP = {
+    "¬": ",",  # NOT
+    "∧": "`",  # AND
+    "∨": "~",  # OR
 }
 
-
-VARIANT_HINTS: Sequence[Tuple[str, str]] = (
-    ("Highlight the logical connectors you rely on.", "Emeld ki, mely logikai kötőszavakat használod."),
-    ("State any assumptions explicitly in one sentence.", "Egy mondatban írd le a felhasznált feltevéseidet."),
-    ("Give at least one example or mini-scenario to illustrate your answer.", "Adj legalább egy példát vagy rövid szituációt a válasz szemléltetésére."),
-    ("Keep your notation consistent throughout the response.", "Ügyelj rá, hogy a jelöléseid következetesek legyenek a teljes válaszban."),
-    ("Mention the key law (modus ponens, De Morgan, etc.) by name.", "Nevezd meg a kulcsfontosságú szabályt (modus ponens, De Morgan stb.)."),
-    ("Conclude with a short check that your result matches the form.", "Zárásként ellenőrizd röviden, hogy az eredmény megfelel-e a formának."),
-    ("Underline, metaphorically, the term that changes in your variant.", "Hangsúlyozd, hogy a változatban melyik kifejezés módosul."),
-    ("List the sub-clauses in the same order as you interpret them.", "Sorold fel az alciklusokat abban a sorrendben, ahogyan értelmezed őket."),
-)
+Token = Literal["VAR", "NOT", "AND", "OR", "LPAREN", "RPAREN"]
 
 
-TITLE_VARIANTS: Sequence[Tuple[str, str]] = (
-    ("Variant A", "Változat A"),
-    ("Variant B", "Változat B"),
-    ("Variant C", "Változat C"),
-    ("Variant D", "Változat D"),
-    ("Variant E", "Változat E"),
-    ("Variant F", "Változat F"),
-    ("Variant G", "Változat G"),
-    ("Variant H", "Változat H"),
-)
+def _normalize_expr(expr: str) -> str:
+    s = (expr or "").strip()
+    # Map aliases to course tokens
+    for bad, good in _ALIAS_MAP.items():
+        s = s.replace(bad, good)
+    # Lowercase variables for consistency
+    s = s.lower()
+    # Remove spaces
+    s = re.sub(r"\s+", "", s)
+    # Quick sanity: only allowed characters
+    if not s:
+        return s
+    if not set(s) <= _ALLOWED_TOKENS:
+        # If disallowed characters appear, fail fast with a safe placeholder
+        # so the grader can give constructive feedback.
+        raise ValueError("Use only the course operators: , (NOT), ` (AND), ~ (OR), plus (), and variables.")
+    return s
 
 
-def _seed_from_identifiers(name: str, neptun: str) -> int:
-    key = f"{name.strip().lower()}|{neptun.strip().upper()}"
-    digest = hashlib.sha256(key.encode("utf-8")).digest()
-    return int.from_bytes(digest[:8], "big", signed=False)
-
-
-def _format_bilingual_text(qid: str, english: str, hint_pair: Tuple[str, str]) -> str:
-    base_hu = QUESTION_HU.get(qid, "")
-    extra_en, extra_hu = hint_pair
-    sections = [english.strip(), "", "Magyarul:", base_hu.strip()]
-    if extra_en:
-        sections.extend(
-            [
-                "",
-                f"Variant prompt: {extra_en}",
-                "Magyar változat:",
-                f"{extra_hu}",
-            ]
-        )
-    return "\n".join(section for section in sections if section)
-
-
-def _personalize_questions(name: str, neptun: str) -> List[Dict[str, str]]:
-    seed = _seed_from_identifiers(name, neptun)
-    rng = random.Random(seed)
-    shuffled = list(QUESTIONS)
-    rng.shuffle(shuffled)
-
-    hint_choices = list(VARIANT_HINTS)
-    rng.shuffle(hint_choices)
-    if not hint_choices:
-        hint_choices = [("", "")]
-
-    title_variants = list(TITLE_VARIANTS)
-    rng.shuffle(title_variants)
-    if not title_variants:
-        title_variants = [("Variant", "Változat")]
-
-    personalized: List[Dict[str, str]] = []
-
-    for idx, question in enumerate(shuffled):
-        hint_pair = hint_choices[idx % len(hint_choices)]
-        title_variant_en, title_variant_hu = title_variants[idx % len(title_variants)]
-        bilingual_title = f"{question.title} — {title_variant_en} / {title_variant_hu}"
-        bilingual_text = _format_bilingual_text(question.id, question.text, hint_pair)
-        personalized.append({"id": question.id, "title": bilingual_title, "text": bilingual_text})
-
-    return personalized
-
-
-def _score_answer(answer: str, question: Question) -> Dict[str, Any]:
-    text = (answer or "").strip()
-    if not text:
-        return {
-            "score": 0,
-            "feedback": "Please provide an answer that addresses each part of the prompt.",
-        }
-
-    lowered = text.lower()
-    total_checks = len(question.checks)
-    hits = 0
-    missing: List[str] = []
-
-    for chk in question.checks:
-        if not chk.keywords:
-            continue
-        if any(keyword.lower() in lowered for keyword in chk.keywords):
-            hits += 1
+def _tokenize(s: str) -> List[Tuple[Token, str]]:
+    out: List[Tuple[Token, str]] = []
+    i = 0
+    while i < len(s):
+        c = s[i]
+        if c in _ALIAS_MAP:  # Shouldn't remain after normalize, but safe-guard
+            c = _ALIAS_MAP[c]
+        if c in _ALLOWED_VARS:
+            out.append(("VAR", c))
+        elif c == ",":
+            out.append(("NOT", c))
+        elif c == "`":
+            out.append(("AND", c))
+        elif c == "~":
+            out.append(("OR", c))
+        elif c == "(":
+            out.append(("LPAREN", c))
+        elif c == ")":
+            out.append(("RPAREN", c))
         else:
-            if chk.hint:
-                missing.append(chk.hint)
+            raise ValueError(f"Unexpected character: {c!r}")
+        i += 1
+    return out
 
-    base = 6 if len(text) >= question.length_hint else 4
-    bonus = round((hits / total_checks) * 4) if total_checks else 4
-    score = max(0, min(10, base + bonus))
 
-    if total_checks and hits == total_checks:
-        feedback = question.praise
-    elif hits >= max(1, total_checks // 2):
-        if missing:
-            feedback = f"Nice work. To firm it up, also mention: {', '.join(missing[:2])}."
-        else:
-            feedback = "Nice work. Add a touch more detail to reach full credit."
+# Shunting-yard for unary NOT + binary AND/OR
+_PRECEDENCE = {"OR": 1, "AND": 2, "NOT": 3}
+_ASSOC = {"OR": "L", "AND": "L", "NOT": "R"}  # NOT is right-associative (prefix)
+
+
+def _to_rpn(tokens: List[Tuple[Token, str]]) -> List[Tuple[Token, str]]:
+    output: List[Tuple[Token, str]] = []
+    ops: List[Tuple[Token, str]] = []
+    prev: Optional[Token] = None
+    for tok, val in tokens:
+        if tok == "VAR":
+            output.append((tok, val))
+        elif tok == "NOT":
+            ops.append((tok, val))
+        elif tok in ("AND", "OR"):
+            while ops and ops[-1][0] not in ("LPAREN",):
+                top = ops[-1][0]
+                if (_ASSOC[tok] == "L" and _PRECEDENCE[top] >= _PRECEDENCE[tok]) or (
+                    _ASSOC[tok] == "R" and _PRECEDENCE[top] > _PRECEDENCE[tok]
+                ):
+                    output.append(ops.pop())
+                else:
+                    break
+            ops.append((tok, val))
+        elif tok == "LPAREN":
+            ops.append((tok, val))
+        elif tok == "RPAREN":
+            while ops and ops[-1][0] != "LPAREN":
+                output.append(ops.pop())
+            if not ops:
+                raise ValueError("Mismatched parentheses.")
+            ops.pop()  # discard LPAREN
+        prev = tok
+
+    while ops:
+        if ops[-1][0] in ("LPAREN", "RPAREN"):
+            raise ValueError("Mismatched parentheses.")
+        output.append(ops.pop())
+    return output
+
+
+def _eval_rpn(rpn: List[Tuple[Token, str]], env: Dict[str, bool]) -> bool:
+    st: List[bool] = []
+    for tok, _ in rpn:
+        if tok == "VAR":
+            st.append(env[_])
+        elif tok == "NOT":
+            if not st:
+                raise ValueError("Missing operand for NOT.")
+            st.append(not st.pop())
+        elif tok in ("AND", "OR"):
+            if len(st) < 2:
+                raise ValueError("Missing operands for binary operator.")
+            b = st.pop()
+            a = st.pop()
+            st.append((a and b) if tok == "AND" else (a or b))
+    if len(st) != 1:
+        raise ValueError("Malformed expression.")
+    return st[0]
+
+
+def eval_expr(expr: str, env: Dict[str, bool]) -> bool:
+    """Evaluate a course-operator boolean expression safely."""
+    s = _normalize_expr(expr)
+    tokens = _tokenize(s)
+    rpn = _to_rpn(tokens)
+    return _eval_rpn(rpn, env)
+
+
+def equivalent(expr_a: str, expr_b: str, vars_used: List[str]) -> Tuple[bool, Optional[Dict[str, bool]]]:
+    """Check semantic equivalence over all truth assignments of vars_used.
+    Returns (equivalent?, counterexample_env or None)."""
+    for values in itertools.product([True, False], repeat=len(vars_used)):
+        env = {v: val for v, val in zip(vars_used, values)}
+        try:
+            va = eval_expr(expr_a, env)
+            vb = eval_expr(expr_b, env)
+        except Exception:
+            # If student's expression is malformed, not equivalent
+            return False, env
+        if va != vb:
+            return False, env
+    return True, None
+
+
+# -----------------------
+# Lecture 3 manifest
+# -----------------------
+
+def _tt_rows(varnames: List[str]) -> List[Dict[str, bool]]:
+    """Standard truth-table order: TTT, TTF, TFT, TFF, FTT, FTF, FFT, FFF for 3 vars; analogous for 2 vars."""
+    rows: List[Dict[str, bool]] = []
+    for vals in itertools.product([True, False], repeat=len(varnames)):
+        rows.append({v: t for v, t in zip(varnames, vals)})
+    return rows
+
+
+def _manifest_lecture3() -> Dict[str, Any]:
+    """Return the assignment structure the frontend uses to render inputs."""
+    # Helpers defining table columns that students must fill (compute)
+    q3_vars = ["p", "q", "r"]
+    q3_cols = [
+        {"label": "p ~ q", "expr": "p ~ q"},
+        {"label": ",r", "expr": ",r"},
+        {"label": "(p ~ q) ` ,r", "expr": "(p ~ q) ` ,r"},
+    ]
+
+    q4_vars = ["p", "q"]
+    q4_cols = [
+        {"label": ",p", "expr": ",p"},
+        {"label": ",p ~ q", "expr": ",p ~ q"},
+    ]
+
+    # For Q5, we *label* one column (p ↔ q) but compute it with the equivalent course-ops form.
+    q5_vars = ["p", "q"]
+    q5_cols = [
+        {"label": "p ` q", "expr": "p ` q"},
+        {"label": ",p", "expr": ",p"},
+        {"label": ",q", "expr": ",q"},
+        {"label": ",p ` ,q", "expr": ",p ` ,q"},
+        {"label": "(p ` q) ~ (,p ` ,q)", "expr": "(p ` q) ~ (,p ` ,q)"},
+        {"label": "(p ↔ q)", "expr": "(p ` q) ~ (,p ` ,q)"},  # computed via course-ops equivalence
+    ]
+
+    q6_vars = ["p", "q"]
+    q6_cols = [
+        {"label": ",p", "expr": ",p"},
+        {"label": ",q", "expr": ",q"},
+        {"label": "p ` ,q", "expr": "p ` ,q"},
+        {"label": ",p ` q", "expr": ",p ` q"},
+        {"label": "(p ` ,q) ~ (,p ` q)", "expr": "(p ` ,q) ~ (,p ` q)"},
+    ]
+
+    q8_vars = ["p", "q"]
+    q8_cols = [
+        {"label": "p ` q", "expr": "p ` q"},
+        {"label": ",(p ` q)", "expr": ",(p ` q)"},
+    ]
+
+    q9_vars = ["p", "q"]
+    q9_cols = [
+        {"label": "p ~ q", "expr": "p ~ q"},
+        {"label": ",(p ~ q)", "expr": ",(p ~ q)"},
+    ]
+
+    return {
+        "assignment": "Assignment / Feladatlap — Lecture 3",
+        "allowed_ops": "Use only the course operators: , (NOT), ` (AND), ~ (OR). / Csak ezeket használd: , (NEM), ` (ÉS), ~ (VAGY).",
+        "items": [
+            # 1) Translate to symbols
+            {
+                "id": "L3Q1a",
+                "kind": "formula",
+                "vars": ["p", "q", "r"],
+                "title": "1a) Translate to symbols",
+                "en": "If the rock is sandstone and contains fossils, then it formed in a shallow marine environment.",
+                "hu": "Ha a kőzet homokkő és fosszíliákat tartalmaz, akkor sekély tengeri környezetben képződött.",
+                "expected": ",(p ` q) ~ r",
+            },
+            {
+                "id": "L3Q1b",
+                "kind": "formula",
+                "vars": ["p", "q"],
+                "title": "1b) Translate to symbols",
+                "en": "The rock is not sandstone, but it contains fossils.",
+                "hu": "A kőzet nem homokkő, de fosszíliákat tartalmaz.",
+                "expected": ",p ` q",
+            },
+            {
+                "id": "L3Q1c",
+                "kind": "formula",
+                "vars": ["p", "q", "r"],
+                "title": "1c) Translate to symbols",
+                "en": "If it did not form in a shallow marine environment, then it is not sandstone or it does not contain fossils.",
+                "hu": "Ha nem sekély tengeri környezetben képződött, akkor nem homokkő, vagy nem tartalmaz fosszíliákat.",
+                "expected": ",(,r) ~ (,p ~ ,q)",
+            },
+            {
+                "id": "L3Q1d",
+                "kind": "formula",
+                "vars": ["p", "q"],
+                "title": "1d) Translate to symbols",
+                "en": "The rock is sandstone exactly when it contains fossils.",
+                "hu": "A kőzet akkor és csak akkor homokkő, ha fosszíliákat tartalmaz.",
+                # Equivalence with course operators
+                "expected": "(p ` q) ~ (,p ` ,q)",
+            },
+
+            # 2) Translate to English/Hungarian (light keyword checks)
+            {
+                "id": "L3Q2a",
+                "kind": "natlang",
+                "title": "2a) Translate ,p ~ q",
+                "en_target": ["not sandstone", "or", "contains fossils"],
+                "hu_target": ["nem homokkő", "vagy", "fossz"],
+            },
+            {
+                "id": "L3Q2b",
+                "kind": "natlang",
+                "title": "2b) Translate (p ` q) → r",
+                "note": "Students may phrase with 'if ... then ...' / 'ha ... akkor ...'.",
+                "en_target": ["if", "sandstone", "and", "fossil", "then", "shallow"],
+                "hu_target": ["ha", "homokkő", "és", "fossz", "akkor", "sekély"],
+            },
+            {
+                "id": "L3Q2c",
+                "kind": "natlang",
+                "title": "2c) Translate (p ` r) ~ (,q ` r)",
+                "en_target": ["either", "sandstone", "and", "shallow", "or", "not", "fossil", "and", "shallow"],
+                "hu_target": ["vagy", "homokkő", "és", "sekély", "vagy", "nem", "fossz", "és", "sekély"],
+            },
+
+            # 3) Truth table — three-variable compound: (p ~ q) ` ,r
+            {
+                "id": "L3Q3",
+                "kind": "truth_table",
+                "title": "3) Truth table — (p ~ q) ` ,r",
+                "vars": q3_vars,
+                "rows": _tt_rows(q3_vars),
+                "columns": q3_cols,  # columns to be filled (each is T/F per row)
+            },
+
+            # 4) Implication via helper column: p→q ≡ ,p ~ q
+            {
+                "id": "L3Q4",
+                "kind": "truth_table",
+                "title": "4) Implication via helper column — build p→q as ,p ~ q",
+                "vars": q4_vars,
+                "rows": _tt_rows(q4_vars),
+                "columns": q4_cols,
+            },
+
+            # 5) Biconditional identity
+            {
+                "id": "L3Q5",
+                "kind": "truth_table",
+                "title": "5) (p ` q) ~ (,p ` ,q) is equivalent to (p ↔ q)",
+                "vars": q5_vars,
+                "rows": _tt_rows(q5_vars),
+                "columns": q5_cols,
+            },
+
+            # 6) XOR table + one-sentence condition
+            {
+                "id": "L3Q6",
+                "kind": "truth_table_plus_text",
+                "title": "6) XOR: (p ` ,q) ~ (,p ` q)",
+                "vars": q6_vars,
+                "rows": _tt_rows(q6_vars),
+                "columns": q6_cols,
+                "text_prompt_en": "In one sentence: when is XOR true?",
+                "text_prompt_hu": "Egy mondatban: mikor igaz a kizáró VAGY?",
+            },
+
+            # 7) De Morgan laws check — yes/no tautology
+            {
+                "id": "L3Q7a",
+                "kind": "yesno",
+                "title": "7a) ,(p ~ q) ↔ (,p ` ,q) — tautology?",
+                "expected_yes": True,
+            },
+            {
+                "id": "L3Q7b",
+                "kind": "yesno",
+                "title": "7b) ,(p ` q) ↔ (,p ~ ,q) — tautology?",
+                "expected_yes": True,
+            },
+
+            # 8) NAND table + question
+            {
+                "id": "L3Q8",
+                "kind": "truth_table_plus_yesno",
+                "title": "8) NAND: ,(p ` q)",
+                "vars": q8_vars,
+                "rows": _tt_rows(q8_vars),
+                "columns": q8_cols,
+                "yesno_prompt": "Is NAND true in all cases except when both p and q are true?",
+                "expected_yes": True,
+            },
+
+            # 9) NOR table + question
+            {
+                "id": "L3Q9",
+                "kind": "truth_table_plus_text",
+                "title": "9) NOR: ,(p ~ q)",
+                "vars": q9_vars,
+                "rows": _tt_rows(q9_vars),
+                "columns": q9_cols,
+                "text_prompt_en": "In which single row(s) is NOR true? (Describe rows such as 'p=F, q=F'.)",
+                "text_prompt_hu": "Mely egyetlen sor(ok)ban igaz a NOR? (Pl.: 'p=F, q=F'.)",
+            },
+
+            # 10) Applied reasoning in geoscience
+            {
+                "id": "L3Q10a",
+                "kind": "formula",
+                "vars": ["o", "y", "i"],
+                "title": "10a) Field rule: If (olivine or pyroxene) then igneous.",
+                "en": "Use o: contains olivine, y: contains pyroxene, i: igneous.",
+                "hu": "o: olivint tartalmaz, y: piroxént tartalmaz, i: magmás.",
+                # implication (o ~ y) → i, expressed with course operators:
+                "expected": ",(o ~ y) ~ i",
+            },
+            {
+                "id": "L3Q10b",
+                "kind": "formula_plus_text",
+                "vars": ["o", "y", "i"],
+                "title": "10b) Contrapositive formula and words (EN + HU)",
+                "expected": ",(,i) ~ (,o ` ,y)",  # (¬i) → (¬o ∧ ¬y), via course-ops => ¬(¬i) ∨ (¬o ∧ ¬y)
+                "text_keywords_en": ["if", "not igneous", "then", "no olivine", "no pyroxene"],
+                "text_keywords_hu": ["ha", "nem magmás", "akkor", "nincs olivin", "nincs piroxén"],
+            },
+            {
+                "id": "L3Q10c",
+                "kind": "yesno_plus_text",
+                "title": "10c) Is 'Porosity > 0.25 ` Porosity < 0.10' contradictory?",
+                "expected_yes": True,
+                "text_prompt_en": "Briefly explain why.",
+                "text_prompt_hu": "Röviden indokold meg miért.",
+            },
+
+            # Text-Entry 1–5 (symbols only, course operators)
+            {"id": "L3T1", "kind": "formula", "vars": ["p"], "title": "Text‑Entry 1 (¬p)", "expected": ",p"},
+            {"id": "L3T2", "kind": "formula", "vars": ["q"], "title": "Text‑Entry 2 (¬q)", "expected": ",q"},
+            {"id": "L3T3", "kind": "formula", "vars": ["p", "q"], "title": "Text‑Entry 3 (p ∧ ¬q)", "expected": "p ` ,q"},
+            {"id": "L3T4", "kind": "formula", "vars": ["p", "q"], "title": "Text‑Entry 4 (¬p ∧ q)", "expected": ",p ` q"},
+            {
+                "id": "L3T5",
+                "kind": "formula",
+                "vars": ["p", "q"],
+                "title": "Text‑Entry 5 (XOR as disjunction of two conjunctions)",
+                "expected": "(p ` ,q) ~ (,p ` q)",
+            },
+        ],
+    }
+
+
+# -----------------------
+# Grading helpers
+# -----------------------
+
+def _grade_truth_table(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
+    """Compare student's T/F column entries against truth computed from expressions."""
+    vars_used: List[str] = item["vars"]
+    rows = item["rows"]
+    cols = item["columns"]  # list of {label, expr}
+    # Student sends: {"cols": {"LABEL": ["T","F",...], ...}}
+    submitted: Dict[str, List[str]] = (answer or {}).get("cols", {})
+    total_cells = len(rows) * len(cols)
+    correct = 0
+    first_err: Optional[str] = None
+
+    for col in cols:
+        label, expr = col["label"], col["expr"]
+        expected_col: List[str] = []
+        for r in rows:
+            env = {v: bool(r[v]) for v in vars_used}
+            truth = eval_expr(expr, env)
+            expected_col.append("T" if truth else "F")
+
+        got_col = [x.upper() for x in submitted.get(label, [])]
+        # pad missing entries as blanks
+        while len(got_col) < len(expected_col):
+            got_col.append("")
+        for i, (g, e) in enumerate(zip(got_col, expected_col)):
+            if g == e:
+                correct += 1
+            else:
+                if not first_err:
+                    # Build a readable row descriptor
+                    env = {v: rows[i][v] for v in vars_used}
+                    env_str = ", ".join(f"{k}={'T' if v else 'F'}" for k, v in env.items())
+                    first_err = f"Column “{label}”, row {i+1} ({env_str}): expected {e}."
+    score = round(10 * (correct / total_cells)) if total_cells else 0
+    feedback = "Great — all table cells correct." if correct == total_cells else (
+        first_err or "Fill each cell with T or F."
+    )
+    return score, feedback
+
+
+def _hits(text: str, keywords: List[str]) -> int:
+    t = (text or "").lower()
+    return sum(1 for k in keywords if k and k.lower() in t)
+
+
+def _grade_natlang(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
+    en = (answer or {}).get("en", "")
+    hu = (answer or {}).get("hu", "")
+    en_hits = _hits(en, item.get("en_target", []))
+    hu_hits = _hits(hu, item.get("hu_target", []))
+    total_targets = len(item.get("en_target", [])) + len(item.get("hu_target", []))
+    got = en_hits + hu_hits
+    score = max(0, min(10, round(10 * got / max(1, total_targets))))
+    if score == 10:
+        feedback = "Nice bilingual phrasing — all key parts present."
     else:
-        feedback = question.coach
-        if missing:
-            feedback += f" Try including: {', '.join(missing[:2])}."
-
-    return {"score": score, "feedback": feedback}
+        feedback = "Add the missing connectors/terms (e.g., if/then, és/vagy, negation)."
+    return score, feedback
 
 
-def _summary(overall_pct: int) -> str:
-    if overall_pct >= 90:
-        return "Outstanding mastery of the logic review — everything lines up."
-    if overall_pct >= 75:
-        return "Great job. Double-check any hints mentioned in the feedback to polish the last details."
-    if overall_pct >= 60:
-        return "Good effort. Revisit the sections flagged in feedback (truth tables, negations, etc.)."
-    return "Review the answer key carefully and revise each section before exporting the PDF."
+def _grade_yesno(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
+    yn = (answer or {}).get("yes", "")
+    truth = str(item.get("expected_yes", False)).lower()
+    correct = yn in ("true", "t", "yes", "y", "igen", "i") if item["expected_yes"] else yn in ("false", "f", "no", "n", "nem")
+    return (10 if correct else 0), ("Correct." if correct else "That selection is not correct.")
 
+
+def _grade_formula(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
+    expr = (answer or {}).get("expr", "")
+    expected = item["expected"]
+    vars_used: List[str] = item.get("vars", [])
+    if not expr:
+        return 0, "Enter a symbolic formula using only , ` ~ and parentheses."
+    try:
+        eq, counter = equivalent(expr, expected, vars_used)
+    except ValueError as e:
+        return 0, f"{e}"
+    if eq:
+        return 10, "Correct symbolic form."
+    # Show the first counterexample
+    env_str = ", ".join(f"{k}={'T' if v else 'F'}" for k, v in counter.items()) if counter else ""
+    return 4, f"Not equivalent; differs for: {env_str}. Use only , (NOT), ` (AND), ~ (OR)."
+
+
+def _grade_formula_plus_text(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
+    s1, f1 = _grade_formula(item, answer)
+    en = (answer or {}).get("en", "")
+    hu = (answer or {}).get("hu", "")
+    en_hits = _hits(en, item.get("text_keywords_en", []))
+    hu_hits = _hits(hu, item.get("text_keywords_hu", []))
+    text_score = 10 if (en_hits >= 3 and hu_hits >= 3) else 6 if (en_hits >= 2 and hu_hits >= 2) else 3 if (en_hits or hu_hits) else 0
+    score = round((s1 + text_score) / 2)
+    feedback = ("Formula correct; wording looks good." if s1 == 10 and text_score >= 6
+                else "Tighten both the formula and the wording (mention antecedent/consequent explicitly).")
+    return score, feedback
+
+
+def _grade_truth_table_plus_text(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
+    s, f = _grade_truth_table(item, answer)
+    text = (answer or {}).get("text", "")
+    # For XOR and NOR prompts: accept 'exactly one' / 'pontosan az egyik', or p=F q=F
+    ok = any(k in (text or "").lower() for k in [
+        "exactly one", "one but not both", "pontosan az egyik", "kizáró", "csak az egyik", "p=f, q=f", "p = f, q = f"
+    ])
+    extra = " Explanation captures the key idea." if ok else " Add the key condition in words (e.g., “exactly one is true” / “pontosan az egyik igaz”)."
+    # Weight text lightly
+    score = min(10, s + (2 if ok else 0))
+    return score, (f + extra)
+
+
+def _grade_yesno_plus_text(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
+    s, f = _grade_yesno(item, answer)
+    txt = (answer or {}).get("text", "")
+    ok = len((txt or "").strip()) >= 10
+    score = min(10, s + (2 if ok else 0))
+    return score, (f + (" Thanks for the brief explanation." if ok else " Add a brief one-sentence reason."))
+
+
+# -----------------------
+# Routes
+# -----------------------
 
 @logic_assignment_bp.route("/logic-assignment")
 def logic_assignment_home():
+    # Updated template renders Lecture 3 automatically
     return render_template("assignment_logic.html")
 
 
 @logic_assignment_bp.route("/logic-assignment/api/generate", methods=["POST"])
 def logic_assignment_generate():
+    # Keep the old signature, but we only *optionally* use name/neptun now.
     data = request.get_json(force=True, silent=True) or {}
     name = (data.get("name") or "").strip()
     neptun = (data.get("neptun") or "").strip().upper()
-    if not name or not neptun:
-        return jsonify({"error": "Missing name or Neptun code"}), 400
-
-    personalized = _personalize_questions(name, neptun)
-
-    return jsonify(
-        {
-            "assignment": "Logic for Geoscience",
-            "questions": personalized,
-        }
-    )
+    # We don't fail if name/neptun are missing; the UI can still render.
+    manifest = _manifest_lecture3()
+    manifest["student"] = {"name": name, "neptun": neptun}
+    return jsonify(manifest)
 
 
 @logic_assignment_bp.route("/logic-assignment/api/grade", methods=["POST"])
 def logic_assignment_grade():
     data = request.get_json(force=True, silent=True) or {}
-    qa = data.get("qa") or []
+    answers: List[Dict[str, Any]] = data.get("answers", [])
+    # Build a lookup for items by id
+    manifest = _manifest_lecture3()
+    item_by_id = {it["id"]: it for it in manifest["items"]}
 
-    per_question = []
-    total = 0
+    per_item: List[Dict[str, Any]] = []
+    total_score = 0
     counted = 0
 
-    for item in qa:
-        qid = item.get("id")
-        spec = QUESTION_LOOKUP.get(qid)
-        if not spec:
+    for a in answers:
+        qid = a.get("id")
+        item = item_by_id.get(qid)
+        if not item:
             continue
-        result = _score_answer(item.get("answer", ""), spec)
-        score = int(result["score"])
-        feedback = result["feedback"]
-        per_question.append({"id": qid, "score": score, "feedback": feedback})
-        total += score
+        kind = item["kind"]
+        try:
+            if kind == "formula":
+                score, feedback = _grade_formula(item, a)
+            elif kind == "truth_table":
+                score, feedback = _grade_truth_table(item, a)
+            elif kind == "natlang":
+                score, feedback = _grade_natlang(item, a)
+            elif kind == "truth_table_plus_text":
+                score, feedback = _grade_truth_table_plus_text(item, a)
+            elif kind == "formula_plus_text":
+                score, feedback = _grade_formula_plus_text(item, a)
+            elif kind == "yesno":
+                score, feedback = _grade_yesno(item, a)
+            elif kind == "yesno_plus_text":
+                score, feedback = _grade_yesno_plus_text(item, a)
+            else:
+                score, feedback = 0, "Unknown item type."
+        except Exception as e:
+            score, feedback = 0, f"Grading error: {e}"
+
+        per_item.append({"id": qid, "score": int(score), "feedback": feedback})
+        total_score += int(score)
         counted += 1
 
-    overall_pct = round(total / (counted * 10) * 100) if counted else 0
+    overall_pct = round(total_score / (max(1, counted) * 10) * 100)
+    summary = (
+        "Outstanding — Lecture 3 concepts look solid."
+        if overall_pct >= 90 else
+        "Great progress — tighten any truth-table cells flagged in feedback."
+        if overall_pct >= 75 else
+        "Keep going — revise the symbolic forms and operator use per feedback."
+        if overall_pct >= 60 else
+        "Revisit the operator rules (only , ` ~) and rebuild the truth tables row by row."
+    )
 
     return jsonify(
         {
-            "per_question": per_question,
+            "per_item": per_item,
             "overall_pct": overall_pct,
             "pass": overall_pct >= 70,
-            "summary": _summary(overall_pct),
+            "summary": summary,
         }
     )
