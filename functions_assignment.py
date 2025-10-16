@@ -4,7 +4,9 @@ from __future__ import annotations
 from typing import Any, Dict, List, Tuple
 from flask import Blueprint, jsonify, render_template, request
 
-functions_assignment_bp = Blueprint("functions_assignment", __name__)
+functions_assignment_bp = Blueprint(
+    "functions_assignment", __name__, url_prefix="/assignment-3"
+)
 
 # -----------------------
 # Helpers
@@ -220,11 +222,11 @@ def _manifest_functions() -> Dict[str, Any]:
 # Routes
 # -----------------------
 
-@functions_assignment_bp.route("/functions-assignment")
+@functions_assignment_bp.route("/")
 def functions_assignment_home():
     return render_template("assignment_functions.html")
 
-@functions_assignment_bp.route("/functions-assignment/api/generate", methods=["POST"])
+@functions_assignment_bp.route("/api/generate", methods=["POST"])
 def functions_assignment_generate():
     data = request.get_json(force=True, silent=True) or {}
     name = (data.get("name") or "").strip()
@@ -233,7 +235,7 @@ def functions_assignment_generate():
     manifest["student"] = {"name": name, "neptun": neptun}
     return jsonify(manifest)
 
-@functions_assignment_bp.route("/functions-assignment/api/grade", methods=["POST"])
+@functions_assignment_bp.route("/api/grade", methods=["POST"])
 def functions_assignment_grade():
     data = request.get_json(force=True, silent=True) or {}
     answers: List[Dict[str, Any]] = data.get("answers", [])
