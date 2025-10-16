@@ -28,7 +28,7 @@ def _get_openai_client() -> "OpenAI|None":
     if not _OPENAI_AVAILABLE:
         return None
     try:
-        return OpenAI()  # will pick up OPENAI_API_KEY from environment
+        return OpenAI()  # reads OPENAI_API_KEY from environment
     except Exception:
         return None
 
@@ -69,7 +69,7 @@ def _grade_text_llm(rubric: str, student_text: str, max_points: int = 10) -> Tup
     if not client:
         return 0, BIL(
             "Automated evaluation unavailable. Please justify with clear references to the context.",
-            "Az automatikus értékelés nem elérhető. Kérjük, indokolj világosan a kontextusra hivatkozva."
+            "Az automatikus értékelés nem elérhető. Kérjük, a kontextusra hivatkozva indokolj világosan."
         )
     try:
         resp = client.chat.completions.create(
@@ -81,7 +81,7 @@ def _grade_text_llm(rubric: str, student_text: str, max_points: int = 10) -> Tup
                 {"role": "user", "content": (
                     f"MAX={max_points}\n"
                     f"Rubric:\n{rubric}\n\n"
-                    f"Student answer:\n{student_text.strip()}"
+                    f"Student answer:\n{(student_text or '').strip()}"
                 )},
             ],
         )
@@ -91,7 +91,7 @@ def _grade_text_llm(rubric: str, student_text: str, max_points: int = 10) -> Tup
         score = max(0, min(max_points, score))
         feedback_en = str(data.get("feedback_en", "")).strip() or "Evaluated."
         feedback_hu = str(data.get("feedback_hu", "")).strip() or "Értékelve."
-        # belt-and-braces: avoid spoiler phrasing
+        # harden against spoilers
         for bad in ("Expected", "expected", "Correct is", "The answer is"):
             feedback_en = feedback_en.replace(bad, "Hint")
             feedback_hu = feedback_hu.replace(bad, "Tipp")
@@ -99,7 +99,7 @@ def _grade_text_llm(rubric: str, student_text: str, max_points: int = 10) -> Tup
     except Exception:
         return 0, BIL(
             "Evaluation error. Make your explanation concrete and tied to the context.",
-            "Értékelési hiba. Legyen a magyarázat konkrét és a kontextushoz kötött."
+            "Értékelési hiba. Legyen a magyarázat konkrét, a kontextushoz kötötten."
         )
 
 # -----------------------
@@ -122,7 +122,7 @@ def _grade_yesno(item: Dict[str, Any], ans: Dict[str, Any]) -> Tuple[int, str]:
 
 def _grade_yesno_plus_text_llm(item: Dict[str, Any], ans: Dict[str, Any]) -> Tuple[int, str]:
     # yes/no component (6 pts)
-    yn_score_full, _yn_fb = _grade_yesno(item, ans)
+    yn_score_full, _ = _grade_yesno(item, ans)
     yn_points = 6 if yn_score_full == 10 else 0
     # LLM justification (4 pts)
     rubric = item.get("llm_rubric", "Explain briefly and correctly using the provided context; avoid vague claims.")
@@ -135,10 +135,10 @@ def _grade_yesno_plus_text_llm(item: Dict[str, Any], ans: Dict[str, Any]) -> Tup
         bits_en, bits_hu = [], []
         if yn_points < 6:
             bits_en.append("Y/N seems off — re-check the function rule.")
-            bits_hu.append("A igen/nem rész hibás — ellenőrizd a függvény definícióját.")
+            bits_hu.append("Az igen/nem rész hibás — ellenőrizd a függvény definícióját.")
         if text_points < 3:
             bits_en.append("Justification needs clearer reference to the context.")
-            bits_hu.append("Az indoklás legyen konkrétabb és hivatkozzon a kontextusra.")
+            bits_hu.append("Az indoklás legyen konkrétabb, hivatkozzon a kontextusra.")
         fb = BIL(" ".join(bits_en) or "Good.", " ".join(bits_hu) or "Jó.")
     return total, fb
 
@@ -200,14 +200,15 @@ def _grade_integer(item: Dict[str, Any], ans: Dict[str, Any]) -> Tuple[int, str]
                                BIL("Hint: |A×B| = |A| · |B|.", "Tipp: |A×B| = |A| · |B|."))
 
 # -----------------------
-# Manifest (bilingual) — with context
+# Manifest (bilingual) — updated Q3, Q5, Q8 (open-ended, NOT log-related)
 # -----------------------
 def _manifest_functions() -> Dict[str, Any]:
     """
-    10 items; 5 qualitative (LLM-graded). Bilingual EN–HU.
+    10 items; several qualitative (LLM-graded). Bilingual EN–HU.
+    Q3, Q5, Q8 are now open-ended and not tied to the log.
     """
     return {
-        "assignment": "Assignment — Functions & Relations (Geology) / Feladat — Függvények és Relációk (Geológia)",
+        "assignment": "Assignment — Functions & Relations (Geology) / Feladat — Függvények & Relációk (Geológia)",
         "context": (
             "EN: Background • You are a junior petrophysicist analyzing a clean sandstone interval in Well A "
             "(1195–1208 m). Porosity φ (fraction, e.g., 0.24) is measured from density/neutron logs. Typical noise "
@@ -221,7 +222,7 @@ def _manifest_functions() -> Dict[str, Any]:
             "Két halmazon vizsgálunk relációkat: A = {mélységek méterben}, B = {porozitásértékek}. A×B az összes lehetséges "
             "(mélység, φ) pár. Egy reláció az igaz párok részhalmaza; függvény esetén A minden eleméhez pontosan egy φ tartozik B-ben."
         ),
-        "hint": "Units / Mértékegységek: depth/mélység [m]; porosity/porozitás [0..1]. R_close: |φ1−φ2| ≤ 0.02; R_shallow: x<y.",
+        "hint": "EN) Units: depth [m], porosity [0..1]. Tolerance rules define 'closeness'; order relations compare values. • HU) Mértékegységek: mélység [m], porozitás [0..1]. A 'közelséget' toleranciaszabály adja; rendezésnél értékeket hasonlítunk.",
         "items": [
             # 1) Qualitative
             {
@@ -230,9 +231,8 @@ def _manifest_functions() -> Dict[str, Any]:
                 "title": "1) In your own words, what is a relation A→B here? (2–3 sentences) / "
                          "1) Saját szavaiddal: mi a reláció A→B ebben a helyzetben? (2–3 mondat)",
                 "llm_rubric": (
-                    "8–10 if: (a) a relation is a set of TRUE (depth, φ) pairs picked from A×B, "
-                    "(b) tied to log-derived porosity and context, (c) does NOT claim one-to-one. "
-                    "4–7 partial; 0–3 off-topic or wrong."
+                    "9–10: defines relation as subset of TRUE pairs from A×B; ties to idea of inputs/outputs; "
+                    "does not claim one-to-one. 6–8: partially correct; 0–5: off-topic."
                 ),
             },
             # 2) MCQ — definition of function
@@ -248,34 +248,39 @@ def _manifest_functions() -> Dict[str, Any]:
                 ],
                 "expected": "A",
             },
-            # 3) Pairgrid — measured relation
+            # 3) NEW — Open-ended (NOT log-related)
             {
                 "id": "FQ3",
-                "kind": "pairgrid",
-                "title": "3) Mark TRUE measurement pairs M (depth, φ). / 3) Jelöld az IGAZ mérési párokat M (mélység, φ).",
-                "A": [1198, 1200, 1203],
-                "B": [0.19, 0.21, 0.24],
-                "note": "EN) Tick pairs that appear in your log. • HU) Pipáld ki a szelvényben szereplő párokat.",
-                "expected_pairs": [[1198, 0.19], [1200, 0.24], [1203, 0.21]],
+                "kind": "long_text",
+                "title": "3) Give a concrete example of a relation A→B that is NOT a function (not about logs). "
+                         "Define A and B, list 2–3 example pairs, and explain briefly why it is not a function. / "
+                         "3) Adj konkrét példát egy A→B relációra, amely NEM függvény (ne a szelvényről). "
+                         "Határozd meg A-t és B-t, sorolj fel 2–3 párt, és röviden indokold, miért nem függvény.",
+                "llm_rubric": (
+                    "9–10: clear A, B; provides pairs; correctly explains that at least one input has multiple distinct outputs; "
+                    "6–8: minor gaps; 0–5: missing components or incorrect rationale."
+                ),
             },
-            # 4) Qualitative — interpret a value
+            # 4) Qualitative — interpret a value (log-related; keeps context)
             {
                 "id": "FQ4",
                 "kind": "long_text",
                 "title": "4) Interpret F(1200)=0.24 in plain language. / 4) Magyarázd el közérthetően: F(1200)=0,24.",
                 "llm_rubric": (
-                    "Look for correct mapping of 1200 m to φ=0.24 (24%), physical meaning, and context; "
-                    "no overclaiming. 10 crisp; 5–8 mostly correct; 0–4 confused."
+                    "Correct mapping of 1200 m to φ=0.24 (24%), physical meaning, concise clarity; no overclaiming."
                 ),
             },
-            # 5) Pairgrid — shallower-than
+            # 5) NEW — Open-ended (NOT log-related)
             {
                 "id": "FQ5",
-                "kind": "pairgrid",
-                "title": "5) R_shallow: tick (x,y) with x is shallower than y. / 5) R_shallow: jelöld az (x,y) párokat, ahol x sekélyebb mint y.",
-                "A": [1198, 1200, 1203],
-                "B": [1200, 1203, 1205],
-                "expected_pairs": [[1198, 1200], [1198, 1203], [1198, 1205], [1200, 1203], [1200, 1205], [1203, 1205]],
+                "kind": "long_text",
+                "title": "5) Propose any real‑world mapping that IS a function. State the domain, codomain, the rule, "
+                         "and how you ensure 'one input → one output'. / "
+                         "5) Adj valós példát egy OLYAN leképezésre, amely függvény. Írd le a tartományt, értékkészletet, a szabályt, "
+                         "és hogyan biztosítod az 'egy bemenet → egy kimenet' feltételt.",
+                "llm_rubric": (
+                    "9–10: domain/codomain named, rule clear, uniqueness addressed; 6–8: partly complete; 0–5: off-topic/unclear."
+                ),
             },
             # 6) Qualitative — R_close properties
             {
@@ -283,9 +288,7 @@ def _manifest_functions() -> Dict[str, Any]:
                 "kind": "long_text",
                 "title": "6) R_close on porosity (|φ1−φ2| ≤ 0.02): reflexive, symmetric, transitive? Explain briefly. / "
                          "6) R_close porozitásra (|φ1−φ2| ≤ 0,02): reflexív, szimmetrikus, tranzitív? Röviden indokold.",
-                "llm_rubric": (
-                    "Reflexive & symmetric yes; not necessarily transitive. Score by correctness and clarity; no numeric spoilers."
-                ),
+                "llm_rubric": "Reflexive & symmetric yes; not necessarily transitive. Score clarity and correctness; no numeric spoilers.",
             },
             # 7) Yes/No + brief reason — duplicate depth
             {
@@ -295,17 +298,21 @@ def _manifest_functions() -> Dict[str, Any]:
                          "7) ... — Függvény-e a mélység→φ? Rövid indoklás.",
                 "expected_yes": False,
                 "llm_rubric": (
-                    "Mention same input (depth 1602) mapping to two outputs — violates function definition. 3–4 good; else 0–2."
+                    "Mention same input mapping to two outputs (depth 1602). 3–4 good; else 0–2."
                 ),
             },
-            # 8) CSV set — range
+            # 8) NEW — Open-ended (NOT log-related)
             {
                 "id": "FQ8",
-                "kind": "csv_float_set",
-                "title": "8) List the RANGE (values actually seen) for F in Q3/Q4 (comma-separated). / "
-                         "8) Sorold fel F ÉRTÉKKÉSZLETÉT Q3/Q4 alapján (vesszővel).",
-                "hint": "EN) Example: 0.19, 0.21, 0.24 • HU) Példa: 0,19, 0,21, 0,24",
-                "expected": [0.19, 0.21, 0.24],
+                "kind": "long_text",
+                "title": "8) Define a sensible 'closeness' rule for numeric data without using the log (e.g., lab measurements): "
+                         "compare absolute vs relative tolerance, when to use which, and note one tradeoff. / "
+                         "8) Fogalmazz meg ésszerű 'közelségi' szabályt numerikus adatokra a szelvény nélkül (pl. labor mérések): "
+                         "hasonlítsd össze az abszolút és relatív toleranciát, mikor melyik célszerű, és emelj ki egy kompromisszumot.",
+                "llm_rubric": (
+                    "10: explains absolute vs relative tolerance, scenario choice, and a tradeoff (e.g., scale sensitivity). "
+                    "6–8: partial; 0–5: vague or incorrect."
+                ),
             },
             # 9) Integer — size of A×B
             {
@@ -318,17 +325,15 @@ def _manifest_functions() -> Dict[str, Any]:
             {
                 "id": "FQ10",
                 "kind": "long_text",
-                "title": "10) After de-duplication, propose a simple pipeline to ensure depth→φ is a function (and a tradeoff). / "
-                         "10) Duplikátum-szűrés után javasolj egy egyszerű folyamatot, hogy a mélység→φ függvény legyen (és említs kompromisszumot).",
-                "llm_rubric": (
-                    "One per depth (e.g., median/quality flag/best run), note tradeoff (variance loss/bias/uncertainty)."
-                ),
+                "title": "10) After de‑duplication, propose a simple pipeline to ensure depth→φ is a function (and a tradeoff). / "
+                         "10) Duplikátum-szűrés után javasolj egyszerű folyamatot, hogy a mélység→φ függvény legyen (és említs kompromisszumot).",
+                "llm_rubric": "One φ per depth (median/quality flag/best run), and a tradeoff (variance loss/bias/uncertainty).",
             },
         ],
     }
 
 # -----------------------
-# Public (sanitized) manifest: remove answers & rubrics
+# Public (sanitized) manifest: remove answers & rubrics (no spoilers)
 # -----------------------
 def _public_manifest(full: Dict[str, Any]) -> Dict[str, Any]:
     m = copy.deepcopy(full)
@@ -406,8 +411,8 @@ def functions_assignment_grade():
         summary = BIL("Excellent — strong grasp of relations/functions and context.",
                       "Kiváló — erős megértés relációkból/függvényekből és a kontextusból.")
     elif overall_pct >= 75:
-        summary = BIL("Good — tighten pair selections and explanations with context.",
-                      "Jó — pontosíts a párokon és az indokláson, hivatkozz a kontextusra.")
+        summary = BIL("Good — strengthen explanations with context and tighten definitions.",
+                      "Jó — erősítsd az indoklást (konteksszel), és pontosíts a definíciókon.")
     elif overall_pct >= 60:
         summary = BIL("Progressing — review the function rule (one input→one output) and relation rules.",
                       "Fejlődő — ismételd át a függvény (egy bemenet→egy kimenet) és relációs szabályokat.")
