@@ -248,7 +248,7 @@ document.getElementById('loadBtn').addEventListener('click', async ()=>{
   try {
     const name = document.getElementById('name').value.trim();
     const neptun = document.getElementById('neptun').value.trim();
-    manifest = await postJSON('/functions-assignment/api/generate', { name, neptun });
+    manifest = await postJSON('/assignment-3/api/generate', { name, neptun });
     renderAssignment(manifest);
     const st = document.getElementById('status');
     st.textContent = 'Loaded — not graded / Betöltve — nincs értékelve';
@@ -261,7 +261,7 @@ document.getElementById('loadBtn').addEventListener('click', async ()=>{
 document.getElementById('submitBtn').addEventListener('click', async ()=>{
   try {
     const answers = collectAnswers();
-    const result = await postJSON('/functions-assignment/api/grade', { answers });
+    const result = await postJSON('/assignment-3/api/grade', { answers });
 
     // results
     const fb = E('div', {class:'card'});
