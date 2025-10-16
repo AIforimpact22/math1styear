@@ -1,113 +1,305 @@
-{% extends "index.html" %}
-{% block page_title %}Assignment 3 — Functions & Collaboration{% endblock %}
-
-{% block controls %}
-<div class="controls" aria-label="Assignment navigation">
-  <a href="/assignment" class="btn" rel="noopener">Assignment 1</a>
-  <a href="/logic-assignment" class="btn" rel="noopener">Assignment 2</a>
-  <a href="/assignment-3" class="btn" rel="noopener" aria-current="page">Assignment 3</a>
-</div>
-{% endblock %}
-
-{% block content %}
-<section class="canvas-card" aria-label="Assignment 3 planning guide">
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Functions & Relations — Geology Assignment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    .assign3-wrap{ padding:16px; display:grid; gap:16px; }
-    .assign3-grid{ display:grid; gap:14px; }
-    .card{ background:var(--card); border:1px solid #1d2939; border-radius:14px; padding:16px; }
-    .card h2, .card h3{ margin:0 0 10px; color:#e8f0ff; }
-    .card h3{ font-size:18px; }
-    .flex{ display:flex; gap:16px; flex-wrap:wrap; }
-    .dual p{ margin:0 0 8px; }
-    .dual strong{ color:#9fb7d8; display:block; margin-bottom:4px; }
-    .questions{ display:grid; gap:12px; }
-    .question{ background:#0d1320; border:1px solid #233046; border-radius:12px; padding:14px; }
-    .question h4{ margin:0 0 8px; color:#d7e6ff; }
-    .badge{ display:inline-block; padding:2px 10px; border-radius:999px; background:#192233; border:1px solid #25344a; color:#a9bedf; font-size:12px; margin-bottom:6px; }
-    .ai-example{ margin-top:10px; padding:10px; background:#10192b; border:1px dashed #2a3d58; border-radius:10px; }
-    .workflow{ display:grid; gap:12px; }
-    .workflow li{ margin-left:18px; color:#dbe6ff; }
-    .workflow strong{ color:#95b4e3; }
+    :root { --bg:#0b0e14; --panel:#111827; --ink:#e5e7eb; --muted:#9ca3af; --accent:#8b5cf6; --ok:#10b981; --warn:#f59e0b; --bad:#ef4444; --border:#374151; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; background:var(--bg); color:var(--ink); margin:0; }
+    header { padding: 20px; border-bottom:1px solid var(--border); background:linear-gradient(180deg, rgba(139,92,246,.15), transparent); }
+    h1 { margin:0; font-size: 1.4rem; }
+    main { max-width: 980px; margin: 20px auto 120px; padding: 0 16px; }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    label { font-size:.95rem; color:var(--muted); }
+    input[type=text], input[type=number] { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#0e1525; color:var(--ink); }
+    textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#0e1525; color:var(--ink); }
+    button { background:var(--accent); color:#fff; border:none; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer; }
+    button.secondary { background:transparent; color:var(--ink); border:1px solid var(--border); }
+    .small { font-size:.9rem; color:var(--muted); }
+    table { border-collapse: collapse; width:100%; }
+    th, td { border:1px solid var(--border); padding:6px 8px; text-align:center; }
+    th { background:#0f172a; position:sticky; top:0; z-index:1; }
+    .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; border:1px solid var(--border); background:#0d1323; }
+    .status { padding:6px 10px; border-radius:999px; font-weight:600; }
+    .ok { background:rgba(16,185,129,.15); color:#34d399; }
+    .bad { background:rgba(239,68,68,.15); color:#f87171; }
+    .warn { background:rgba(245,158,11,.15); color:#fbbf24; }
+    .hr { height:1px; background:var(--border); margin:14px 0; }
+    .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .muted { color: var(--muted); }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(280px,1fr)); gap:12px; }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+    /* Print to PDF */
+    @media print {
+      body { background: #fff; color: #000; }
+      header, .footer-actions, #loadBtn, #submitBtn, #resetBtn, #pdfBtn { display: none !important; }
+      .card { background:#fff; border-color:#ddd; }
+      a[href]:after { content: ""; }
+    }
   </style>
+</head>
+<body>
+  <header>
+    <h1>Assignment — Functions & Relations (Geology)</h1>
+    <div class="small">Depth → Porosity • Relations are chosen true pairs • A×B = all possible pairs</div>
+  </header>
 
-  <div class="assign3-wrap">
-    <header class="card" aria-label="Assignment overview">
-      <h2>Assignment 3 — Functions in Well Logging / Függvények a kútmérésben</h2>
-      <p>
-        Collaborative plan for a three-student team. GPT assists with question generation and grading,
-        following the approach from Assignments 1 and 2.
-      </p>
-      <p>
-        Háromfős csapat számára készült együttműködési terv. A GPT segít a kérdésgenerálásban és az értékelésben,
-        az 1. és 2. beadandó mintájára.
-      </p>
-    </header>
-
-    <section class="card assign3-grid" aria-label="Context cards">
-      {% for section in sections %}
-      <article class="dual" aria-labelledby="{{ section.slug }}-en">
-        <h3 id="{{ section.slug }}-en">{{ section.heading_en }}</h3>
-        <p>{{ section.body_en }}</p>
-        <strong id="{{ section.slug }}-hu">{{ section.heading_hu }}</strong>
-        <p>{{ section.body_hu }}</p>
-      </article>
-      {% endfor %}
-    </section>
-
-    <section class="card" aria-label="Workflow">
-      <h3>Workflow / Munkamenet</h3>
-      <ol class="workflow">
-        {% for title, en, hu in workflow %}
-        <li>
-          <strong>{{ title }}</strong>
-          <div>{{ en }}</div>
-          <div>{{ hu }}</div>
-        </li>
-        {% endfor %}
-      </ol>
-    </section>
-
-    <section class="card" aria-label="Question plan">
-      <h3>Question plan / Kérdés-terv</h3>
-      <div class="questions">
-        {% for q in questions %}
-        <article class="question">
-          <span class="badge">{{ q.id }}</span>
-          <h4>{{ q.prompt_en }}</h4>
-          <p>{{ q.prompt_hu }}</p>
-          <div class="flex">
-            <div>
-              <strong>Focus</strong>
-              <p>{{ q.focus_en }}</p>
-            </div>
-            <div>
-              <strong>Fókusz</strong>
-              <p>{{ q.focus_hu }}</p>
-            </div>
-          </div>
-          {% if q.ai_example_en %}
-          <div class="ai-example" aria-label="AI example answer">
-            <strong>AI example / MI példa</strong>
-            <p>{{ q.ai_example_en }}</p>
-            <p>{{ q.ai_example_hu }}</p>
-          </div>
-          {% endif %}
-        </article>
-        {% endfor %}
+  <main>
+    <div class="card">
+      <div class="row">
+        <div style="flex:1 1 260px;">
+          <label>Full name / Név</label>
+          <input id="name" type="text" placeholder="Student name (optional)" />
+        </div>
+        <div style="flex:0 0 180px;">
+          <label>Neptun</label>
+          <input id="neptun" type="text" placeholder="ABC123" />
+        </div>
+        <div style="align-self:flex-end;" class="row">
+          <button id="loadBtn">Load assignment / Feladat betöltése</button>
+        </div>
       </div>
-    </section>
+      <div class="hr"></div>
+      <div id="opsHint" class="small muted"></div>
+    </div>
 
-    <footer class="card" aria-label="Submission guidance">
-      <h3>Next steps / Következő lépések</h3>
-      <p>
-        Prepare GPT prompts to deliver ten customised questions per group, keep collaborative notes in both
-        languages, and export a shared PDF once the AI rubric reports a passing score (≥ 70%).
-      </p>
-      <p>
-        Készítsetek GPT-promptokat a csoportonkénti tíz egyedi kérdéshez, vezessetek kétnyelvű közös jegyzetet,
-        és exportáljátok a közös PDF-et, amint az MI-rubrika eléri a legalább 70%-os pontszámot.
-      </p>
-    </footer>
-  </div>
-</section>
-{% endblock %}
+    <div id="assignment"></div>
+
+    <div class="footer-actions">
+      <div class="row" style="justify-content: space-between; align-items:center;">
+        <div>
+          <span id="status" class="status warn">Not graded / Nincs értékelve</span>
+        </div>
+        <div class="row">
+          <button class="secondary" id="resetBtn">Reset / Visszaállítás</button>
+          <button class="secondary" id="pdfBtn">Download PDF / PDF letöltése</button>
+          <button id="submitBtn">Submit / Grade • Beküldés / Értékelés</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+<script>
+let manifest = null;
+
+// ---------- helpers ----------
+const E = (tag, attrs={}, ...kids) => {
+  const el = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs||{})) {
+    if (k === 'class') el.className = v;
+    else if (k === 'html') el.innerHTML = v;
+    else el.setAttribute(k, v);
+  }
+  kids.forEach(c => el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+  return el;
+};
+
+// ---------- renderers ----------
+function renderMCQ(item) {
+  const wrap = E('div');
+  (item.options||[]).forEach(opt => {
+    const id = `${item.id}_${opt.id}`;
+    const row = E('div', {class:'row'});
+    const r = E('input', {type:'radio', name:item.id, id, 'data-id':item.id, 'data-kind':'mcq', 'data-choice':opt.id});
+    const lab = E('label', {for:id}, `${opt.id}. ${opt.label}`);
+    row.appendChild(r); row.appendChild(lab);
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+
+function renderYesNo(item, withText=false) {
+  const wrap = E('div');
+  const sel = E('select', {'data-id': item.id, 'data-kind': withText ? 'yesno_plus_text' : 'yesno'});
+  sel.appendChild(E('option', {value:''}, ''));
+  sel.appendChild(E('option', {value:'yes'}, 'Yes / Igen'));
+  sel.appendChild(E('option', {value:'no'}, 'No / Nem'));
+  wrap.appendChild(sel);
+  if (withText) {
+    wrap.appendChild(E('div', {class:'hr'}));
+    wrap.appendChild(E('textarea', {'data-id':item.id, 'data-kind':'why', placeholder:'Brief reason (EN/HU)'}));
+  }
+  return wrap;
+}
+
+function renderShortNumber(item) {
+  return E('input', {type:'number', step:'any', 'data-id':item.id, 'data-kind':'short_number', placeholder:'e.g. 0.24'});
+}
+
+function renderCSVFloatSet(item) {
+  const grid = E('div', {class:'grid'});
+  grid.appendChild(E('input', {type:'text', 'data-id':item.id, 'data-kind':'csv_float_set',
+    placeholder: item.hint || 'e.g. 0.19, 0.21, 0.24'}));
+  return grid;
+}
+
+function renderInteger(item) {
+  return E('input', {type:'number', step:'1', 'data-id':item.id, 'data-kind':'integer', placeholder:'e.g. 12'});
+}
+
+function renderPairGrid(item) {
+  const A = item.A || []; const B = item.B || [];
+  const table = E('table');
+  const thead = E('thead');
+  const hr = E('tr'); hr.appendChild(E('th', {}, 'A\\B'));
+  B.forEach(b => hr.appendChild(E('th', {}, String(b))));
+  thead.appendChild(hr); table.appendChild(thead);
+  const tbody = E('tbody');
+  A.forEach(a => {
+    const tr = E('tr'); tr.appendChild(E('td', {}, String(a)));
+    B.forEach(b => {
+      const id = `${item.id}_${a}_${b}`;
+      const cb = E('input', {type:'checkbox', id, 'data-id':item.id, 'data-kind':'pair', 'data-a':String(a), 'data-b':String(b)});
+      tr.appendChild(E('td', {}, cb));
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  if (item.note) {
+    const note = E('div', {class:'small muted'}, item.note);
+    return E('div', {}, table, E('div', {class:'hr'}), note);
+  }
+  return table;
+}
+
+function renderAssignment(m) {
+  const holder = document.getElementById('assignment');
+  holder.innerHTML = '';
+  document.getElementById('opsHint').textContent = m.hint || '';
+
+  (m.items || []).forEach(item => {
+    const card = E('div', {class:'card'});
+    card.appendChild(E('h3', {}, item.title || item.id));
+
+    let body = null;
+    if (item.kind === 'mcq') body = renderMCQ(item);
+    if (item.kind === 'pairgrid') body = renderPairGrid(item);
+    if (item.kind === 'short_number') body = renderShortNumber(item);
+    if (item.kind === 'csv_float_set') body = renderCSVFloatSet(item);
+    if (item.kind === 'integer') body = renderInteger(item);
+    if (item.kind === 'yesno') body = renderYesNo(item, false);
+    if (item.kind === 'yesno_plus_text') body = renderYesNo(item, true);
+
+    if (body) card.appendChild(body);
+    holder.appendChild(card);
+  });
+}
+
+// ---------- collect & submit ----------
+function collectAnswers() {
+  const answers = [];
+
+  // mcq
+  document.querySelectorAll('input[type="radio"][data-kind="mcq"]').forEach(r => {
+    if (r.checked) answers.push({ id: r.dataset.id, choice: r.dataset.choice });
+  });
+
+  // pairgrid
+  const byId = {};
+  document.querySelectorAll('input[type="checkbox"][data-kind="pair"]').forEach(cb => {
+    if (!byId[cb.dataset.id]) byId[cb.dataset.id] = { id: cb.dataset.id, pairs: [] };
+    if (cb.checked) byId[cb.dataset.id].pairs.push([cb.dataset.a, cb.dataset.b]);
+  });
+  Object.values(byId).forEach(o => answers.push(o));
+
+  // short number
+  document.querySelectorAll('input[data-kind="short_number"]').forEach(inp => {
+    answers.push({ id: inp.dataset.id, value: inp.value });
+  });
+
+  // csv float set
+  document.querySelectorAll('input[data-kind="csv_float_set"]').forEach(inp => {
+    answers.push({ id: inp.dataset.id, values: inp.value });
+  });
+
+  // integer
+  document.querySelectorAll('input[data-kind="integer"]').forEach(inp => {
+    answers.push({ id: inp.dataset.id, value: inp.value });
+  });
+
+  // yes/no
+  document.querySelectorAll('select[data-kind="yesno"]').forEach(sel => {
+    answers.push({ id: sel.dataset.id, yes: sel.value });
+  });
+
+  // yes/no + text
+  document.querySelectorAll('select[data-kind="yesno_plus_text"]').forEach(sel => {
+    const t = document.querySelector(`textarea[data-id="${sel.dataset.id}"][data-kind="why"]`);
+    answers.push({ id: sel.dataset.id, yes: sel.value, text: (t ? t.value : "") });
+  });
+
+  return answers;
+}
+
+async function postJSON(url, payload) {
+  const res = await fetch(url, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+// ---------- wire up ----------
+document.getElementById('loadBtn').addEventListener('click', async ()=>{
+  try {
+    const name = document.getElementById('name').value.trim();
+    const neptun = document.getElementById('neptun').value.trim();
+    manifest = await postJSON('/functions-assignment/api/generate', { name, neptun });
+    renderAssignment(manifest);
+    const st = document.getElementById('status');
+    st.textContent = 'Loaded — not graded / Betöltve — nincs értékelve';
+    st.className = 'status warn';
+  } catch {
+    alert('Failed to load assignment.');
+  }
+});
+
+document.getElementById('submitBtn').addEventListener('click', async ()=>{
+  try {
+    const answers = collectAnswers();
+    const result = await postJSON('/functions-assignment/api/grade', { answers });
+
+    // results
+    const fb = E('div', {class:'card'});
+    fb.appendChild(E('h3', {}, 'Results / Eredmények'));
+    result.per_item.forEach(row => {
+      const chip = E('span', {class:'pill'},
+        E('span', {class:'mono'}, row.id),
+        E('span', {class: row.score>=8 ? 'ok' : row.score>=6 ? 'warn' : 'bad'}, `${row.score}/10`)
+      );
+      fb.appendChild(E('div', {}, chip));
+      fb.appendChild(E('div', {class:'small muted', style:'margin:6px 0 12px;'}, row.feedback));
+    });
+    fb.appendChild(E('div', {class:'hr'}));
+    fb.appendChild(E('div', {}, `Overall: ${result.overall_pct}% — ${result.pass ? 'PASS' : 'REVISE'}`));
+    fb.appendChild(E('div', {class:'small muted'}, result.summary));
+
+    const host = document.getElementById('assignment');
+    host.insertBefore(fb, host.firstChild);
+
+    const st = document.getElementById('status');
+    st.textContent = `Graded: ${result.overall_pct}%`;
+    st.className = 'status ' + (result.overall_pct>=70 ? 'ok' : 'bad');
+  } catch {
+    alert('Failed to grade.');
+  }
+});
+
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  if (!manifest) return;
+  renderAssignment(manifest);
+  const st = document.getElementById('status');
+  st.textContent = 'Reset — not graded / Visszaállítva — nincs értékelve';
+  st.className = 'status warn';
+});
+
+document.getElementById('pdfBtn').addEventListener('click', ()=>{
+  window.print();
+});
+</script>
+</body>
+</html>
