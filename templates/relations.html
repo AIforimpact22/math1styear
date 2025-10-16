@@ -1,670 +1,942 @@
-{% extends "index.html" %}
-{% block page_title %}Relations & Functions — Single View Game{% endblock %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Relations & Functions — Porosity Grid</title>
+<style>
+  :root{
+    --bg:#0b1220; --card:#0c1628; --ink:#d7e6ff; --muted:#95a3b8; --line:#223045;
+    --accent:#7cb1ff; --ok:#34d399; --bad:#f87171; --warn:#fbbf24;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#0a1120,#0b1322 65%);color:var(--ink);
+            font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  header,main{max-width:1200px;margin:20px auto;padding:0 16px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  h1{font-size:20px;margin:0;color:#cfe0ff;font-weight:700}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .btn{background:#122038;border:1px solid #1e2b42;color:#cfe0ff;padding:8px 12px;border-radius:10px;cursor:pointer}
+  .btn:hover{background:#162744}
+  .btn[disabled]{opacity:.55;cursor:not-allowed}
+  .btn.active{box-shadow:0 0 0 2px #3b82f6 inset}
+  .switch{display:inline-flex;align-items:center;gap:6px}
+  .lang{display:flex;gap:6px;margin-left:6px}
+  main{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+  .canvas-card{position:relative}
+  canvas{width:100%;height:66vh;display:block;border-radius:12px}
+  h2{font-size:16px;margin:4px 0 8px;color:#cfe0ff}
+  .badge{display:inline-block;background:#10223b;border:1px solid #20314a;color:#cfe0ff;padding:4px 8px;border-radius:999px;font-size:12px}
+  .pill{display:inline-block;background:#0f1c31;border:1px solid #1b2a41;color:#a7bfdf;padding:2px 8px;border-radius:999px;font-size:12px}
+  .tiny{font-size:12px}
+  .muted{color:var(--muted)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:#101b30;border:1px solid #1a2a45;color:#cfe0ff;padding:6px 10px;border-radius:999px;font-size:12px;cursor:pointer;user-select:none}
+  .chip .dot{display:inline-block;width:10px;height:10px;border-radius:999px;background:#7cb1ff}
+  .chip.active{background:#0e203e;border-color:#3b82f6;box-shadow:0 0 0 1px #3b82f6 inset}
+  table{width:100%;border-collapse:collapse}
+  th,td{border-bottom:1px dashed #1b2a41;padding:6px 8px;text-align:left}
+  th{color:#cfe0ff}
+  td.k{text-align:center;width:48px}
+  .ok{color:var(--ok);font-weight:700}
+  .bad{color:var(--bad);font-weight:700}
+  .warn{color:var(--warn);font-weight:700}
+  .score{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+  .bar{grid-column:1/3;height:8px;background:#111b2c;border:1px solid #1a2842;border-radius:999px;overflow:hidden}
+  .fill{height:100%;width:0;background:linear-gradient(90deg,#53b4ff,#7cdeff)}
+  .domain-controls{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+  .domain-controls label{background:#101b30;border:1px solid #1a2a45;border-radius:999px;padding:4px 8px;font-size:12px}
 
-{% block controls %}
-<div class="controls" aria-label="Game controls" style="flex-wrap:wrap; gap:8px;">
-  <!-- LAYERS -->
-  <div id="layerChips" class="chips" style="flex-wrap:wrap; gap:6px;"></div>
+  /* Narrative panel (below stage) */
+  .narrative-card .items{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .narrative-card .item{background:#0f1c31;border:1px solid #1b2a41;border-radius:10px;padding:8px}
+  .narrative-card .item h3{margin:0 0 4px 0;font-size:14px;color:#cfe0ff}
+  .narrative-card .item p{margin:0;color:#b7c8e4;font-size:13px}
 
-  <!-- EDIT MODES -->
-  <div id="editChips" class="chips" style="flex-wrap:wrap; gap:6px;"></div>
-
-  <!-- Quick presets for B↔B properties -->
-  <div id="propPreset" class="chips" style="flex-wrap:wrap; gap:6px;"></div>
-
-  <!-- Utilities -->
-  <button id="btnReset" class="btn">Reset</button>
-  <label class="switch btn"><input id="lockNodes" type="checkbox" /><span id="txtLock">Lock nodes</span></label>
-  <label class="switch btn"><input id="showLabels" type="checkbox" checked /><span id="txtShow">Show labels</span></label>
-  <!-- Language toggle beside Show labels -->
-  <div class="chips" style="display:inline-flex; gap:6px;">
-    <div id="langEN" class="chip" title="English">ENG</div>
-    <div id="langHU" class="chip" title="Magyar">HUN</div>
+  .legend{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 6px 0}
+  .legend .chip strong{letter-spacing:.1px}
+  .toast{position:fixed;right:16px;bottom:16px;background:#10223b;border:1px solid #20314a;color:#cfe0ff;padding:8px 12px;border-radius:10px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titleText">Relations &amp; Functions — Porosity Grid</h1>
+  <div class="controls" aria-label="controls">
+    <button id="btnLoadM" class="btn">Load Measurements M</button>
+    <button id="btnClear" class="btn">Clear All</button>
+    <label class="switch btn">
+      <input id="singleValued" type="checkbox"/><span id="lblSingle">Single‑valued mode</span>
+    </label>
+    <button id="btnSave" class="btn" disabled>Save Solution (JSON)</button>
+    <div class="lang" aria-label="Language">
+      <button id="langEn" class="btn active">EN</button>
+      <button id="langHu" class="btn">HU</button>
+    </div>
   </div>
-</div>
-{% endblock %}
+</header>
 
-{% block content %}
-<section class="canvas-card" aria-label="Single canvas">
-  <canvas id="stage" role="img" aria-label="Relations & Functions canvas"></canvas>
-</section>
+<main>
+  <!-- LEFT: Stage -->
+  <section>
+    <!-- Stage card (legend + grid + domain toggles) -->
+    <div class="card canvas-card">
+      <div class="legend">
+        <span class="chip" id="chipDomain"   title=""><span class="dot" style="background:#f97316"></span><strong id="labDomain">Domain</strong> <small>(A)</small></span>
+        <span class="chip" id="chipCodomain" title=""><span class="dot" style="background:#60a5fa"></span><strong id="labCodomain">Codomain</strong> <small>(B)</small></span>
+        <span class="chip" id="chipRange"    title=""><span class="dot" style="background:#34d399"></span><strong id="labRange">Range</strong> <small>(Im ϕ)</small></span>
+        <span class="chip" id="chipRelation" title=""><span class="dot"></span><strong id="labRelation">Relation</strong></span>
+        <span class="chip" id="chipFunction" title=""><span class="dot"></span><strong id="labFunction">Function</strong></span>
+        <span class="chip" id="chipNotation" title=""><span class="dot"></span><strong id="labNotation">Notation</strong></span>
+        <span class="chip" id="chipCartesian" title=""><span class="dot"></span><strong id="labCartesian">A×B</strong></span>
+        <span class="chip" id="chipAdvice"   title=""><span class="dot"></span><strong id="labAdvice">Data Advice</strong></span>
+      </div>
 
-<aside>
-  <div class="sets-top">
-    <div class="badge" id="datasetLabel">Dataset: <strong>A (circles) • B (squares) • C (diamonds)</strong></div>
+      <canvas id="grid" role="img" aria-label="A×B selectable grid (x=ϕ, y=z)"></canvas>
 
-    <!-- Score block -->
-    <div class="score" aria-live="polite">
-      <span id="scoreText">Score: 0/8 (0%)</span>
-      <div class="bar"><div id="scoreFill" class="fill"></div></div>
+      <div id="gridTips" class="tiny muted" style="margin-top:8px">
+        • Click a cell to toggle (z,ϕ). With <strong>Single‑valued mode</strong>, a click keeps exactly one ϕ in that row (depth).<br/>
+        • Un‑check a depth below to <em>restrict the domain</em> (ignored by the function test).
+      </div>
+
+      <div style="margin-top:8px">
+        <div class="badge" id="actDomainTitle">Active Domain A (depths in m)</div>
+        <div id="domainToggles" class="domain-controls"><!-- filled dynamically --></div>
+      </div>
     </div>
 
-    <div class="tips">
-      <div class="pill" id="tipWord">Tip</div>
-      <div id="tipLine1">Pick an <b>Edit</b> mode, then click <i>source → target</i> to (un)link.</div>
-      <div id="tipLine2">Use <b>Layers</b> to show/hide R, f, g, g∘f, B‑relation, A‑equivalence.</div>
+    <!-- Narrative card (below stage) -->
+    <div class="card narrative-card" id="narrativeCard" aria-live="polite">
+      <h2 id="narrativeTitle">Concept Narrative</h2>
+      <div id="narrativeIntro" class="tiny muted">
+        Click any concept chip above (Domain, Codomain, Range, …) to highlight it on the grid and read the explanation here.
+      </div>
+      <div id="narrativeItems" class="items"><!-- filled dynamically --></div>
     </div>
-  </div>
+  </section>
 
-  <div class="summary">
-    <h2 id="checksHdr">Live Checks (8 core ideas)</h2>
+  <!-- RIGHT: Explanations & Data -->
+  <aside style="display:flex;flex-direction:column;gap:12px">
+    <div class="card">
+      <h2 id="panelStateTitle">State A, B, Range &amp; Units</h2>
+      <div class="legend" style="gap:6px">
+        <span class="chip" style="cursor:default"><span class="dot" style="background:#f97316"></span><strong id="chipADepthText">A (Depth)</strong> <span id="Aset" class="mono"></span></span>
+        <span class="chip" style="cursor:default"><span class="dot" style="background:#60a5fa"></span><strong id="chipBPorText">B (Porosity)</strong> <span class="mono">[0,1]</span></span>
+        <span class="chip" style="cursor:default"><span class="dot" style="background:#34d399"></span><strong id="chipRangeText">Range</strong> <span id="Range" class="mono">{}</span></span>
+      </div>
+      <div id="unitsLine" class="tiny muted">Units: depth in <strong>m</strong>, porosity in <strong>fraction 0–1</strong>. The grid uses sampled ticks T ⊂ B for interaction.</div>
+    </div>
 
-    <div class="row"><div class="lhs"><strong id="c1Title">1) Binary Relation R ⊆ A×B</strong></div><div class="k" id="c1Val">R pairs: 0</div></div>
-    <div class="row"><div class="lhs"><strong id="c2Title">2) Property (B↔B): Reflexive</strong></div><div class="k" id="c2Val">—</div></div>
-    <div class="row"><div class="lhs"><strong id="c3Title">3) Equivalence (A↔A): reflexive, symmetric, transitive</strong></div><div class="k" id="c3Val">—</div></div>
-    <div class="row"><div class="lhs"><strong id="c4Title">4) Partial Order (B↔B): reflexive, antisymmetric, transitive</strong></div><div class="k" id="c4Val">—</div></div>
-    <div class="row"><div class="lhs"><strong id="c5Title">5) Function f: A→B (total)</strong></div><div class="k" id="c5Val">—</div></div>
-    <div class="row"><div class="lhs"><strong id="c6Title">6) Types for f: injective / surjective / bijective</strong></div><div class="k" id="c6Val">—</div></div>
-    <div class="row"><div class="lhs"><strong id="c7Title">7) Composition g∘f: A→C (f and g total)</strong></div><div class="k" id="c7Val">—</div></div>
-    <div class="row"><div class="lhs"><strong id="c8Title">8) Inverse f⁻¹ exists (f bijective)</strong></div><div class="k" id="c8Val">—</div></div>
-  </div>
-</aside>
+    <div class="card" id="checkPanel">
+      <h2 id="panelCheckTitle">Relation &amp; Function Checks</h2>
+      <div class="score">
+        <span id="fnText">Function on active A? <span class="bad">✗</span></span>
+        <div class="badge" id="rangeCount">Range size: 0</div>
+        <div class="bar"><div id="scoreFill" class="fill"></div></div>
+      </div>
+      <ul id="checkBullets" class="tiny muted" style="margin:6px 0 0 0; padding-left:18px">
+        <!-- filled by i18n -->
+      </ul>
+      <div class="tiny"><span class="badge">Notation</span> <span id="notationText" class="mono">ϕ : A → B, ϕ(z)</span></div>
+    </div>
 
-<section class="explain-card" aria-live="polite">
-  <div class="explain-head">
-    <span class="badge" id="narrHdr">Narrative</span>
-  </div>
-  <div id="narrative" class="explain-body">
-    Build examples that satisfy each idea. Your moves are checked live, and the score updates automatically.
-  </div>
-</section>
-{% endblock %}
+    <div class="card">
+      <h2 id="MTitle">Measurements M (given)</h2>
+      <table aria-label="M table">
+        <thead><tr><th id="MheadDepth">depth m</th><th id="MheadPhi">ϕ</th></tr></thead>
+        <tbody id="Mbody"></tbody>
+      </table>
+    </div>
 
-{% block scripts %}
+    <div class="card">
+      <h2 id="RTitle">Selected Relation R ⊆ A×B</h2>
+      <table aria-label="R table">
+        <thead><tr><th id="RheadHash">#</th><th id="RheadZ">z</th><th id="RheadArrow" class="k">→</th><th id="RheadPhi">ϕ</th></tr></thead>
+        <tbody id="Rbody"></tbody>
+      </table>
+    </div>
+  </aside>
+</main>
+
+<div id="toast" class="toast">Saved to <span class="mono">relation.json</span></div>
+
 <script>
 (() => {
-  // ---------- Utilities & constants ----------
-  const $ = id => document.getElementById(id);
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const dist = (x1,y1,x2,y2) => Math.hypot(x1-x2, y1-y2);
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-
-  const COL = {
-    frame:"#0c1220", border:"#223045",
-    A:"#7aa2ff", B:"#60a5fa", C:"#f59e0b",
-    R:"#58c6ff", f:"#34d399", g:"#f59e0b", comp:"#facc15",
-    RB:"#a78bfa", RA:"#f472b6"
-  };
-
-  // Language pack (UI + narrative)
-  const L = {
+  // ---------- i18n ----------
+  const i18n = {
     en: {
-      layers:"Layers", edit:"Edit",
-      layer_R:"Show R", layer_f:"Show f", layer_g:"Show g", layer_comp:"Show g∘f",
-      layer_RB:"Show B‑relation", layer_RA:"Show A‑equivalence",
-      edit_none:"Move only", edit_R:"Edit R (A→B)", edit_f:"Edit f (A→B)",
-      edit_g:"Edit g (B→C)", edit_RB:"Edit B↔B", edit_RA:"Edit A↔A",
-      preset:"B‑relation presets", p_identity:"Identity", p_adjacent:"Adjacent", p_chain:"≤ chain",
-      reset:"Reset", lock:"Lock nodes", show:"Show labels",
-      dataset:"Dataset",
-      tip:"Tip",
-      tip1:"Pick an Edit mode, then click source → target to toggle an arrow.",
-      tip2:"Use Layers to show/hide R, f, g, g∘f, B‑relation, A‑equivalence.",
-      checks:"Live Checks (8 core ideas)",
-      c1:"1) Binary Relation R ⊆ A×B",
-      c2:"2) Property (B↔B): Reflexive",
-      c3:"3) Equivalence (A↔A): reflexive, symmetric, transitive",
-      c4:"4) Partial Order (B↔B): reflexive, antisymmetric, transitive",
-      c5:"5) Function f: A→B (total)",
-      c6:"6) Types for f: injective / surjective / bijective",
-      c7:"7) Composition g∘f: A→C (f and g total)",
-      c8:"8) Inverse f⁻¹ exists (f bijective)",
-      narr:"Narrative",
-      // Narrative messages
-      g1_need:"Add at least 4 pairs to R in 'Edit R' mode (A→B).",
-      g1_ok:"Good! R has ≥4 pairs — a concrete binary relation example.",
-      g2_need:"Make B‑relation reflexive: ensure (b,b) for every b.",
-      g2_ok:"Nice — B‑relation is reflexive.",
-      g3_need:"Make A‑equivalence reflexive, symmetric, and transitive (loops + two‑way links).",
-      g3_ok:"Great! A‑equivalence satisfies all three properties.",
-      g4_need:"Turn B‑relation into a partial order (reflexive + antisymmetric + transitive).",
-      g4_ok:"Excellent — B‑relation is a partial order.",
-      g5_need:"Make f a total function: each a∈A has exactly one outgoing arrow to B.",
-      g5_ok:"f is a function A→B (total).",
-      g6_need:"Make f injective or surjective (or both).",
-      g6_ok_inj:"f is injective.",
-      g6_ok_surj:"f is surjective.",
-      g6_ok_bij:"f is bijective.",
-      g7_need:"Make both f and g total (one arrow from each A and each B).",
-      g7_ok:"g∘f is well‑defined (both f and g are total).",
-      g8_need:"Make f bijective to guarantee an inverse.",
-      g8_ok:"f is bijective — f⁻¹ exists.",
+      title: "Relations & Functions — Porosity Grid",
+      btnLoadM: "Load Measurements M",
+      btnClear: "Clear All",
+      lblSingle: "Single‑valued mode",
+      btnSave: "Save Solution (JSON)",
+      chipDomainLabel: "Domain", chipDomainTitle: "Highlight Domain (A)",
+      chipCodomainLabel: "Codomain", chipCodomainTitle: "Highlight Codomain (B)",
+      chipRangeLabel: "Range", chipRangeTitle: "Highlight Range (Im ϕ)",
+      chipRelationLabel: "Relation", chipRelationTitle: "What is a relation?",
+      chipFunctionLabel: "Function", chipFunctionTitle: "When is it a function?",
+      chipNotationLabel: "Notation", chipNotationTitle: "Notation ϕ : A → B, ϕ(z)",
+      chipCartesianLabel: "A×B", chipCartesianTitle: "Cartesian Product A×B",
+      chipAdviceLabel: "Data Advice", chipAdviceTitle: "Data advice",
+      gridTipsHtml:
+        "• Click a cell to toggle (z,ϕ). With <strong>Single‑valued mode</strong>, a click keeps exactly one ϕ in that row (depth).<br/>" +
+        "• Un‑check a depth below to <em>restrict the domain</em> (ignored by the function test).",
+      actDomainTitle: "Active Domain A (depths in m)",
+      panelStateTitle: "State A, B, Range & Units",
+      chipADepthText: "A (Depth)",
+      chipBPorText: "B (Porosity)",
+      chipRangeText: "Range",
+      unitsLine: "Units: depth in <strong>m</strong>, porosity in <strong>fraction 0–1</strong>. The grid uses sampled ticks T ⊂ B for interaction.",
+      panelCheckTitle: "Relation & Function Checks",
+      fnOnActive: "Function on active A?",
+      rangeSize: (n)=>`Range size: ${n}`,
+      checkBullets: [
+        "<strong>Relation:</strong> any set of selected cells R ⊆ A×B.",
+        "<strong>Function:</strong> each active depth z has exactly one ϕ (row test here).",
+        "<strong>Notation:</strong> ϕ : A → B, ϕ(z); pairs (z,ϕ).",
+        "<strong>Cartesian product:</strong> the whole grid is A×T (with T⊂B).",
+        "<strong>Data advice:</strong> if a depth has multiple ϕ, clean or restrict the domain before using ϕ(z)."
+      ],
+      MTitle: "Measurements M (given)",
+      MheadDepth: "depth m",
+      MheadPhi: "ϕ",
+      RTitle: "Selected Relation R ⊆ A×B",
+      RheadHash: "#",
+      RheadZ: "z",
+      RheadArrow: "→",
+      RheadPhi: "ϕ",
+      toastSaved: "Saved to ",
+      narrativeTitle: "Concept Narrative",
+      narrativeIntro: "Click any concept chip above (Domain, Codomain, Range, …) to highlight it on the grid and read the explanation here.",
+      axisX: "x: B (Porosity ϕ) — columns",
+      axisY: "y: A (Depth m) — rows",
+      concepts: {
+        domain:   {title:"Domain (A)",           body:"Rows (y‑axis): allowed inputs (depth in meters). Use the checkboxes to restrict A."},
+        codomain: {title:"Codomain (B)",         body:"Columns (x‑axis): allowed output type (porosity 0–1). The grid shows sampled ticks T ⊂ B."},
+        range:    {title:"Range (Im ϕ)",         body:"Columns that are actually used by selected pairs. The range is a subset of B."},
+        relation: {title:"Relation R ⊆ A×B",     body:"Any set of ordered pairs — here, the selected cells on the grid."},
+        function: {title:"Function test",        body:"Each active depth row must have exactly one selected cell (row‑based vertical‑line idea)."},
+        notation: {title:"Notation ϕ : A → B",   body:"Read as “porosity as a function of depth”. We write pairs as (z, ϕ) and values as ϕ(z)."},
+        cartesian:{title:"Cartesian product A×B",body:"The entire grid represents A×T with T ⊂ B. Any relation R is a subset of A×B."},
+        advice:   {title:"Data advice",          body:"If a depth has multiple ϕ, clean duplicates or restrict A before using ϕ(z)."}
+      }
     },
     hu: {
-      layers:"Rétegek", edit:"Szerkesztés",
-      layer_R:"R mutatása", layer_f:"f mutatása", layer_g:"g mutatása", layer_comp:"g∘f mutatása",
-      layer_RB:"B‑reláció mutatása", layer_RA:"A‑ekvivalencia mutatása",
-      edit_none:"Csak mozgatás", edit_R:"R szerk. (A→B)", edit_f:"f szerk. (A→B)",
-      edit_g:"g szerk. (B→C)", edit_RB:"B↔B szerk.", edit_RA:"A↔A szerk.",
-      preset:"B‑reláció sablonok", p_identity:"Identitás", p_adjacent:"Szomszédos", p_chain:"≤ lánc",
-      reset:"Visszaállítás", lock:"Objektumok zárolása", show:"Címkék mutatása",
-      dataset:"Adatkészlet",
-      tip:"Tipp",
-      tip1:"Válassz szerkesztési módot, majd kattints forrás → cél a nyíl (ki/be) kapcsolásához.",
-      tip2:"A Rétegek kapcsolóival rejtsd/mutasd az R, f, g, g∘f, B‑reláció, A‑ekvivalencia elemeket.",
-      checks:"Élő ellenőrzések (8 alapötlet)",
-      c1:"1) Bináris reláció R ⊆ A×B",
-      c2:"2) Tulajdonság (B↔B): reflexív",
-      c3:"3) Ekvivalencia (A↔A): reflexív, szimmetrikus, tranzitív",
-      c4:"4) Részbenrendezés (B↔B): reflexív, antiszimmetrikus, tranzitív",
-      c5:"5) Függvény f: A→B (teljes)",
-      c6:"6) f típusai: injektív / szürjektív / bijektív",
-      c7:"7) Összetétel g∘f: A→C (f és g teljes)",
-      c8:"8) Inverz f⁻¹ létezik (f bijektív)",
-      narr:"Magyarázat",
-      // Narrative messages
-      g1_need:"Adj legalább 4 párt R‑hez az „R szerk.” módban (A→B).",
-      g1_ok:"Szuper! R ≥4 pár — konkrét bináris reláció.",
-      g2_need:"Tedd a B‑relációt reflexívvé: minden b‑re legyen (b,b).",
-      g2_ok:"Rendben — B‑reláció reflexív.",
-      g3_need:"Tedd az A‑ekvivalenciát reflexívvé, szimmetrikussá és tranzitívvá (hurkok + kétirányú élek).",
-      g3_ok:"Nagyszerű! A‑ekvivalencia mindhárom tulajdonságot teljesíti.",
-      g4_need:"Alakítsd a B‑relációt részbenrendezéssé (reflexív + antiszimmetrikus + tranzitív).",
-      g4_ok:"Kiváló — B‑reláció részbenrendezés.",
-      g5_need:"Legyen f teljes függvény: minden a∈A pontosan egy B‑hez mutasson.",
-      g5_ok:"f teljes függvény A→B.",
-      g6_need:"Tedd f‑et injektívvá vagy szürjektívvé (vagy mindkettő).",
-      g6_ok_inj:"f injektív.",
-      g6_ok_surj:"f szürjektív.",
-      g6_ok_bij:"f bijektív.",
-      g7_need:"Legyen mind f, mind g teljes (minden A‑ból és B‑ből pontosan egy nyíl).",
-      g7_ok:"g∘f jól definiált (f és g teljes).",
-      g8_need:"Legyen f bijektív, hogy létezzen inverz.",
-      g8_ok:"f bijektív — f⁻¹ létezik.",
-    }
-  };
-
-  // ---------- State ----------
-  const canvas = $("stage");
-  const ctx = canvas.getContext("2d");
-  const state = {
-    lang: localStorage.getItem("relations.lang") || "en",
-    assets: null,
-    nodes: [],           // {id,type:'A'|'B'|'C', name, x,y,w,h, order?}
-    R: [],               // A->B general relation
-    F: [],               // f: A->B (function attempt)
-    G: [],               // g: B->C (function attempt)
-    RB: [],              // B↔B relation
-    RA: [],              // A↔A relation (equivalence attempt)
-    layers: {R:true,f:true,g:true,comp:true,RB:true,RA:true},
-    edit: "none",        // 'none'|'R'|'f'|'g'|'RB'|'RA'
-    pending: null,       // {id, type}
-    needsDraw: true
-  };
-
-  // ---------- Boot / assets ----------
-  async function loadAssets(){
-    const res = await fetch("/relations/api/assets");
-    state.assets = await res.json();
-    // Build nodes
-    state.nodes = [];
-    const rows = [0.22,0.42,0.62,0.82];
-    state.assets.A.forEach((a,i)=> state.nodes.push({id:a.id, name:a.name, type:"A", x:0.18, y:rows[i], w:56, h:56}));
-    state.assets.B.forEach((b,i)=> state.nodes.push({id:b.id, name:b.name, type:"B", x:0.50, y:rows[3-i], w:88, h:34, order:b.order}));
-    state.assets.C.forEach((c,i)=> state.nodes.push({id:c.id, name:c.name, type:"C", x:0.82, y:rows[i], w:88, h:34}));
-    // Defaults
-    state.R = state.assets.defaults.R_pairs.map(([a,b])=>({from:a,to:b}));
-    state.F = state.assets.defaults.f_pairs.map(([a,b])=>({from:a,to:b}));
-    state.G = state.assets.defaults.g_pairs.map(([b,c])=>({from:b,to:c}));
-    state.RB = state.assets.defaults.B_relations.adjacent.map(([a,b])=>({from:a,to:b}));
-    state.RA = state.assets.defaults.A_equiv.map(([a,b])=>({from:a,to:b}));
-  }
-
-  // ---------- Layout ----------
-  function resizeCanvas(){
-    const r = canvas.getBoundingClientRect();
-    canvas.width = Math.floor(r.width * dpr);
-    canvas.height = Math.floor(r.height * dpr);
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    state.needsDraw = true;
-  }
-  window.addEventListener("resize", resizeCanvas);
-
-  // ---------- Node helpers ----------
-  function nodeById(id){ return state.nodes.find(n=>n.id===id); }
-  function pickNode(px,py){
-    for (let i=state.nodes.length-1;i>=0;i--){
-      const n = state.nodes[i];
-      const x = n.x*canvas.clientWidth, y = n.y*canvas.clientHeight;
-      if (n.type==="A"){
-        if (dist(px,py,x,y) <= n.w/2) return n;
-      } else if (n.type==="B"){
-        if (px>=x-n.w/2 && px<=x+n.w/2 && py>=y-n.h/2 && py<=y+n.h/2) return n;
-      } else {
-        // diamond
-        const dx = Math.abs(px - x), dy = Math.abs(py - y);
-        if (dx + dy <= n.w*0.6) return n;
+      title: "Relációk és függvények — Porozitás rácsa",
+      btnLoadM: "Mérések M betöltése",
+      btnClear: "Mind törlése",
+      lblSingle: "Egyértékű mód",
+      btnSave: "Megoldás mentése (JSON)",
+      chipDomainLabel: "Értelmezési tartomány", chipDomainTitle: "Értelmezési tartomány (A) kiemelése",
+      chipCodomainLabel: "Célhalmaz",           chipCodomainTitle: "Célhalmaz (B) kiemelése",
+      chipRangeLabel: "Képhalmaz",              chipRangeTitle: "Képhalmaz (Im ϕ) kiemelése",
+      chipRelationLabel: "Reláció",             chipRelationTitle: "Mi a reláció?",
+      chipFunctionLabel: "Függvény",            chipFunctionTitle: "Mikor függvény?",
+      chipNotationLabel: "Jelölés",             chipNotationTitle: "Jelölés: ϕ : A → B, ϕ(z)",
+      chipCartesianLabel: "A×B",                chipCartesianTitle: "Descartes‑szorzat A×B",
+      chipAdviceLabel: "Adattanács",            chipAdviceTitle: "Adattisztítási tanács",
+      gridTipsHtml:
+        "• Kattints egy cellára a (z,ϕ) pár ki/be kapcsolásához. Az <strong>Egyértékű mód</strong> soronként pontosan egy ϕ‑t tart meg.<br/>" +
+        "• Alul a jelölőnégyzetekkel <em>szűkítheted a tartományt</em> (A); ez a függvénytesztet nem befolyásolja.",
+      actDomainTitle: "Aktív A tartomány (mélységek m‑ben)",
+      panelStateTitle: "A, B, képhalmaz és mértékegységek",
+      chipADepthText: "A (mélység)",
+      chipBPorText: "B (porozitás)",
+      chipRangeText: "Képhalmaz",
+      unitsLine: "Mértékegységek: mélység <strong>m</strong>, porozitás <strong>0–1</strong> közötti tört. A rács B mintavételezett részhalmazát (T ⊂ B) mutatja.",
+      panelCheckTitle: "Reláció‑ és függvényellenőrzések",
+      fnOnActive: "Függvény az aktív A‑n?",
+      rangeSize: (n)=>`Képhalmaz mérete: ${n}`,
+      checkBullets: [
+        "<strong>Reláció:</strong> bármely kiválasztott cellahalmaz, R ⊆ A×B.",
+        "<strong>Függvény:</strong> minden aktív sorhoz (mélységhez) pontosan egy ϕ tartozik (sor‑vizsgálat).",
+        "<strong>Jelölés:</strong> ϕ : A → B, ϕ(z); párok (z,ϕ).",
+        "<strong>Descartes‑szorzat:</strong> a teljes rács A×T (T ⊂ B).",
+        "<strong>Adattanács:</strong> ha egy mélységhez több ϕ tartozik, tisztítsd az adatot vagy szűkítsd A‑t, mielőtt ϕ(z)‑t használsz."
+      ],
+      MTitle: "Mérések M (adott)",
+      MheadDepth: "mélység m",
+      MheadPhi: "ϕ",
+      RTitle: "Kiválasztott reláció R ⊆ A×B",
+      RheadHash: "#",
+      RheadZ: "z",
+      RheadArrow: "→",
+      RheadPhi: "ϕ",
+      toastSaved: "Elmentve ide: ",
+      narrativeTitle: "Fogalmi magyarázat",
+      narrativeIntro: "Kattints a fenti fogalmi chipekre (Tartomány, Célhalmaz, Képhalmaz, …), hogy a rácson kiemelve és itt magyarázva lásd.",
+      axisX: "x: B (porozitás ϕ) — oszlopok",
+      axisY: "y: A (mélység m) — sorok",
+      concepts: {
+        domain:   {title:"Értelmezési tartomány (A)",      body:"Sorok (y‑tengely): megengedett bemenetek (mélység méterben). A tartományt a lenti jelölőnégyzetekkel szűkítheted."},
+        codomain: {title:"Célhalmaz (B)",                  body:"Oszlopok (x‑tengely): megengedett kimenet típusa (porozitás 0–1). A rács a B egy mintavételezett részhalmazát, T‑t mutatja."},
+        range:    {title:"Képhalmaz (Im ϕ)",               body:"Azok az oszlopok, amelyeket a kijelölt párok ténylegesen használnak. A képhalmaz B részhalmaza."},
+        relation: {title:"Reláció R ⊆ A×B",                body:"Bármely rendezettpár‑halmaz — itt a rácson kijelölt cellák."},
+        function: {title:"Függvényteszt",                  body:"Minden aktív mélységsorban pontosan egy kijelölt cella lehet (sor‑alapú teszt)."},
+        notation: {title:"Jelölés ϕ : A → B",              body:"Olvasata: „porozitás a mélység függvényében”. A párok (z, ϕ), az érték ϕ(z)."},
+        cartesian:{title:"Descartes‑szorzat A×B",          body:"Az egész rács A×T, ahol T ⊂ B. Minden reláció R az A×B részhalmaza."},
+        advice:   {title:"Adattanács",                     body:"Ha egy mélységhez több ϕ tartozik, tisztítsd az ismétléseket vagy szűkítsd az A tartományt, mielőtt ϕ(z)‑t használsz."}
       }
     }
-    return null;
+  };
+
+  // ---------- DOM ----------
+  const $ = (id) => document.getElementById(id);
+  const canvas = $("grid");
+  const ctx = canvas.getContext("2d");
+  const toast = $("toast");
+
+  // ---------- State ----------
+  const state = {
+    lang: "en",
+    A: [],        // depths (rows; y)
+    Bticks: [],   // porosity ticks (columns; x)
+    M: [],        // given measurement pairs
+    units: {depth:"m", phi:"fraction (0–1)"},
+    notation: null,
+
+    activeDepth: new Map(),  // depth -> bool
+    selection: new Set(),    // "z|phi"
+    singleValued: false,
+
+    spotlights: new Set(),   // {'domain','codomain','range','relation','function','notation','cartesian','advice'}
+
+    hover: {row:-1,col:-1},
+    axisXText: i18n.en.axisX,
+    axisYText: i18n.en.axisY,
+  };
+
+  // ---------- Layout ----------
+  const margin = {left: 110, right: 20, top: 76, bottom: 28};
+  let geom = {cols:0, rows:0, cw:40, ch:32};
+
+  function keyOf(z, phi){ return `${z}|${phi}`; }
+  function splitKey(k){ const [z,phi] = k.split("|"); return {z:+z, phi:+phi}; }
+
+  // ---------- Fetch config ----------
+  fetch("/api/config").then(r=>r.json()).then(cfg => {
+    state.A = cfg.A_depths_m;
+    state.Bticks = cfg.B_ticks_phi;
+    state.M = cfg.M_pairs;
+    state.units = cfg.units;
+    state.notation = cfg.notation || null;
+
+    state.A.forEach(z => state.activeDepth.set(z, true));
+    buildDomainToggles();
+    buildMTable();
+
+    // Wire controls
+    $("btnLoadM").addEventListener("click", () => { loadM(); draw(); updatePanels(); updateNarrative(); });
+    $("btnClear").addEventListener("click", () => { state.selection.clear(); draw(); updatePanels(); updateNarrative(); });
+    $("singleValued").addEventListener("change", (e) => { state.singleValued = e.target.checked; });
+    $("btnSave").addEventListener("click", saveJSON);
+
+    // Language selector
+    $("langEn").addEventListener("click", () => setLang("en"));
+    $("langHu").addEventListener("click", () => setLang("hu"));
+
+    // Concept chips (each toggles independently)
+    wireChip("chipDomain",   "domain");
+    wireChip("chipCodomain", "codomain");
+    wireChip("chipRange",    "range");
+    wireChip("chipRelation", "relation");
+    wireChip("chipFunction", "function");
+    wireChip("chipNotation", "notation");
+    wireChip("chipCartesian","cartesian");
+    wireChip("chipAdvice",   "advice");
+
+    // Canvas events
+    window.addEventListener("resize", resizeCanvas);
+    canvas.addEventListener("pointerdown", onClickCell);
+    canvas.addEventListener("pointermove", onHover);
+    canvas.addEventListener("pointerleave", ()=>{ state.hover={row:-1,col:-1}; draw(); });
+
+    // Initial language
+    const stored = localStorage.getItem("lang");
+    const initial = stored || (navigator.language && navigator.language.toLowerCase().startsWith("hu") ? "hu" : "en");
+    setLang(initial);
+
+    resizeCanvas();
+    draw();
+    updatePanels();
+    updateNarrative(); // initial message
+  });
+
+  // ---------- Language ----------
+  function setLang(lang){
+    state.lang = (lang === "hu") ? "hu" : "en";
+    localStorage.setItem("lang", state.lang);
+    $("langEn").classList.toggle("active", state.lang === "en");
+    $("langHu").classList.toggle("active", state.lang === "hu");
+    applyLanguage();
+  }
+
+  function applyLanguage(){
+    const L = i18n[state.lang];
+
+    // Header & buttons
+    $("titleText").textContent = L.title;
+    $("btnLoadM").textContent = L.btnLoadM;
+    $("btnClear").textContent = L.btnClear;
+    $("lblSingle").textContent = L.lblSingle;
+    $("btnSave").textContent = L.btnSave;
+
+    // Chips labels + titles
+    $("labDomain").textContent = L.chipDomainLabel;
+    $("labCodomain").textContent = L.chipCodomainLabel;
+    $("labRange").textContent = L.chipRangeLabel;
+    $("labRelation").textContent = L.chipRelationLabel;
+    $("labFunction").textContent = L.chipFunctionLabel;
+    $("labNotation").textContent = L.chipNotationLabel;
+    $("labCartesian").textContent = L.chipCartesianLabel;
+    $("labAdvice").textContent = L.chipAdviceLabel;
+
+    $("chipDomain").title   = L.chipDomainTitle;
+    $("chipCodomain").title = L.chipCodomainTitle;
+    $("chipRange").title    = L.chipRangeTitle;
+    $("chipRelation").title = L.chipRelationTitle;
+    $("chipFunction").title = L.chipFunctionTitle;
+    $("chipNotation").title = L.chipNotationTitle;
+    $("chipCartesian").title= L.chipCartesianTitle;
+    $("chipAdvice").title   = L.chipAdviceTitle;
+
+    // Tips, badges, titles
+    $("gridTips").innerHTML = L.gridTipsHtml;
+    $("actDomainTitle").textContent = L.actDomainTitle;
+
+    $("panelStateTitle").textContent = L.panelStateTitle;
+    $("chipADepthText").textContent = L.chipADepthText;
+    $("chipBPorText").textContent = L.chipBPorText;
+    $("chipRangeText").textContent = L.chipRangeText;
+    $("unitsLine").innerHTML = L.unitsLine;
+
+    $("panelCheckTitle").textContent = L.panelCheckTitle;
+    // bullets
+    const ul = $("checkBullets");
+    ul.innerHTML = "";
+    L.checkBullets.forEach(line => {
+      const li = document.createElement("li"); li.innerHTML = line; ul.appendChild(li);
+    });
+
+    $("MTitle").textContent = L.MTitle;
+    $("MheadDepth").textContent = L.MheadDepth;
+    $("MheadPhi").textContent = L.MheadPhi;
+
+    $("RTitle").textContent = L.RTitle;
+    $("RheadHash").textContent = L.RheadHash;
+    $("RheadZ").textContent = L.RheadZ;
+    $("RheadArrow").textContent = L.RheadArrow;
+    $("RheadPhi").textContent = L.RheadPhi;
+
+    $("narrativeTitle").textContent = L.narrativeTitle;
+    $("narrativeIntro").textContent = L.narrativeIntro;
+
+    // Notation (math stays same)
+    $("notationText").textContent = "ϕ : A → B, ϕ(z)";
+
+    // Axis labels for canvas
+    state.axisXText = L.axisX;
+    state.axisYText = L.axisY;
+
+    // Redraw & refresh status
+    updatePanels();
+    updateNarrative();
+    draw();
   }
 
   // ---------- UI builders ----------
-  function makeChip(text, selected, onClick){
-    const d = document.createElement("div");
-    d.className = "chip";
-    d.textContent = text;
-    if (selected) d.classList.add("selected");
-    d.onclick = onClick;
-    return d;
-  }
-  function addLabelChip(parent, text){
-    const s = document.createElement("span");
-    s.className = "pill";
-    s.textContent = text;
-    parent.appendChild(s);
-  }
-  function buildTopUI(){
-    const T = L[state.lang];
-
-    // Layers
-    const layers = $("layerChips"); layers.innerHTML = "";
-    addLabelChip(layers, T.layers);
-    const layerList = [
-      ["R","layer_R"],["f","layer_f"],["g","layer_g"],["comp","layer_comp"],
-      ["RB","layer_RB"],["RA","layer_RA"]
-    ];
-    layerList.forEach(([k, lab])=>{
-      const chip = makeChip(T[lab], state.layers[k], ()=>{
-        state.layers[k] = !state.layers[k];
-        chip.classList.toggle("selected", state.layers[k]);
-        state.needsDraw = true;
-      });
-      layers.appendChild(chip);
+  function buildDomainToggles(){
+    const host = $("domainToggles");
+    host.innerHTML = "";
+    state.A.forEach(z => {
+      const lab = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = true;
+      cb.addEventListener("change", () => { state.activeDepth.set(z, cb.checked); draw(); updatePanels(); updateNarrative(); });
+      lab.appendChild(cb);
+      lab.appendChild(document.createTextNode(` ${z} m`));
+      host.appendChild(lab);
     });
-
-    // Edit modes
-    const edits = $("editChips"); edits.innerHTML = "";
-    addLabelChip(edits, T.edit);
-    const editList = [
-      ["none","edit_none"],["R","edit_R"],["f","edit_f"],
-      ["g","edit_g"],["RB","edit_RB"],["RA","edit_RA"]
-    ];
-    editList.forEach(([k, lab])=>{
-      const chip = makeChip(T[lab], state.edit===k, ()=>{
-        state.edit = k;
-        [...edits.querySelectorAll(".chip")].forEach(c=>c.classList.remove("selected"));
-        chip.classList.add("selected");
-        state.pending = null;
-      });
-      edits.appendChild(chip);
-    });
-
-    // Presets for B relation
-    const preset = $("propPreset"); preset.innerHTML = "";
-    addLabelChip(preset, T.preset);
-    const pdefs = [
-      ["identity","p_identity"],
-      ["adjacent","p_adjacent"],
-      ["chain_leq","p_chain"]
-    ];
-    pdefs.forEach(([key, lab])=>{
-      const chip = makeChip(T[lab], false, ()=>{
-        const pairs = state.assets.defaults.B_relations[key];
-        state.RB = pairs.map(([a,b])=>({from:a,to:b}));
-        updateAll();
-      });
-      preset.appendChild(chip);
-    });
-
-    // Utility labels
-    $("btnReset").textContent = T.reset;
-    $("txtLock").textContent = T.lock;
-    $("txtShow").textContent = T.show;
-    $("datasetLabel").innerHTML = (state.lang==='hu' ? `${T.dataset}: <strong>A (kör) • B (négyzet) • C (rombusz)</strong>`
-                                                   : `${T.dataset}: <strong>A (circles) • B (squares) • C (diamonds)</strong>`);
-    $("tipWord").textContent = T.tip;
-    $("tipLine1").textContent = T.tip1;
-    $("tipLine2").textContent = T.tip2;
-
-    // Active language chips
-    $("langEN").classList.toggle("selected", state.lang==='en');
-    $("langHU").classList.toggle("selected", state.lang==='hu');
-
-    // Check headers
-    $("checksHdr").textContent = T.checks;
-    $("c1Title").textContent = T.c1; $("c2Title").textContent = T.c2;
-    $("c3Title").textContent = T.c3; $("c4Title").textContent = T.c4;
-    $("c5Title").textContent = T.c5; $("c6Title").textContent = T.c6;
-    $("c7Title").textContent = T.c7; $("c8Title").textContent = T.c8;
-    $("narrHdr").textContent = T.narr;
   }
 
-  // ---------- Language toggle ----------
-  $("langEN").onclick = ()=>{ state.lang="en"; localStorage.setItem("relations.lang","en"); buildTopUI(); updateAll(); };
-  $("langHU").onclick = ()=>{ state.lang="hu"; localStorage.setItem("relations.lang","hu"); buildTopUI(); updateAll(); };
+  function buildMTable(){
+    const tb = $("Mbody");
+    tb.innerHTML = "";
+    state.M.forEach(p => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${p.z}</td><td>${p.phi.toFixed(2)}</td>`;
+      tb.appendChild(tr);
+    });
+  }
 
-  // ---------- Edge toggling ----------
-  function toggleIn(list, a, b, uniqueFrom=false){
-    if (uniqueFrom){
-      for (let i=list.length-1;i>=0;--i) if (list[i].from===a) list.splice(i,1);
-      list.push({from:a,to:b});
-      return;
+  function loadM(){
+    state.selection.clear();
+    for (const p of state.M){
+      state.selection.add(keyOf(p.z, p.phi));
     }
-    const idx = list.findIndex(e=>e.from===a && e.to===b);
-    if (idx>=0) list.splice(idx,1); else list.push({from:a,to:b});
   }
 
-  // ---------- Interaction ----------
-  let drag = null;
-  canvas.addEventListener("pointerdown", (ev)=>{
+  // ---------- Geometry helpers ----------
+  function resizeCanvas(){
     const r = canvas.getBoundingClientRect();
-    const x = ev.clientX - r.left, y = ev.clientY - r.top;
-    const n = pickNode(x,y);
-    if (!n){ state.pending=null; return; }
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.floor(r.width * dpr);
+    canvas.height = Math.floor(r.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    draw();
+  }
 
-    // Edge building per edit mode
-    if (state.edit !== "none"){
-      if (!state.pending){ state.pending = n; return; }
-      const a = state.pending, b = n;
-      const done = () => { state.pending=null; updateAll(); };
-      if (state.edit==="R"  && a.type==="A" && b.type==="B"){ toggleIn(state.R, a.id,b.id,false); return done(); }
-      if (state.edit==="f"  && a.type==="A" && b.type==="B"){ toggleIn(state.F, a.id,b.id,true);  return done(); }
-      if (state.edit==="g"  && a.type==="B" && b.type==="C"){ toggleIn(state.G, a.id,b.id,true);  return done(); }
-      if (state.edit==="RB" && a.type==="B" && b.type==="B"){ toggleIn(state.RB, a.id,b.id,false); return done(); }
-      if (state.edit==="RA" && a.type==="A" && b.type==="A"){ toggleIn(state.RA, a.id,b.id,false); return done(); }
-      state.pending=null; // invalid pair
-      return;
+  function computeGeom(){
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    const cols = state.Bticks.length;  // x = porosity
+    const rows = state.A.length;       // y = depth
+    const cw = Math.max(26, Math.floor((W - margin.left - margin.right) / Math.max(1, cols)));
+    const ch = Math.max(24, Math.floor((H - margin.top - margin.bottom) / Math.max(1, rows)));
+    geom = {cols, rows, cw, ch};
+  }
+
+  function colAt(x){
+    const cx = x - margin.left;
+    if (cx < 0) return -1;
+    const col = Math.floor(cx / geom.cw);
+    return (col >= 0 && col < geom.cols) ? col : -1;
+  }
+  function rowAt(y){
+    const ry = y - margin.top;
+    if (ry < 0) return -1;
+    const row = Math.floor(ry / geom.ch);
+    return (row >= 0 && row < geom.rows) ? row : -1;
+  }
+
+  // ---------- Selection logic ----------
+  function countInRow(z){
+    let k = 0;
+    for (const kk of state.selection){
+      const s = splitKey(kk);
+      if (s.z === z) k++;
     }
+    return k;
+  }
 
-    // Dragging
-    if ($("lockNodes").checked) return;
-    drag = { id:n.id, dx:n.x*canvas.clientWidth - x, dy:n.y*canvas.clientHeight - y };
-  });
-  window.addEventListener("pointermove", (ev)=>{
-    if (!drag) return;
-    const r = canvas.getBoundingClientRect();
-    const x = ev.clientX - r.left, y = ev.clientY - r.top;
-    const n = nodeById(drag.id); if (!n) return;
-    n.x = clamp((x + drag.dx)/canvas.clientWidth, 0.06, 0.94);
-    n.y = clamp((y + drag.dy)/canvas.clientHeight, 0.08, 0.92);
-    state.needsDraw = true;
-  });
-  window.addEventListener("pointerup", ()=> drag=null);
-
-  // ---------- Checks & scoring ----------
-  const has = (pairs,a,b) => pairs.some(e=>e.from===a && e.to===b);
-  function idsOf(type){ return state.nodes.filter(n=>n.type===type).map(n=>n.id); }
-
-  function isReflexive(ids, pairs){ return ids.every(x => has(pairs,x,x)); }
-  function isSymmetric(ids, pairs){ return pairs.every(e => has(pairs,e.to,e.from)); }
-  function isAntisymmetric(ids, pairs){ return pairs.every(e => (e.from===e.to) || !has(pairs, e.to, e.from)); }
-  function isTransitive(ids, pairs){
-    for (const e1 of pairs){
-      for (const e2 of pairs){
-        if (e1.to === e2.from && !has(pairs, e1.from, e2.to)) return false;
-      }
+  function isFunctionOnActiveDomain(){
+    for (const z of state.A){
+      if (!state.activeDepth.get(z)) continue;
+      if (countInRow(z) !== 1) return false;
     }
     return true;
   }
 
-  function isFunction(fromIds, toIds, list){
-    // total: exactly one outgoing for each fromId, and to must be in toIds
-    const out = new Map(fromIds.map(id=>[id,0]));
-    for (const e of list){
-      if (!fromIds.includes(e.from) || !toIds.includes(e.to)) return false;
-      out.set(e.from, (out.get(e.from)||0) + 1);
+  function rangeSet(){
+    const seen = new Set();
+    for (const kk of state.selection){
+      const {z, phi} = splitKey(kk);
+      if (!state.activeDepth.get(z)) continue;
+      seen.add(phi);
     }
-    return fromIds.every(id => (out.get(id)||0) === 1);
-  }
-  function isInjective(fromIds, toIds, list){
-    const inc = new Map(toIds.map(id=>[id,0]));
-    list.forEach(e => inc.set(e.to,(inc.get(e.to)||0)+1));
-    return toIds.every(id => (inc.get(id)||0) <= 1);
-  }
-  function isSurjective(fromIds, toIds, list){
-    const inc = new Map(toIds.map(id=>[id,0]));
-    list.forEach(e => inc.set(e.to,(inc.get(e.to)||0)+1));
-    return toIds.every(id => (inc.get(id)||0) >= 1);
+    return Array.from(seen).sort((a,b)=>a-b);
   }
 
-  function compEdges(){ // g∘f
-    const mapF = new Map(state.F.map(e=>[e.from,e.to]));
-    const mapG = new Map(state.G.map(e=>[e.from,e.to]));
-    const out = [];
-    for (const [a,b] of mapF.entries()){
-      const c = mapG.get(b);
-      if (c) out.push({from:a,to:c});
-    }
-    return out;
-  }
+  // ---------- Canvas interaction ----------
+  function onClickCell(ev){
+    const r = canvas.getBoundingClientRect();
+    const x = ev.clientX - r.left, y = ev.clientY - r.top;
+    const col = colAt(x), row = rowAt(y);
+    if (col < 0 || row < 0) return;
 
-  function updateAll(){
-    updateChecksAndScore();
-    updateNarrative();
-    state.needsDraw = true;
-  }
+    const z = state.A[row];
+    const phi = state.Bticks[col];
+    const k = keyOf(z, phi);
 
-  function updateChecksAndScore(){
-    const T = L[state.lang];
-    const A = idsOf("A"), B = idsOf("B"), C = idsOf("C");
-
-    // 1) R: require ≥4 pairs
-    const g1 = state.R.length >= 4;
-    $("c1Val").textContent = (state.lang==='hu') ? `R párok: ${state.R.length}` : `R pairs: ${state.R.length}`;
-
-    // 2) Reflexive on B
-    const g2 = isReflexive(B, state.RB);
-    $("c2Val").textContent = g2 ? "✓" : "✗";
-
-    // 3) Equivalence on A
-    const eq_ref = isReflexive(A, state.RA);
-    const eq_sym = isSymmetric(A, state.RA);
-    const eq_trn = isTransitive(A, state.RA);
-    const g3 = eq_ref && eq_sym && eq_trn;
-    $("c3Val").textContent = g3 ? "✓" : `R:${eq_ref?"✓":"✗"} S:${eq_sym?"✓":"✗"} T:${eq_trn?"✓":"✗"}`;
-
-    // 4) Partial order on B
-    const po_ref = g2;
-    const po_as  = isAntisymmetric(B, state.RB);
-    const po_trn = isTransitive(B, state.RB);
-    const g4 = po_ref && po_as && po_trn;
-    $("c4Val").textContent = g4 ? "✓" : `R:${po_ref?"✓":"✗"} AS:${po_as?"✓":"✗"} T:${po_trn?"✓":"✗"}`;
-
-    // 5) f total
-    const g5 = isFunction(A, B, state.F);
-    $("c5Val").textContent = g5 ? "✓" : "✗";
-
-    // 6) types: inj or surj (or both)
-    const inj = g5 && isInjective(A, B, state.F);
-    const sur = g5 && isSurjective(A, B, state.F);
-    const bij = inj && sur;
-    const g6 = inj || sur;
-    $("c6Val").textContent = `inj ${inj?"✓":"✗"}, surj ${sur?"✓":"✗"}, bij ${bij?"✓":"✗"}`;
-
-    // 7) composition well-defined: need f and g total
-    const gfunc = isFunction(B, C, state.G);
-    const g7 = g5 && gfunc; // both total
-    $("c7Val").textContent = g7 ? "✓" : "✗";
-
-    // 8) inverse exists for f iff bijective
-    const g8 = bij;
-    $("c8Val").textContent = g8 ? "✓" : "✗";
-
-    // Score
-    const goals = [g1,g2,g3,g4,g5,g6,g7,g8];
-    const s = goals.reduce((a,b)=>a+(b?1:0),0);
-    const pct = Math.round((s/8)*100);
-    $("scoreText").textContent = (state.lang==='hu') ? `Pontszám: ${s}/8 (${pct}%)` : `Score: ${s}/8 (${pct}%)`;
-    $("scoreFill").style.width = pct + "%";
-  }
-
-  function updateNarrative(){
-    const T = L[state.lang];
-    const A = idsOf("A"), B = idsOf("B"), C = idsOf("C");
-
-    const g1 = state.R.length >= 4;
-    const g2 = isReflexive(B, state.RB);
-    const eq_ref = isReflexive(A, state.RA);
-    const eq_sym = isSymmetric(A, state.RA);
-    const eq_trn = isTransitive(A, state.RA);
-    const g3 = eq_ref && eq_sym && eq_trn;
-    const po_as = isAntisymmetric(B, state.RB);
-    const po_trn = isTransitive(B, state.RB);
-    const g4 = g2 && po_as && po_trn;
-    const g5 = isFunction(A, B, state.F);
-    const inj = g5 && isInjective(A, B, state.F);
-    const sur = g5 && isSurjective(A, B, state.F);
-    const bij = inj && sur;
-    const g6 = inj || sur;
-    const g7 = g5 && isFunction(B, C, state.G);
-    const g8 = bij;
-
-    const msgs = [];
-    msgs.push(g1 ? `✓ ${T.g1_ok}` : `• ${T.g1_need}`);
-    msgs.push(g2 ? `✓ ${T.g2_ok}` : `• ${T.g2_need}`);
-    msgs.push(g3 ? `✓ ${T.g3_ok}` : `• ${T.g3_need}`);
-    msgs.push(g4 ? `✓ ${T.g4_ok}` : `• ${T.g4_need}`);
-    msgs.push(g5 ? `✓ ${T.g5_ok}` : `• ${T.g5_need}`);
-    if (g6){
-      if (bij) msgs.push(`✓ ${T.g6_ok_bij}`);
-      else if (inj) msgs.push(`✓ ${T.g6_ok_inj}`);
-      else if (sur) msgs.push(`✓ ${T.g6_ok_surj}`);
+    if (state.singleValued){
+      for (const kk of Array.from(state.selection)){
+        const s = splitKey(kk);
+        if (s.z === z) state.selection.delete(kk);
+      }
+      state.selection.add(k);
     } else {
-      msgs.push(`• ${T.g6_need}`);
+      if (state.selection.has(k)) state.selection.delete(k);
+      else state.selection.add(k);
     }
-    msgs.push(g7 ? `✓ ${T.g7_ok}` : `• ${T.g7_need}`);
-    msgs.push(g8 ? `✓ ${T.g8_ok}` : `• ${T.g8_need}`);
 
-    $("narrative").innerHTML = msgs.map(m => `<div>${m}</div>`).join("");
+    draw();
+    updatePanels();
+    updateNarrative();
+  }
+
+  function onHover(ev){
+    const r = canvas.getBoundingClientRect();
+    const x = ev.clientX - r.left, y = ev.clientY - r.top;
+    state.hover = {row: rowAt(y), col: colAt(x)};
+    draw();
+  }
+
+  // ---------- Concept chips ----------
+  function wireChip(elId, kind){
+    const el = $(elId);
+    el.addEventListener("click", () => {
+      if (state.spotlights.has(kind)) state.spotlights.delete(kind);
+      else state.spotlights.add(kind);
+      el.classList.toggle("active", state.spotlights.has(kind));
+      draw();
+      updateNarrative();
+    });
+  }
+
+  // ---------- Narrative (below stage) ----------
+  function updateNarrative(){
+    const list = $("narrativeItems");
+    const intro = $("narrativeIntro");
+    const Lc = i18n[state.lang].concepts;
+
+    list.innerHTML = "";
+    if (state.spotlights.size === 0){
+      intro.style.display = "block";
+      return;
+    }
+    intro.style.display = "none";
+
+    const order = ["domain","codomain","range","relation","function","notation","cartesian","advice"];
+    order.forEach(k => {
+      if (!state.spotlights.has(k)) return;
+      const {title, body} = Lc[k];
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = `<h3>${title}</h3><p>${body}</p>`;
+      list.appendChild(div);
+    });
   }
 
   // ---------- Drawing ----------
-  function rr(x,y,w,h,r){
-    const R = Math.min(r, Math.min(w,h)/2);
-    ctx.beginPath();
-    ctx.moveTo(x+R,y);
-    ctx.arcTo(x+w,y, x+w,y+h, R);
-    ctx.arcTo(x+w,y+h, x,y+h, R);
-    ctx.arcTo(x,y+h, x,y, R);
-    ctx.arcTo(x,y, x+w,y, R);
-    ctx.closePath();
-  }
-  function drawDiamond(cx,cy,w,h){
-    ctx.beginPath();
-    ctx.moveTo(cx, cy-h/2);
-    ctx.lineTo(cx+w/2, cy);
-    ctx.lineTo(cx, cy+h/2);
-    ctx.lineTo(cx-w/2, cy);
-    ctx.closePath();
-  }
-  function drawLabel(cx, topY, text){
-    ctx.font = "500 12px system-ui,-apple-system, Segoe UI, Roboto, Arial";
-    const pad=6, tw = ctx.measureText(text).width + pad*2, th = 18;
-    ctx.fillStyle = "rgba(12,18,32,0.92)";
-    rr(cx - tw/2, topY - th/2, tw, th, 8); ctx.fill();
-    ctx.strokeStyle = "#233040"; ctx.lineWidth = 1; rr(cx - tw/2, topY - th/2, tw, th, 8); ctx.stroke();
-    ctx.fillStyle = "#d7e6ff"; ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.fillText(text, cx, topY);
-  }
-  function nodeXY(id){
-    const n = nodeById(id);
-    return [n.x*canvas.clientWidth, n.y*canvas.clientHeight];
-  }
-  function drawEdge(ax,ay,bx,by,color){
-    ctx.strokeStyle = color; ctx.fillStyle=color; ctx.lineWidth=2.2;
-    const mx = (ax+bx)/2, my = (ay+by)/2 - 16;
-    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.quadraticCurveTo(mx,my,bx,by); ctx.stroke();
-    const ang = Math.atan2(by-my, bx-mx), s=6;
-    ctx.beginPath();
-    ctx.moveTo(bx,by);
-    ctx.lineTo(bx - s*Math.cos(ang - Math.PI/6), by - s*Math.sin(ang - Math.PI/6));
-    ctx.lineTo(bx - s*Math.cos(ang + Math.PI/6), by - s*Math.sin(ang + Math.PI/6));
-    ctx.closePath(); ctx.fill();
-  }
-
-  async function draw(){
-    state.needsDraw = false;
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    ctx.clearRect(0,0,w,h);
+  function draw(){
+    computeGeom();
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    ctx.clearRect(0,0,W,H);
 
     // Frame
-    ctx.fillStyle = COL.frame; ctx.strokeStyle = COL.border; ctx.lineWidth = 1.5;
-    rr(8.5,8.5,w-17,h-17,12); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#0c1220";
+    ctx.strokeStyle = "#223045";
+    ctx.lineWidth = 1.5;
+    roundRect(8.5,8.5,W-17,H-17,12); ctx.fill(); ctx.stroke();
 
-    // Edges: B↔B and A↔A first (background)
-    if (state.layers.RB){
-      for (const e of state.RB){
-        const [ax,ay] = nodeXY(e.from), [bx,by] = nodeXY(e.to);
-        drawEdge(ax,ay,bx,by,COL.RB);
-      }
-    }
-    if (state.layers.RA){
-      for (const e of state.RA){
-        const [ax,ay] = nodeXY(e.from), [bx,by] = nodeXY(e.to);
-        drawEdge(ax,ay,bx,by,COL.RA);
-      }
-    }
+    // Axis titles
+    ctx.fillStyle = "#a7bfdf";
+    ctx.font = "600 14px system-ui,-apple-system,Segoe UI,Roboto,Arial";
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillText(state.axisXText, margin.left, 24);
+    ctx.fillText(state.axisYText, margin.left, 42);
 
-    // R, g, f, comp
-    if (state.layers.R){
-      for (const e of state.R){
-        const [ax,ay] = nodeXY(e.from), [bx,by] = nodeXY(e.to);
-        drawEdge(ax,ay,bx,by,COL.R);
+    // Column headers (ϕ) + range tint
+    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    const Rset = new Set(rangeSet());
+    for (let c=0; c<geom.cols; c++){
+      const phi = state.Bticks[c];
+      const xmid = margin.left + c*geom.cw + geom.cw/2;
+      const used = Rset.has(phi);
+      if (used){
+        ctx.fillStyle = "rgba(52,211,153,0.15)";
+        ctx.fillRect(margin.left + c*geom.cw, margin.top-22, geom.cw, 20);
       }
-    }
-    if (state.layers.g){
-      for (const e of state.G){
-        const [ax,ay] = nodeXY(e.from), [bx,by] = nodeXY(e.to);
-        drawEdge(ax,ay,bx,by,COL.g);
-      }
-    }
-    if (state.layers.f){
-      for (const e of state.F){
-        const [ax,ay] = nodeXY(e.from), [bx,by] = nodeXY(e.to);
-        drawEdge(ax,ay,bx,by,COL.f);
-      }
-    }
-    if (state.layers.comp){
-      for (const e of compEdges()){
-        const [ax,ay] = nodeXY(e.from), [bx,by] = nodeXY(e.to);
-        drawEdge(ax,ay,bx,by,COL.comp);
-      }
+      ctx.fillStyle = "#cfe0ff";
+      ctx.font = "600 12px system-ui,-apple-system,Segoe UI,Roboto,Arial";
+      ctx.fillText(phi.toFixed(2), xmid, margin.top - 6);
     }
 
-    // Nodes
-    const showLabels = $("showLabels").checked;
-    for (const n of state.nodes){
-      const cx = n.x*w, cy = n.y*h;
-      if (n.type==="A"){
-        ctx.beginPath(); ctx.arc(cx,cy,n.w/2,0,Math.PI*2); ctx.closePath();
-        ctx.fillStyle = "#0e1523"; ctx.strokeStyle = COL.A; ctx.lineWidth=2;
-        ctx.fill(); ctx.stroke();
-        if (showLabels) drawLabel(cx, cy + n.w/2 + 12, n.name);
-      } else if (n.type==="B"){
-        ctx.fillStyle = "#0e1523"; ctx.strokeStyle = COL.B; ctx.lineWidth=2;
-        rr(cx-n.w/2, cy-n.h/2, n.w, n.h, 8); ctx.fill(); ctx.stroke();
-        if (showLabels) drawLabel(cx, cy + n.h/2 + 12, n.name);
+    // Row labels (z) + row function counters
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let r=0; r<geom.rows; r++){
+      const z = state.A[r];
+      const ymid = margin.top + r*geom.ch + geom.ch/2;
+      const count = countInRow(z);
+      const active = state.activeDepth.get(z);
+
+      ctx.fillStyle = "#cfe0ff";
+      ctx.font = "600 12px system-ui,-apple-system,Segoe UI,Roboto,Arial";
+      ctx.fillText(`${z}`, margin.left - 10, ymid);
+
+      let lab = "–", color = "#b7c8e4";
+      if (active){
+        if (count === 1){ lab = "1"; color = "#34d399"; }
+        else if (count === 0){ lab = "0"; color = "#fbbf24"; }
+        else { lab = String(count); color = "#f87171"; }
       } else {
-        ctx.fillStyle = "#0e1523"; ctx.strokeStyle = COL.C; ctx.lineWidth=2;
-        drawDiamond(cx,cy,n.w, n.h); ctx.fill(); ctx.stroke();
-        if (showLabels) drawLabel(cx, cy + n.h/2 + 12, n.name);
+        lab = "×"; color = "#95a3b8";
       }
+      ctx.fillStyle = color;
+      ctx.textAlign = "left";
+      ctx.fillText(lab, margin.left + geom.cols*geom.cw + 8, ymid);
+      ctx.textAlign = "right";
+    }
+
+    // Shade restricted rows
+    for (let r=0; r<geom.rows; r++){
+      const z = state.A[r];
+      if (!state.activeDepth.get(z)){
+        ctx.fillStyle = "rgba(255,255,255,0.04)";
+        ctx.fillRect(margin.left, margin.top + r*geom.ch, geom.cols*geom.cw, geom.ch);
+      }
+    }
+
+    // Hover row/col helpers
+    if (state.hover.row >= 0){
+      ctx.fillStyle = "rgba(124,177,255,0.08)";
+      ctx.fillRect(margin.left, margin.top + state.hover.row*geom.ch, geom.cols*geom.cw, geom.ch);
+    }
+    if (state.hover.col >= 0){
+      ctx.fillStyle = "rgba(124,177,255,0.08)";
+      ctx.fillRect(margin.left + state.hover.col*geom.cw, margin.top, geom.cw, geom.rows*geom.ch);
+    }
+
+    // Grid lines
+    ctx.strokeStyle = "#223045"; ctx.lineWidth = 1;
+    for (let c=0; c<=geom.cols; c++){
+      const x = margin.left + c*geom.cw;
+      ctx.beginPath(); ctx.moveTo(x, margin.top); ctx.lineTo(x, margin.top + geom.rows*geom.ch); ctx.stroke();
+    }
+    for (let r=0; r<=geom.rows; r++){
+      const y = margin.top + r*geom.ch;
+      ctx.beginPath(); ctx.moveTo(margin.left, y); ctx.lineTo(margin.left + geom.cols*geom.cw, y); ctx.stroke();
+    }
+
+    // Selections
+    for (const k of state.selection){
+      const {z, phi} = splitKey(k);
+      const r = state.A.indexOf(z), c = state.Bticks.indexOf(phi);
+      if (r < 0 || c < 0) continue;
+      const x = margin.left + c*geom.cw;
+      const y = margin.top  + r*geom.ch;
+      const active = state.activeDepth.get(z);
+      ctx.fillStyle = active ? "rgba(124,177,255,0.85)" : "rgba(124,177,255,0.35)";
+      ctx.fillRect(x+2, y+2, geom.cw-4, geom.ch-4);
+
+      ctx.beginPath();
+      ctx.arc(x + geom.cw/2, y + geom.ch/2, Math.min(geom.cw,geom.ch)*0.18, 0, Math.PI*2);
+      ctx.closePath();
+      ctx.fillStyle = active ? "#7cb1ff" : "#7cb1ff88";
+      ctx.fill();
+      ctx.strokeStyle = "#cfe0ff22"; ctx.lineWidth = 1; ctx.stroke();
+    }
+
+    // Spotlights (union of all active concepts)
+    if (state.spotlights.size > 0){
+      applySpotlights();
     }
   }
 
-  // ---------- Wire up ----------
-  $("btnReset").onclick = async ()=>{
-    await loadAssets();
-    buildTopUI();
-    updateAll();
-  };
-  $("showLabels").onchange = ()=> state.needsDraw = true;
+  function roundRect(x,y,w,h,r){
+    const rr = Math.min(r, Math.min(w,h)/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y, x+w,y+h, rr);
+    ctx.arcTo(x+w,y+h, x,y+h, rr);
+    ctx.arcTo(x,y+h, x,y, rr);
+    ctx.arcTo(x,y, x+w,y, rr);
+    ctx.closePath();
+  }
 
-  // ---------- Loop ----------
-  function loop(){ if (state.needsDraw) draw(); requestAnimationFrame(loop); }
+  function applySpotlights(){
+    const W = canvas.clientWidth, H = canvas.clientHeight;
 
-  // ---------- Start ----------
-  (async function boot(){
-    resizeCanvas();
-    await loadAssets();
-    buildTopUI();
-    updateAll();
-    loop();
-  })();
+    // Dim background
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
 
-  // Resize handler
-  window.addEventListener("resize", resizeCanvas);
+    // Carve highlighted regions
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-out";
+    const cutRect = (x,y,w,h) => { ctx.fillStyle="#000"; ctx.fillRect(x,y,w,h); };
+
+    const carveDomain = () => {
+      for (let r=0;r<geom.rows;r++){
+        cutRect(margin.left, margin.top + r*geom.ch, geom.cols*geom.cw, geom.ch);
+      }
+      cutRect(8, margin.top, margin.left-12, geom.rows*geom.ch);
+    };
+    const carveCodomain = () => {
+      for (let c=0;c<geom.cols;c++){
+        cutRect(margin.left + c*geom.cw, margin.top, geom.cw, geom.rows*geom.ch);
+      }
+      cutRect(margin.left, margin.top-24, geom.cols*geom.cw, 24);
+    };
+    const carveRange = () => {
+      const R = new Set(rangeSet());
+      for (let c=0;c<geom.cols;c++){
+        const phi = state.Bticks[c];
+        if (R.has(phi)){
+          cutRect(margin.left + c*geom.cw, margin.top-24, geom.cw, 24 + geom.rows*geom.ch);
+        }
+      }
+    };
+    const carveRelation = () => {
+      for (const k of state.selection){
+        const {z, phi} = splitKey(k);
+        const r = state.A.indexOf(z), c = state.Bticks.indexOf(phi);
+        if (r<0||c<0) continue;
+        cutRect(margin.left + c*geom.cw + 2, margin.top + r*geom.ch + 2, geom.cw-4, geom.ch-4);
+      }
+    };
+    const carveFunction = () => {
+      for (let r=0;r<geom.rows;r++){
+        cutRect(margin.left, margin.top + r*geom.ch, geom.cols*geom.cw, geom.ch);
+      }
+      cutRect(margin.left + geom.cols*geom.cw, margin.top, 60, geom.rows*geom.ch);
+    };
+    const carveNotation = () => {
+      cutRect(margin.left, 12, Math.min(380, geom.cols*geom.cw), 40);
+    };
+    const carveCartesian = () => {
+      cutRect(margin.left, margin.top, geom.cols*geom.cw, geom.rows*geom.ch);
+    };
+    const carveAdvice = () => {
+      for (let r=0;r<geom.rows;r++){
+        const z = state.A[r];
+        const active = state.activeDepth.get(z);
+        const k = countInRow(z);
+        if (!active || k !== 1){
+          cutRect(margin.left, margin.top + r*geom.ch, geom.cols*geom.cw, geom.ch);
+        }
+      }
+    };
+
+    const S = state.spotlights;
+    if (S.has("domain"))   carveDomain();
+    if (S.has("codomain")) carveCodomain();
+    if (S.has("range"))    carveRange();
+    if (S.has("relation")) carveRelation();
+    if (S.has("function")) carveFunction();
+    if (S.has("notation")) carveNotation();
+    if (S.has("cartesian")) carveCartesian();
+    if (S.has("advice"))   carveAdvice();
+
+    ctx.restore();
+
+    // Subtle glow
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "rgba(255,213,74,0.30)";
+    if (S.has("domain")){
+      for (let r=0;r<geom.rows;r++){
+        ctx.fillRect(margin.left, margin.top + r*geom.ch, geom.cols*geom.cw, geom.ch);
+      }
+    }
+    if (S.has("codomain")){
+      for (let c=0;c<geom.cols;c++){
+        ctx.fillRect(margin.left + c*geom.cw, margin.top, geom.cw, geom.rows*geom.ch);
+      }
+    }
+    if (S.has("range")){
+      const R = new Set(rangeSet());
+      for (let c=0;c<geom.cols;c++){
+        const phi = state.Bticks[c];
+        if (R.has(phi)){
+          ctx.fillRect(margin.left + c*geom.cw, margin.top-24, geom.cw, 24 + geom.rows*geom.ch);
+        }
+      }
+    }
+    if (S.has("relation")){
+      for (const k of state.selection){
+        const {z, phi} = splitKey(k);
+        const r = state.A.indexOf(z), c = state.Bticks.indexOf(phi);
+        if (r<0||c<0) continue;
+        ctx.fillRect(margin.left + c*geom.cw + 2, margin.top + r*geom.ch + 2, geom.cw-4, geom.ch-4);
+      }
+    }
+    if (S.has("function")){
+      for (let r=0;r<geom.rows;r++){
+        ctx.fillRect(margin.left, margin.top + r*geom.ch, geom.cols*geom.cw, geom.ch);
+      }
+    }
+    if (S.has("notation")){
+      ctx.fillRect(margin.left, 12, Math.min(380, geom.cols*geom.cw), 40);
+    }
+    if (S.has("cartesian")){
+      ctx.fillRect(margin.left, margin.top, geom.cols*geom.cw, geom.rows*geom.ch);
+    }
+    if (S.has("advice")){
+      for (let r=0;r<geom.rows;r++){
+        const z = state.A[r];
+        const active = state.activeDepth.get(z);
+        const k = countInRow(z);
+        if (!active || k !== 1){
+          ctx.fillRect(margin.left, margin.top + r*geom.ch, geom.cols*geom.cw, geom.ch);
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  // ---------- Panels & tables ----------
+  function updatePanels(){
+    const Aactive = state.A.filter(z => state.activeDepth.get(z));
+    $("Aset").textContent = `{${Aactive.join(", ")}}`;
+
+    const R = rangeSet();
+    $("Range").textContent = `{${R.map(v=>v.toFixed(2)).join(", ")}}`;
+    $("rangeCount").textContent = i18n[state.lang].rangeSize(R.length);
+
+    // Progress
+    let ok = 0, total = 0;
+    for (const z of state.A){
+      if (!state.activeDepth.get(z)) continue;
+      total++;
+      if (countInRow(z) === 1) ok++;
+    }
+    const pct = total ? Math.round(100*ok/total) : 0;
+    $("scoreFill").style.width = `${pct}%`;
+
+    const isFn = isFunctionOnActiveDomain();
+    $("fnText").innerHTML = `${i18n[state.lang].fnOnActive} ${isFn ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>'}`;
+
+    // Relation table
+    const body = $("Rbody");
+    body.innerHTML = "";
+    const pairs = Array.from(state.selection).map(splitKey)
+                       .filter(p => state.activeDepth.get(p.z))
+                       .sort((a,b)=> (a.z-b.z) || (a.phi-b.phi));
+    pairs.forEach((p,i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="k">${i+1}</td><td>${p.z}</td><td class="k">→</td><td>${p.phi.toFixed(2)}</td>`;
+      body.appendChild(tr);
+    });
+  }
+
+  // ---------- Save (download JSON) ----------
+  function saveJSON(){
+    const data = {
+      language: state.lang,
+      A_active: state.A.filter(z => state.activeDepth.get(z)),
+      ticks_B: state.Bticks,
+      relation_R: Array.from(state.selection).map(splitKey).sort((a,b)=> (a.z-b.z) || (a.phi-b.phi)),
+      range: rangeSet(),
+      function_on_active_A: isFunctionOnActiveDomain(),
+      units: state.units,
+      notation: state.notation
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "relation.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 500);
+    // toast
+    toast.innerHTML = (i18n[state.lang].toastSaved || "Saved to ") + `<span class="mono">relation.json</span>`;
+    toast.style.display = "block";
+    setTimeout(()=> toast.style.display = "none", 1500);
+  }
+
+  // ---------- Helpers ----------
+  function roundRect(x,y,w,h,r){
+    const rr = Math.min(r, Math.min(w,h)/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y, x+w,y+h, rr);
+    ctx.arcTo(x+w,y+h, x,y+h, rr);
+    ctx.arcTo(x,y+h, x,y, rr);
+    ctx.arcTo(x,y, x+w,y, rr);
+    ctx.closePath();
+  }
 })();
 </script>
-{% endblock %}
+</body>
+</html>
