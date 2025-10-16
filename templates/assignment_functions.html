@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Functions & Relations — Geology Assignment</title>
+  <title>Functions & Relations — Geology / Függvények & Relációk — Geológia</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root { --bg:#0b0e14; --panel:#111827; --ink:#e5e7eb; --muted:#9ca3af; --accent:#8b5cf6; --ok:#10b981; --warn:#f59e0b; --bad:#ef4444; --border:#374151; }
@@ -43,8 +43,8 @@
 </head>
 <body>
   <header>
-    <h1>Assignment — Functions & Relations (Geology)</h1>
-    <div class="small">Depth → Porosity • Relations are chosen true pairs • A×B = all possible pairs</div>
+    <h1>Assignment — Functions & Relations (Geology) / Feladat — Függvények & Relációk (Geológia)</h1>
+    <div class="small">Depth → Porosity • Relations = chosen true pairs • A×B = all possible pairs / Mélység → Porozitás • Reláció = kiválasztott igaz párok • A×B = összes lehetséges pár</div>
   </header>
 
   <main>
@@ -52,7 +52,7 @@
       <div class="row">
         <div style="flex:1 1 260px;">
           <label>Full name / Név</label>
-          <input id="name" type="text" placeholder="Student name (optional)" />
+          <input id="name" type="text" placeholder="Student name (optional) / Név (opcionális)" />
         </div>
         <div style="flex:0 0 180px;">
           <label>Neptun</label>
@@ -67,7 +67,7 @@
     </div>
 
     <div id="contextCard" class="card" style="display:none;">
-      <h3>Background & Context</h3>
+      <h3>Background & Context / Háttér & Kontekstus</h3>
       <div id="contextText" class="small"></div>
     </div>
 
@@ -125,24 +125,24 @@ function renderYesNo(item, withText=false) {
   wrap.appendChild(sel);
   if (withText) {
     wrap.appendChild(E('div', {class:'hr'}));
-    wrap.appendChild(E('textarea', {'data-id':item.id, 'data-kind':'why', placeholder:'Brief reason (EN/HU)'}));
+    wrap.appendChild(E('textarea', {'data-id':item.id, 'data-kind':'why', placeholder:'Brief reason (EN/HU) / Rövid indoklás'}));
   }
   return wrap;
 }
 
 function renderShortNumber(item) {
-  return E('input', {type:'number', step:'any', 'data-id':item.id, 'data-kind':'short_number', placeholder:'e.g. 0.24'});
+  return E('input', {type:'number', step:'any', 'data-id':item.id, 'data-kind':'short_number', placeholder:'e.g. 0.24 / pl. 0,24'});
 }
 
 function renderCSVFloatSet(item) {
   const grid = E('div', {class:'grid'});
   grid.appendChild(E('input', {type:'text', 'data-id':item.id, 'data-kind':'csv_float_set',
-    placeholder: item.hint || 'e.g. 0.19, 0.21, 0.24'}));
+    placeholder: item.hint || 'e.g. 0.19, 0.21, 0.24 / pl. 0,19, 0,21, 0,24'}));
   return grid;
 }
 
 function renderInteger(item) {
-  return E('input', {type:'number', step:'1', 'data-id':item.id, 'data-kind':'integer', placeholder:'e.g. 12'});
+  return E('input', {type:'number', step:'1', 'data-id':item.id, 'data-kind':'integer', placeholder:'e.g. 12 / pl. 12'});
 }
 
 function renderPairGrid(item) {
@@ -171,14 +171,14 @@ function renderPairGrid(item) {
 }
 
 function renderLongText(item) {
-  return E('textarea', {'data-id':item.id, 'data-kind':'long_text', placeholder:'Write 2–4 concise sentences referencing the context.'});
+  return E('textarea', {'data-id':item.id, 'data-kind':'long_text', placeholder:'2–4 concise sentences (EN/HU) / 2–4 rövid mondat (EN/HU)'});
 }
 
 function renderAssignment(m) {
   const holder = document.getElementById('assignment');
   holder.innerHTML = '';
 
-  // Context
+  // Context + hint
   document.getElementById('opsHint').textContent = m.hint || '';
   const ctx = (m.context || '').trim();
   const ctxCard = document.getElementById('contextCard');
@@ -297,18 +297,17 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
         E('span', {class: row.score>=8 ? 'ok' : row.score>=6 ? 'warn' : 'bad'}, `${row.score}/10`)
       );
       fb.appendChild(E('div', {}, chip));
-      // Hint-only feedback (server ensures no spoilers)
       fb.appendChild(E('div', {class:'small muted', style:'margin:6px 0 12px;'}, row.feedback));
     });
     fb.appendChild(E('div', {class:'hr'}));
-    fb.appendChild(E('div', {}, `Overall: ${result.overall_pct}% — ${result.pass ? 'PASS' : 'REVISE'}`));
+    fb.appendChild(E('div', {}, `Overall: ${result.overall_pct}% — ${result.pass ? 'PASS' : 'REVISE'} / Összesített: ${result.overall_pct}% — ${result.pass ? 'MEGFELELT' : 'JAVÍTANDÓ'}`));
     fb.appendChild(E('div', {class:'small muted'}, result.summary));
 
     const host = document.getElementById('assignment');
     host.insertBefore(fb, host.firstChild);
 
     const st = document.getElementById('status');
-    st.textContent = `Graded: ${result.overall_pct}%`;
+    st.textContent = `Graded: ${result.overall_pct}% / Értékelve: ${result.overall_pct}%`;
     st.className = 'status ' + (result.overall_pct>=70 ? 'ok' : 'bad');
   } catch {
     alert('Failed to grade.');
