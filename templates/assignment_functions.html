@@ -31,6 +31,7 @@
     .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
     .muted { color: var(--muted); }
     .grid { display:grid; grid-template-columns: repeat(2, minmax(280px,1fr)); gap:12px; }
+    .datablock { background:#0d1323; border:1px dashed var(--border); padding:8px 10px; border-radius:8px; margin:8px 0 12px; }
     @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
     /* Print to PDF */
     @media print {
@@ -43,7 +44,7 @@
 </head>
 <body>
   <header>
-    <h1>Assignment — Functions & Relations (Geology) / Feladat — Függvények & Relációk (Geológia)</h1>
+    <h1>Assignment — Functions & Relations (Geology) / Feladat — Függvények & Relációk — Geológia</h1>
     <div class="small">Depth → Porosity • Relations = chosen true pairs • A×B = all possible pairs / Mélység → Porozitás • Reláció = kiválasztott igaz párok • A×B = összes lehetséges pár</div>
   </header>
 
@@ -174,6 +175,11 @@ function renderLongText(item) {
   return E('textarea', {'data-id':item.id, 'data-kind':'long_text', placeholder:'2–4 concise sentences (EN/HU) / 2–4 rövid mondat (EN/HU)'});
 }
 
+function renderDataBlock(item) {
+  if (!item.data) return null;
+  return E('div', {class:'datablock mono small'}, String(item.data));
+}
+
 function renderAssignment(m) {
   const holder = document.getElementById('assignment');
   holder.innerHTML = '';
@@ -192,6 +198,10 @@ function renderAssignment(m) {
   (m.items || []).forEach(item => {
     const card = E('div', {class:'card'});
     card.appendChild(E('h3', {}, item.title || item.id));
+
+    // show small dataset if provided
+    const dataBlock = renderDataBlock(item);
+    if (dataBlock) card.appendChild(dataBlock);
 
     let body = null;
     if (item.kind === 'mcq') body = renderMCQ(item);
