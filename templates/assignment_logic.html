@@ -34,6 +34,21 @@
     .muted { color: var(--muted); }
     select { background:#0e1525; color:var(--ink); border:1px solid var(--border); border-radius:8px; padding:6px 8px; }
     .hr { height:1px; background:var(--border); margin:14px 0; }
+
+    /* Symbol keyboard */
+    .kb { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+    .kb-row { display:flex; flex-wrap:wrap; gap:8px; }
+    .kb-btn {
+      border:1px solid var(--border); background:#0d1323; color:var(--ink);
+      padding:8px 10px; border-radius:10px; cursor:pointer; user-select:none;
+      font-weight:600; min-width:44px; text-align:center;
+    }
+    .kb-btn:hover { border-color:#4b5563; }
+    .kb-help { font-size:.85rem; color:var(--muted); margin-top:4px; }
+    .builder-wrap { display:flex; gap:8px; align-items:center; }
+    .builder-wrap input[readonly] { background:#0a1222; }
+    .mini-legend { font-size:.85rem; color:var(--muted); }
+    .mini-legend .chip { display:inline-block; border:1px solid var(--border); padding:4px 8px; border-radius:999px; background:#0d1323; margin-right:6px; }
     /* Print to PDF */
     @media print {
       body { background: #fff; color: #000; }
@@ -46,7 +61,10 @@
 <body>
   <header>
     <h1>Assignment / Feladatlap — Lecture 3</h1>
-    <div class="small">Use only: <span class="mono">,</span> (NOT), <span class="mono">`</span> (AND), <span class="mono">~</span> (OR). / Csak ezek: <span class="mono">,</span> (NEM), <span class="mono">`</span> (ÉS), <span class="mono">~</span> (VAGY).</div>
+    <div class="small">
+      Use the on‑screen symbols: <span class="mono">¬ ∧ ∨ → ↔ ( )</span> and variables.
+      ASCII <span class="mono">, ` ~</span> also accepted.
+    </div>
   </header>
 
   <main>
@@ -93,6 +111,7 @@ const E = (tag, attrs={}, ...children) => {
   Object.entries(attrs || {}).forEach(([k,v])=>{
     if (k === 'class') el.className = v;
     else if (k === 'html') el.innerHTML = v;
+    else if (k === 'readonly' && v === 'readonly') el.setAttribute('readonly', 'readonly');
     else el.setAttribute(k, v);
   });
   children.forEach(c => {
@@ -110,6 +129,66 @@ const TFSelect = () => {
   return s;
 };
 
+// ---------- Formula keyboard ----------
+const BINARY_OPS = new Set(['∧','∨','→','↔']);
+function makeKbButton(txt, onClick) {
+  const b = E('div', {class:'kb-btn'}, txt);
+  b.addEventListener('click', onClick);
+  return b;
+}
+function appendToken(field, token) {
+  let v = field.value || '';
+  if (BINARY_OPS.has(token)) {
+    // space around binary ops for readability; backend strips whitespace
+    v = v.replace(/\s+$/,'');
+    if (v && !v.endsWith(' ')) v += ' ';
+    v += token + ' ';
+  } else if (token === '␣') {
+    v += ' ';
+  } else {
+    v += token;
+  }
+  field.value = v;
+}
+function backspace(field) {
+  let v = field.value || '';
+  v = v.replace(/\s+$/,'');      // trim right spaces
+  v = v.slice(0, -1);            // remove last character
+  field.value = v;
+}
+function clearField(field) { field.value = ''; }
+
+function buildFormulaKeyboard(vars, inputEl) {
+  const kb = E('div', {class:'kb'});
+
+  const legend = E('div', {class:'mini-legend'});
+  vars.forEach(v => legend.appendChild(E('span', {class:'chip'}, v)));
+  kb.appendChild(legend);
+
+  // Row 1: variables
+  const row1 = E('div', {class:'kb-row'});
+  vars.forEach(v => row1.appendChild(makeKbButton(v, ()=>appendToken(inputEl, v))));
+  kb.appendChild(row1);
+
+  // Row 2: unary/binary ops
+  const row2 = E('div', {class:'kb-row'});
+  ['¬','∧','∨','→','↔'].forEach(op => row2.appendChild(makeKbButton(op, ()=>appendToken(inputEl, op))));
+  kb.appendChild(row2);
+
+  // Row 3: parentheses + controls
+  const row3 = E('div', {class:'kb-row'});
+  ['(',')','␣','DEL','CLR'].forEach(key => {
+    if (key === 'DEL') row3.appendChild(makeKbButton('DEL', ()=>backspace(inputEl)));
+    else if (key === 'CLR') row3.appendChild(makeKbButton('CLR', ()=>clearField(inputEl)));
+    else row3.appendChild(makeKbButton(key, ()=>appendToken(inputEl, key)));
+  });
+  kb.appendChild(row3);
+
+  kb.appendChild(E('div', {class:'kb-help'},
+    'Tip: Use ¬ before a variable or ( … ) group; → for “if … then …”; ↔ for “exactly when”.'));
+  return kb;
+}
+
 // ---------- Rendering ----------
 function renderAssignment(m) {
   const wrap = document.getElementById('assignment');
@@ -121,13 +200,31 @@ function renderAssignment(m) {
     card.appendChild(E('h3', {}, item.title || item.id));
 
     if (item.kind === 'formula') {
-      const en = E('div', {class:'small'}, item.en || '');
-      const hu = E('div', {class:'small'}, item.hu || '');
-      const inp = E('input', {type:'text', class:'mono', placeholder:'Enter symbolic formula using , ` ~ and ()'});
-      inp.dataset.id = item.id; inp.dataset.kind = 'formula';
-      if (item.hu || item.en) { card.appendChild(en); card.appendChild(hu); }
-      card.appendChild(E('div', {class:'hr'}));
-      card.appendChild(inp);
+      const hasText = !!(item.hu || item.en);
+      if (hasText) {
+        const en = E('div', {class:'small'}, item.en || '');
+        const hu = E('div', {class:'small'}, item.hu || '');
+        card.appendChild(en); card.appendChild(hu);
+        card.appendChild(E('div', {class:'hr'}));
+      }
+
+      // For Q1a–Q1d we use a symbol picker; others keep free text as before.
+      const usePicker = /^L3Q1[a-d]$/i.test(item.id);
+
+      if (usePicker) {
+        // Read‑only field + symbol keyboard
+        const inp = E('input', {type:'text', class:'mono', placeholder:'Tap symbols to build the formula', readonly:'readonly'});
+        inp.dataset.id = item.id; inp.dataset.kind = 'formula';
+        const controls = buildFormulaKeyboard(item.vars || [], inp);
+        const row = E('div', {class:'builder-wrap'}, inp);
+        card.appendChild(row);
+        card.appendChild(controls);
+      } else {
+        // Keep the classic typed input for other formula items (e.g., T1–T5)
+        const inp = E('input', {type:'text', class:'mono', placeholder:'Enter symbolic formula using ¬ ∧ ∨ → ↔ and ()'});
+        inp.dataset.id = item.id; inp.dataset.kind = 'formula';
+        card.appendChild(inp);
+      }
     }
 
     if (item.kind === 'truth_table' || item.kind === 'truth_table_plus_text' || item.kind === 'truth_table_plus_yesno') {
@@ -171,7 +268,7 @@ function renderAssignment(m) {
     }
 
     if (item.kind === 'formula_plus_text') {
-      const inp = E('input', {type:'text', class:'mono', placeholder:'Enter formula using , ` ~ and ()'});
+      const inp = E('input', {type:'text', class:'mono', placeholder:'Enter formula using ¬ ∧ ∨ → ↔ and ()'});
       inp.dataset.id = item.id; inp.dataset.kind = 'formula';
       const grid = E('div', {class:'grid'});
       grid.appendChild(E('div', {}, E('label', {}, 'English explanation'), E('textarea', {'data-id': item.id, 'data-kind':'fpt-en', placeholder:'English'})));
@@ -209,7 +306,7 @@ function renderAssignment(m) {
 function collectAnswers() {
   const answers = [];
   document.querySelectorAll('input[data-kind="formula"]').forEach(inp => {
-    answers.push({ id: inp.dataset.id, expr: inp.value.trim() });
+    answers.push({ id: inp.dataset.id, expr: (inp.value || '').trim() });
   });
 
   const tables = {};
@@ -240,7 +337,7 @@ function collectAnswers() {
   });
   Object.values(fpt).forEach(x => {
     const f = document.querySelector(`input[data-kind="formula"][data-id="${x.id}"]`);
-    if (f) x.expr = f.value.trim();
+    if (f) x.expr = (f.value || '').trim();
     answers.push(x);
   });
 
@@ -280,10 +377,11 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
     const answers = collectAnswers();
     const result = await postJSON('/logic-assignment/api/grade', { answers });
     // Show results inline
+    const old = document.getElementById('resultsCard');
+    if (old) old.remove();
     const fb = E('div', {class:'card', id:'resultsCard'});
     fb.appendChild(E('h3', {}, 'Results / Eredmények'));
     result.per_item.forEach(row => {
-      const label = `${row.id} — ${row.score}/10`;
       const chip = E('span', {class:'pill'},
         E('span', {class:'mono'}, row.id),
         E('span', {class: row.score>=8 ? 'ok' : row.score>=6 ? 'warn' : 'bad' }, `${row.score}/10`)
@@ -292,8 +390,7 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
       fb.appendChild(E('div', {class:'small muted', style:'margin:6px 0 12px;'}, row.feedback));
     });
     fb.appendChild(E('div', {class:'hr'}));
-    const overall = E('div', {}, `Overall: ${result.overall_pct}% — ${result.pass ? 'PASS' : 'REVISE'}`);
-    fb.appendChild(overall);
+    fb.appendChild(E('div', {}, `Overall: ${result.overall_pct}% — ${result.pass ? 'PASS' : 'REVISE'}`));
     fb.appendChild(E('div', {class:'small muted'}, result.summary));
     const assignment = document.getElementById('assignment');
     assignment.insertBefore(fb, assignment.firstChild);
