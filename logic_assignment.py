@@ -65,15 +65,12 @@ def _normalize_expr(expr: str) -> str:
         s = s.replace(bad, good)
     # Quick check: only expected token characters
     if not set(s) <= _ALLOWED_TOKENS:
-        raise ValueError("Use only: , (NOT), ` (AND), ~ (OR), parentheses, variables (p,q,r,o,i,y). "
+        raise ValueError("Use only the on‑screen symbols or these: , (NOT), ` (AND), ~ (OR), parentheses, variables (p,q,r,o,i,y). "
                          "Implication (→) and equivalence (↔) are also accepted.")
     return s
 
 def _tokenize(s: str) -> List[Tuple[Token, str]]:
-    """
-    Turn normalized string into tokens.
-    Supports: VAR, NOT (,), AND (`), OR (~), IMP (→), IFF (↔), LPAREN, RPAREN
-    """
+    """Turn normalized string into tokens."""
     out: List[Tuple[Token, str]] = []
     for c in s:
         if c in _ALIAS_MAP:
@@ -98,25 +95,11 @@ def _tokenize(s: str) -> List[Tuple[Token, str]]:
             raise ValueError(f"Unexpected character: {c!r}")
     return out
 
-# Precedence (higher number = binds tighter)
-_PRECEDENCE = {
-    "IFF": 1,   # lowest
-    "IMP": 2,
-    "OR":  3,
-    "AND": 4,
-    "NOT": 5,   # highest among these
-}
-# Associativity
-_ASSOC = {
-    "IFF": "R",  # treat as right-assoc to avoid surprises
-    "IMP": "R",
-    "OR":  "L",
-    "AND": "L",
-    "NOT": "R",
-}
+_PRECEDENCE = {"IFF": 1, "IMP": 2, "OR": 3, "AND": 4, "NOT": 5}
+_ASSOC = {"IFF": "R", "IMP": "R", "OR": "L", "AND": "L", "NOT": "R"}
 
 def _to_rpn(tokens: List[Tuple[Token, str]]) -> List[Tuple[Token, str]]:
-    """Shunting-yard to Reverse Polish Notation (supports NOT/AND/OR/IMP/IFF)."""
+    """Shunting-yard to Reverse Polish Notation."""
     output: List[Tuple[Token, str]] = []
     ops: List[Tuple[Token, str]] = []
     for tok, val in tokens:
@@ -166,11 +149,9 @@ def _eval_rpn(rpn: List[Tuple[Token, str]], env: Dict[str, bool]) -> bool:
             elif tok == "OR":
                 st.append(a or b)
             elif tok == "IMP":
-                # a → b  ≡  ¬a ∨ b
-                st.append((not a) or b)
+                st.append((not a) or b)  # a → b ≡ ¬a ∨ b
             elif tok == "IFF":
-                # a ↔ b  ≡  (a ∧ b) ∨ (¬a ∧ ¬b)
-                st.append((a and b) or ((not a) and (not b)))
+                st.append((a and b) or ((not a) and (not b)))  # a ↔ b
     if len(st) != 1:
         raise ValueError("Malformed expression.")
     return st[0]
@@ -238,9 +219,9 @@ def _manifest_lecture3() -> Dict[str, Any]:
 
     return {
         "assignment": "Assignment / Feladatlap — Lecture 3",
-        "allowed_ops": "Use only: , (NOT), ` (AND), ~ (OR). We also accept ¬ ∧ ∨ and → ↔.",
+        "allowed_ops": "Use the on‑screen symbols: ¬ ∧ ∨ → ↔, parentheses, and variables (p,q,r,o,i,y). ASCII ',', '`', '~', ->, <-> also accepted.",
         "items": [
-            # 1) Translate to symbols
+            # 1) Translate to symbols — now answered via on‑screen picker in the UI
             {"id": "L3Q1a", "kind": "formula", "vars": ["p", "q", "r"],
              "title": "1a) Translate to symbols",
              "en": "If the rock is sandstone and contains fossils, then it formed in a shallow marine environment.",
@@ -443,7 +424,7 @@ def _grade_formula(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, s
     expr = (answer or {}).get("expr", "")
     expected = item["expected"]; vars_used = item.get("vars", [])
     if not expr:
-        return 0, "Enter a symbolic formula using , ` ~ (or ¬ ∧ ∨) and parentheses. →, ↔ also accepted."
+        return 0, "Build a formula using the on‑screen symbols (or type , ` ~ and parentheses). →, ↔ also accepted."
     try:
         eq, counter = equivalent(expr, expected, vars_used)
     except ValueError as e:
@@ -496,7 +477,6 @@ def _grade_truth_table_plus_text(item: Dict[str, Any], answer: Dict[str, Any]) -
     return score, feedback
 
 def _grade_truth_table_plus_yesno(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
-    """Table + a single yes/no (e.g., NAND)."""
     s, f = _grade_truth_table(item, answer)
     ys, yf = _grade_yesno(item, answer)  # expects 'yes' in payload
     # yes/no contributes at most +2
