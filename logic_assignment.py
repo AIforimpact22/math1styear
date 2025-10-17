@@ -1,601 +1,526 @@
-# logic_assignment.py  — Lecture 3 autograder (lenient, robust)
-# - Gentle OpenAI text grading (mercy floor; friendly fallbacks)
-# - Accepts ¬ ∧ ∨ and also →, ↔ (and ASCII ->, <->)
-# - Handles truth_table_plus_yesno
-# - Deduplicates answers by id (keep last)
-# - Truth-table inputs accept T/F/1/0/true/false
-
+# functions_assignment.py
 from __future__ import annotations
 
-import itertools
+import copy
 import json
 import os
-import re
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 from flask import Blueprint, jsonify, render_template, request
 
-# ---------- OpenAI (Responses API) ----------
+# --- OpenAI SDK (only used for qualitative items; symbol-builder is rule-graded) ---
 try:
-    from openai import OpenAI  # pip install openai
-    _OPENAI_CLIENT: Optional[OpenAI] = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    from openai import OpenAI
+    _OPENAI_AVAILABLE = True
 except Exception:
-    _OPENAI_CLIENT = None  # graceful fallback when SDK/env not available
+    _OPENAI_AVAILABLE = False
 
-logic_assignment_bp = Blueprint("logic_assignment", __name__)
+functions_assignment_bp = Blueprint(
+    "functions_assignment", __name__, url_prefix="/assignment-3"
+)
 
-# ======================================================
-# Core logic parsing/evaluation
-# ======================================================
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
 
-# Course vars allowed (lowercase)
-_ALLOWED_VARS = set(list("pqroiy"))
 
-# Accept these characters directly; multi-char aliases normalized first.
-_ALLOWED_TOKENS = set(list("pqroiy(),`~¬∧∨→↔"))
+# ======================
+# Helpers & bilingual bits
+# ======================
+def _float_eq(a: float, b: float, eps: float = 1e-6) -> bool:
+    return abs(a - b) <= eps
 
-# Common aliases (single-char). Multi-char handled in _normalize_expr().
-_ALIAS_MAP = {
-    "¬": ",",   # NOT
-    "∧": "`",   # AND
-    "∨": "~",   # OR
-    # → and ↔ are parsed as dedicated tokens, then evaluated directly
-}
+def _as_float_list(text: str) -> List[float]:
+    vals: List[float] = []
+    for chunk in (text or "").replace(";", ",").split(","):
+        s = chunk.strip()
+        if not s:
+            continue
+        try:
+            vals.append(float(s))
+        except ValueError:
+            pass
+    return vals
 
-Token = Literal["VAR", "NOT", "AND", "OR", "IMP", "IFF", "LPAREN", "RPAREN"]
+def BIL(en: str, hu: str) -> str:
+    return f"EN: {en} • HU: {hu}"
 
-def _normalize_expr(expr: str) -> str:
-    """
-    Normalize user input:
-    - strip spaces
-    - lowercase vars
-    - translate known aliases (¬, ∧, ∨)
-    - convert ASCII '->' to '→' and '<->' to '↔'
-    - validate allowed character set (we tolerate → and ↔)
-    """
-    s = (expr or "").strip()
-    if not s:
-        return s
-    # ASCII implication/equivalence to unicode
-    s = s.replace("<->", "↔").replace("->", "→")
-    # Remove whitespace, lowercase
-    s = re.sub(r"\s+", "", s).lower()
-    # Map simple aliases
-    for bad, good in _ALIAS_MAP.items():
-        s = s.replace(bad, good)
-    # Quick check: only expected token characters
-    if not set(s) <= _ALLOWED_TOKENS:
-        raise ValueError("Use only: , (NOT), ` (AND), ~ (OR), parentheses, variables (p,q,r,o,i,y). "
-                         "Implication (→) and equivalence (↔) are also accepted.")
-    return s
+def _get_openai_client() -> Optional["OpenAI"]:
+    if not _OPENAI_AVAILABLE:
+        return None
+    try:
+        return OpenAI()
+    except Exception:
+        return None
 
-def _tokenize(s: str) -> List[Tuple[Token, str]]:
-    """
-    Turn normalized string into tokens.
-    Supports: VAR, NOT (,), AND (`), OR (~), IMP (→), IFF (↔), LPAREN, RPAREN
-    """
-    out: List[Tuple[Token, str]] = []
-    for c in s:
-        if c in _ALIAS_MAP:
-            c = _ALIAS_MAP[c]  # already normalized, but safe
-        if c in _ALLOWED_VARS:
-            out.append(("VAR", c))
-        elif c == ",":
-            out.append(("NOT", c))
-        elif c == "`":
-            out.append(("AND", c))
-        elif c == "~":
-            out.append(("OR", c))
-        elif c == "→":
-            out.append(("IMP", c))
-        elif c == "↔":
-            out.append(("IFF", c))
-        elif c == "(":
-            out.append(("LPAREN", c))
-        elif c == ")":
-            out.append(("RPAREN", c))
-        else:
-            raise ValueError(f"Unexpected character: {c!r}")
+
+# ======================
+# Qualitative LLM grading (kept for your non-symbol items)
+# ======================
+_BASE_SYSTEM = (
+    "You are a precise, fair geology TA. Grade student answers concisely.\n"
+    "Return STRICT JSON with keys: score (integer 0..MAX), "
+    "feedback_en (<=2 short sentences in English), "
+    "feedback_hu (<=2 short sentences in Hungarian).\n"
+    "Never reveal the solution. Provide hints only."
+)
+
+def _grade_text_llm(rubric: str, student_text: str, max_points: int = 10) -> Tuple[int, str]:
+    client = _get_openai_client()
+    if not client:
+        return 0, BIL(
+            "Automated evaluation unavailable. Please justify with the context.",
+            "Az automatikus értékelés nem elérhető. Indokolj a kontextussal."
+        )
+    try:
+        resp = client.chat.completions.create(
+            model=OPENAI_MODEL,
+            temperature=0,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _BASE_SYSTEM},
+                {"role": "user", "content": f"MAX={max_points}\nRubric:\n{rubric}\n\nStudent answer:\n{(student_text or '').strip()}"},
+            ],
+        )
+        data = json.loads(resp.choices[0].message.content or "{}")
+        score = max(0, min(max_points, int(data.get("score", 0))))
+        en = (data.get("feedback_en") or "Evaluated.").strip()
+        hu = (data.get("feedback_hu") or "Értékelve.").strip()
+        return score, BIL(en, hu)
+    except Exception:
+        return 0, BIL("Evaluation error. Tie your explanation to the context.", "Értékelési hiba. Kösd a magyarázatot a kontextushoz.")
+
+
+# ======================
+# Objective graders (existing)
+# ======================
+def _grade_mcq(item: Dict[str, Any], ans: Dict[str, Any]) -> Tuple[int, str]:
+    picked = (ans or {}).get("choice", "")
+    ok = str(picked) == str(item.get("expected"))
+    return (10 if ok else 0), (BIL("Correct.", "Helyes.") if ok else
+                               BIL("Not correct — revisit the definition.", "Nem helyes — nézd át a definíciót."))
+
+def _grade_yesno(item: Dict[str, Any], ans: Dict[str, Any]) -> Tuple[int, str]:
+    yn = (ans or {}).get("yes", "")
+    correct = bool(item.get("expected_yes", False))
+    ok = yn.lower() in ("yes", "y", "true", "t", "igen", "i") if correct else yn.lower() in ("no", "n", "false", "f", "nem")
+    return (10 if ok else 0), (BIL("Correct.", "Helyes.") if ok else
+                               BIL("Not correct — check the rule.", "Nem helyes — ellenőrizd a szabályt."))
+
+def _grade_yesno_plus_text_llm(item: Dict[str, Any], ans: Dict[str, Any]) -> Tuple[int, str]:
+    yn_score_full, _ = _grade_yesno(item, ans)
+    yn_points = 6 if yn_score_full == 10 else 0
+    text_points, _fb = _grade_text_llm(item.get("llm_rubric", ""), (ans or {}).get("text", ""), max_points=4)
+    total = min(10, yn_points + text_points)
+    if yn_points == 6 and text_points >= 3:
+        fb = BIL("Correct and well-justified.", "Helyes és jól indokolt.")
+    else:
+        fb = BIL("Re-check the rule and strengthen your justification.", "Ellenőrizd a szabályt, és erősíts az indokláson.")
+    return total, fb
+
+def _grade_short_number(item: Dict[str, Any], ans: Dict[str, Any]) -> Tuple[int, str]:
+    try:
+        got = float((ans or {}).get("value", ""))
+    except Exception:
+        return 0, BIL("Enter a number (e.g., 0.24).", "Adj meg számot (pl. 0,24).")
+    ok = _float_eq(got, float(item.get("expected")))
+    return (10 if ok else 0), (BIL("Correct.", "Helyes.") if ok else
+                               BIL("Not correct — check the mapping (no spoilers).", "Nem helyes — nézd át a hozzárendelést (spoiler nélkül)."))
+
+def _grade_csv_float_set(item: Dict[str, Any], ans: Dict[str, Any]) -> Tuple[int, str]:
+    expected: List[float] = item.get("expected", [])
+    got_list = _as_float_list((ans or {}).get("values", ""))
+    used = [False] * len(expected)
+    correct = 0
+    for g in got_list:
+        for i, e in enumerate(expected):
+            if not used[i] and _float_eq(g, float(e)):
+                used[i] = True
+                correct += 1
+                break
+    n = max(1, len(expected))
+    extras = max(0, len(got_list) - correct)
+    score = max(0, min(10, round(10 * (correct - 0.5 * extras) / n)))
+    if score == 10:
+        fb = BIL("Your set looks consistent.", "A megadott halmaz konzisztens.")
+    else:
+        fb = BIL("Some values look missing/extra — compare with context.", "Hiányzó vagy felesleges értékek — vessd össze a kontextussal.")
+    return score, fb
+
+def _grade_integer(item: Dict[str, Any], ans: Dict[str, Any]) -> Tuple[int, str]:
+    try:
+        got = int((ans or {}).get("value", ""))
+    except Exception:
+        return 0, BIL("Enter an integer.", "Adj meg egész számot.")
+    ok = (got == int(item.get("expected", 0)))
+    return (10 if ok else 0), (BIL("Correct.", "Helyes.") if ok else
+                               BIL("Hint: |A×B| = |A| · |B|.", "Tipp: |A×B| = |A| · |B|."))
+
+
+# ======================
+# NEW: Symbol Builder — parser + robust equality
+# ======================
+TOKENS = {"S", "F", "M", "¬", "∧", "∨", "→", "↔", "(", ")"}
+
+class Node:
+    def __init__(self, kind: str, *kids):
+        self.kind = kind  # 'var','not','and','or','imp','iff'
+        self.kids = list(kids)  # for var: name in kids[0]
+    def __repr__(self):  # debug
+        return f"{self.kind}({','.join(repr(k) for k in self.kids)})"
+
+def _tokstream(s: str) -> List[str]:
+    s = (s or "").replace(" ", "")
+    out: List[str] = []
+    i = 0
+    while i < len(s):
+        ch = s[i]
+        # single-char tokens and unicode arrows
+        if ch in TOKENS:
+            out.append(ch); i += 1; continue
+        # try two-byte UTF-8 already captured; fallback (shouldn't happen)
+        # Allow ASCII aliases (optional): !, &, |, ->, <-> if student typed manually
+        if s.startswith("->", i):
+            out.append("→"); i += 2; continue
+        if s.startswith("<->", i):
+            out.append("↔"); i += 3; continue
+        if ch in "!~":
+            out.append("¬"); i += 1; continue
+        if ch in "&∧^":
+            out.append("∧"); i += 1; continue
+        if ch in "|∨vV":
+            out.append("∨"); i += 1; continue
+        if ch in "SFM()":
+            out.append(ch); i += 1; continue
+        # ignore unknown whitespace-like chars
+        i += 1
     return out
 
-# Precedence (higher number = binds tighter)
-_PRECEDENCE = {
-    "IFF": 1,   # lowest
-    "IMP": 2,
-    "OR":  3,
-    "AND": 4,
-    "NOT": 5,   # highest among these
-}
-# Associativity
-_ASSOC = {
-    "IFF": "R",  # treat as right-assoc to avoid surprises
-    "IMP": "R",
-    "OR":  "L",
-    "AND": "L",
-    "NOT": "R",
-}
+# Pratt-style recursive descent with precedence: ¬ > ∧ > ∨ > → > ↔
+class Parser:
+    def __init__(self, toks: List[str]):
+        self.toks = toks; self.i = 0
+    def peek(self) -> Optional[str]:
+        return self.toks[self.i] if self.i < len(self.toks) else None
+    def eat(self, t: str) -> bool:
+        if self.peek() == t: self.i += 1; return True
+        return False
+    def parse(self) -> Node:
+        n = self.parse_iff()
+        if self.peek() is not None:
+            # trailing junk -> just return parsed prefix
+            pass
+        return n
+    def parse_iff(self) -> Node:
+        n = self.parse_imp()
+        while self.eat("↔"):
+            rhs = self.parse_imp()
+            n = Node("iff", n, rhs)
+        return n
+    def parse_imp(self) -> Node:
+        n = self.parse_or()
+        while self.eat("→"):
+            rhs = self.parse_or()
+            n = Node("imp", n, rhs)
+        return n
+    def parse_or(self) -> Node:
+        n = self.parse_and()
+        while self.eat("∨"):
+            rhs = self.parse_and()
+            n = Node("or", n, rhs)
+        return n
+    def parse_and(self) -> Node:
+        n = self.parse_not()
+        while self.eat("∧"):
+            rhs = self.parse_not()
+            n = Node("and", n, rhs)
+        return n
+    def parse_not(self) -> Node:
+        cnt = 0
+        while self.eat("¬"):
+            cnt += 1
+        atom = self.parse_atom()
+        while cnt > 0:
+            atom = Node("not", atom); cnt -= 1
+        return atom
+    def parse_atom(self) -> Node:
+        t = self.peek()
+        if t in ("S", "F", "M"):
+            self.i += 1
+            return Node("var", t)
+        if self.eat("("):
+            n = self.parse_iff()
+            self.eat(")")
+            return n
+        # fallback: unknown -> variable 'S' to avoid crash (won't match)
+        return Node("var", "S?")
 
-def _to_rpn(tokens: List[Tuple[Token, str]]) -> List[Tuple[Token, str]]:
-    """Shunting-yard to Reverse Polish Notation (supports NOT/AND/OR/IMP/IFF)."""
-    output: List[Tuple[Token, str]] = []
-    ops: List[Tuple[Token, str]] = []
-    for tok, val in tokens:
-        if tok == "VAR":
-            output.append((tok, val))
-        elif tok == "NOT":
-            ops.append((tok, val))
-        elif tok in ("AND", "OR", "IMP", "IFF"):
-            while ops and ops[-1][0] not in ("LPAREN",):
-                top = ops[-1][0]
-                if (_ASSOC[tok] == "L" and _PRECEDENCE[top] >= _PRECEDENCE[tok]) or \
-                   (_ASSOC[tok] == "R" and _PRECEDENCE[top] >  _PRECEDENCE[tok]):
-                    output.append(ops.pop())
-                else:
-                    break
-            ops.append((tok, val))
-        elif tok == "LPAREN":
-            ops.append((tok, val))
-        elif tok == "RPAREN":
-            while ops and ops[-1][0] != "LPAREN":
-                output.append(ops.pop())
-            if not ops:
-                raise ValueError("Mismatched parentheses.")
-            ops.pop()
-    while ops:
-        if ops[-1][0] in ("LPAREN", "RPAREN"):
-            raise ValueError("Mismatched parentheses.")
-        output.append(ops.pop())
-    return output
+def parse_formula(s: str) -> Node:
+    return Parser(_tokstream(s)).parse()
 
-def _eval_rpn(rpn: List[Tuple[Token, str]], env: Dict[str, bool]) -> bool:
-    """Evaluate RPN with env for variables."""
-    st: List[bool] = []
-    for tok, sym in rpn:
-        if tok == "VAR":
-            st.append(env[sym])
-        elif tok == "NOT":
-            if not st:
-                raise ValueError("Missing operand for NOT.")
-            st.append(not st.pop())
-        elif tok in ("AND", "OR", "IMP", "IFF"):
-            if len(st) < 2:
-                raise ValueError("Missing operands for binary operator.")
-            b = st.pop(); a = st.pop()
-            if tok == "AND":
-                st.append(a and b)
-            elif tok == "OR":
-                st.append(a or b)
-            elif tok == "IMP":
-                # a → b  ≡  ¬a ∨ b
-                st.append((not a) or b)
-            elif tok == "IFF":
-                # a ↔ b  ≡  (a ∧ b) ∨ (¬a ∧ ¬b)
-                st.append((a and b) or ((not a) and (not b)))
-    if len(st) != 1:
-        raise ValueError("Malformed expression.")
-    return st[0]
+def _flatten(kind: str, n: Node) -> List[Node]:
+    # associate (A ∧ (B ∧ C)) -> [A,B,C]
+    if n.kind == kind:
+        out = []
+        for k in n.kids:
+            out.extend(_flatten(kind, k))
+        return out
+    return [n]
 
-def eval_expr(expr: str, env: Dict[str, bool]) -> bool:
-    s = _normalize_expr(expr)
-    tokens = _tokenize(s)
-    rpn = _to_rpn(tokens)
-    return _eval_rpn(rpn, env)
+def _canon(n: Node) -> str:
+    # canonical string; commutative+associative for and/or; ↔ treated commutative
+    if n.kind == "var":
+        return n.kids[0]
+    if n.kind == "not":
+        return f"not({_canon(n.kids[0])})"
+    if n.kind in ("and", "or"):
+        items = [_canon(k) for k in _flatten(n.kind, n)]
+        items.sort()
+        return f"{n.kind}(" + ",".join(items) + ")"
+    if n.kind == "imp":
+        return f"imp({_canon(n.kids[0])},{_canon(n.kids[1])})"
+    if n.kind == "iff":
+        # symmetric children order
+        a, b = _canon(n.kids[0]), _canon(n.kids[1])
+        if a > b: a, b = b, a
+        return f"iff({a},{b})"
+    return "?"
 
-def equivalent(expr_a: str, expr_b: str, vars_used: List[str]) -> Tuple[bool, Optional[Dict[str, bool]]]:
-    """Return (equivalent?, counterexample_env_or_None)."""
-    for values in itertools.product([True, False], repeat=len(vars_used)):
-        env = {v: val for v, val in zip(vars_used, values)}
-        try:
-            va = eval_expr(expr_a, env)
-            vb = eval_expr(expr_b, env)
-        except Exception:
-            return False, env
-        if va != vb:
-            return False, env
-    return True, None
+def _expand_imp(n: Node) -> Node:
+    # A→B === (¬A ∨ B)
+    if n.kind == "imp":
+        A, B = _expand_imp(n.kids[0]), _expand_imp(n.kids[1])
+        return Node("or", Node("not", A), B)
+    return Node(n.kind, *[_expand_imp(k) for k in n.kids]) if n.kids else Node(n.kind, *n.kids)
 
-# ======================================================
-# Manifest — Lecture 3
-# ======================================================
+def _expand_iff(n: Node) -> Node:
+    # A↔B === (A→B) ∧ (B→A)
+    if n.kind == "iff":
+        A = _expand_iff(n.kids[0]); B = _expand_iff(n.kids[1])
+        return Node("and", Node("imp", A, B), Node("imp", B, A))
+    return Node(n.kind, *[_expand_iff(k) for k in n.kids]) if n.kids else Node(n.kind, *n.kids)
 
-def _tt_rows(varnames: List[str]) -> List[Dict[str, bool]]:
-    return [{v: t for v, t in zip(varnames, vals)}
-            for vals in itertools.product([True, False], repeat=len(varnames))]
+def _equivalent(student: str, expected: str) -> bool:
+    # direct canonical compare
+    s_ast = parse_formula(student); e_ast = parse_formula(expected)
+    if _canon(s_ast) == _canon(e_ast):
+        return True
+    # compare after expanding ↔ then →
+    s2 = _canon(_expand_imp(_expand_iff(s_ast)))
+    e2 = _canon(_expand_imp(_expand_iff(e_ast)))
+    return s2 == e2
 
-def _manifest_lecture3() -> Dict[str, Any]:
-    q3_vars = ["p", "q", "r"]
-    q3_cols = [
-        {"label": "p ~ q", "expr": "p ~ q"},
-        {"label": ",r", "expr": ",r"},
-        {"label": "(p ~ q) ` ,r", "expr": "(p ~ q) ` ,r"},
-    ]
-    q4_vars = ["p", "q"]
-    q4_cols = [
-        {"label": ",p", "expr": ",p"},
-        {"label": ",p ~ q", "expr": ",p ~ q"},
-    ]
-    q5_vars = ["p", "q"]
-    q5_cols = [
-        {"label": "p ` q", "expr": "p ` q"},
-        {"label": ",p", "expr": ",p"},
-        {"label": ",q", "expr": ",q"},
-        {"label": ",p ` ,q", "expr": ",p ` ,q"},
-        {"label": "(p ` q) ~ (,p ` ,q)", "expr": "(p ` q) ~ (,p ` ,q)"},
-        {"label": "(p ↔ q)", "expr": "(p ` q) ~ (,p ` ,q)"},
-    ]
-    q6_vars = ["p", "q"]
-    q6_cols = [
-        {"label": ",p", "expr": ",p"},
-        {"label": ",q", "expr": ",q"},
-        {"label": "p ` ,q", "expr": "p ` ,q"},
-        {"label": ",p ` q", "expr": ",p ` q"},
-        {"label": "(p ` ,q) ~ (,p ` q)", "expr": "(p ` ,q) ~ (,p ` q)"},
-    ]
-    q8_vars = ["p", "q"]
-    q8_cols = [{"label": "p ` q", "expr": "p ` q"}, {"label": ",(p ` q)", "expr": ",(p ` q)"}]
-    q9_vars = ["p", "q"]
-    q9_cols = [{"label": "p ~ q", "expr": "p ~ q"}, {"label": ",(p ~ q)", "expr": ",(p ~ q)"}]
+def _grade_symbol_builder(item: Dict[str, Any], ans: Dict[str, Any]) -> Tuple[int, str]:
+    got = (ans or {}).get("formula", "").strip()
+    if not got:
+        return 0, BIL("Build a formula from the palette.", "Állíts össze képletet a palettából.")
+    expected_forms: List[str] = item.get("expected_forms", [])
+    # Allow simple commutative flips without full parser by trying all listed forms
+    ok = any(_equivalent(got, exp) for exp in expected_forms)
+    if ok:
+        return 10, BIL("Looks correct.", "Helyesnek tűnik.")
+    # Hint only — no spoilers
+    return 0, BIL(
+        "Check placement of ¬ and parentheses; ensure you used the correct connective (→, ∧, ∨, ↔).",
+        "Ellenőrizd a ¬ jelet és a zárójeleket; használd a megfelelő kötőjeleket (→, ∧, ∨, ↔)."
+    )
+
+
+# ======================
+# Manifest (bilingual), incl. new symbol-builder items
+# ======================
+def _manifest_functions() -> Dict[str, Any]:
+    """
+    Full assignment with Symbolic Logic (L1a–L1d) + Geology items.
+    The symbol-builder items are auto-graded (exact/equivalent), no LLM involved.
+    """
+    logic_legend = {
+        "S": "EN) Sandstone • HU) Homokkő",
+        "F": "EN) Contains fossils • HU) Fosszíliákat tartalmaz",
+        "M": "EN) Formed in shallow marine env. • HU) Sekély tengeri környezetben képződött",
+    }
+    palette = ["S","F","M","¬","∧","∨","→","↔","(",")"]
 
     return {
-        "assignment": "Assignment / Feladatlap — Lecture 3",
-        "allowed_ops": "Use only: , (NOT), ` (AND), ~ (OR). We also accept ¬ ∧ ∨ and → ↔.",
+        "assignment": "Assignment — Functions & Relations (Geology) + Symbolic Logic / Feladat — Függvények & Relációk + Logika",
+        "context": (
+            "EN: Background • You analyze a clean sandstone interval in Well A (1195–1208 m). Porosity φ is from density/neutron logs; "
+            "typical noise ±0.02; duplicates may occur. A = depths, B = porosity; A×B = all (depth,φ). Relation = TRUE pairs; "
+            "Function = each depth has exactly one φ.\n"
+            "HU: Háttér • Tiszta homokkő szakaszt elemzel az A kútban (1195–1208 m). A porozitás φ sűrűség/neutron szelvényből származik; "
+            "tipikus zaj ±0,02; duplikátum előfordulhat. A = mélységek, B = porozitás; A×B = összes (mélység,φ). Reláció = IGAZ párok; "
+            "Függvény = minden mélységhez pontosan egy φ."
+        ),
+        "hint": "Symbols: ¬ not • ∧ and • ∨ or • → if...then • ↔ iff. Vars: S,F,M (see legend). / Jelek: ¬ nem • ∧ és • ∨ vagy • → ha...akkor • ↔ akkor és csak akkor.",
         "items": [
-            # 1) Translate to symbols
-            {"id": "L3Q1a", "kind": "formula", "vars": ["p", "q", "r"],
-             "title": "1a) Translate to symbols",
-             "en": "If the rock is sandstone and contains fossils, then it formed in a shallow marine environment.",
-             "hu": "Ha a kőzet homokkő és fosszíliákat tartalmaz, akkor sekély tengeri környezetben képződött.",
-             "expected": ",(p ` q) ~ r"},
-            {"id": "L3Q1b", "kind": "formula", "vars": ["p", "q"],
-             "title": "1b) Translate to symbols",
-             "en": "The rock is not sandstone, but it contains fossils.",
-             "hu": "A kőzet nem homokkő, de fosszíliákat tartalmaz.",
-             "expected": ",p ` q"},
-            {"id": "L3Q1c", "kind": "formula", "vars": ["p", "q", "r"],
-             "title": "1c) Translate to symbols",
-             "en": "If it did not form in a shallow marine environment, then it is not sandstone or it does not contain fossils.",
-             "hu": "Ha nem sekély tengeri környezetben képződött, akkor nem homokkő, vagy nem tartalmaz fosszíliákat.",
-             "expected": ",(,r) ~ (,p ~ ,q)"},
-            {"id": "L3Q1d", "kind": "formula", "vars": ["p", "q"],
-             "title": "1d) Translate to symbols",
-             "en": "The rock is sandstone exactly when it contains fossils.",
-             "hu": "A kőzet akkor és csak akkor homokkő, ha fosszíliákat tartalmaz.",
-             "expected": "(p ` q) ~ (,p ` ,q)"},
+            # ---------- New: Symbol Builder block ----------
+            {
+                "id": "L1a",
+                "kind": "symbol_builder",
+                "title": "1a) Translate: If the rock is sandstone and contains fossils, then it formed in a shallow marine environment. / "
+                         "Fordítás: Ha a kőzet homokkő és fosszíliákat tartalmaz, akkor sekély tengeri környezetben képződött.",
+                "legend": logic_legend,
+                "palette": palette,
+                # internal only
+                "expected_forms": ["(S ∧ F) → M"]
+            },
+            {
+                "id": "L1b",
+                "kind": "symbol_builder",
+                "title": "1b) Translate: The rock is not sandstone, but it contains fossils. / "
+                         "Fordítás: A kőzet nem homokkő, de fosszíliákat tartalmaz.",
+                "legend": logic_legend,
+                "palette": palette,
+                "expected_forms": ["(¬S) ∧ F", "¬S ∧ F", "F ∧ ¬S"]  # allow commutative flip / optional parens
+            },
+            {
+                "id": "L1c",
+                "kind": "symbol_builder",
+                "title": "1c) Translate: If it did not form in a shallow marine environment, then it is not sandstone or it does not contain fossils. / "
+                         "Fordítás: Ha nem sekély tengeri környezetben képződött, akkor nem homokkő, vagy nem tartalmaz fosszíliákat.",
+                "legend": logic_legend,
+                "palette": palette,
+                "expected_forms": ["¬M → (¬S ∨ ¬F)", "¬M → (¬F ∨ ¬S)"]
+            },
+            {
+                "id": "L1d",
+                "kind": "symbol_builder",
+                "title": "1d) Translate: The rock is sandstone exactly when it contains fossils. / "
+                         "Fordítás: A kőzet akkor és csak akkor homokkő, ha fosszíliákat tartalmaz.",
+                "legend": logic_legend,
+                "palette": palette,
+                "expected_forms": ["S ↔ F", "F ↔ S"]  # treat ↔ as symmetric
+            },
 
-            # 3) Truth table — (p ~ q) ` ,r
-            {"id": "L3Q3", "kind": "truth_table", "title": "3) Truth table — (p ~ q) ` ,r",
-             "vars": q3_vars, "rows": _tt_rows(q3_vars), "columns": q3_cols},
-
-            # 4) Implication via helper column: p→q ≡ ,p ~ q
-            {"id": "L3Q4", "kind": "truth_table",
-             "title": "4) Implication via helper column — build p→q as ,p ~ q",
-             "vars": q4_vars, "rows": _tt_rows(q4_vars), "columns": q4_cols},
-
-            # 5) Biconditional identity
-            {"id": "L3Q5", "kind": "truth_table",
-             "title": "5) (p ` q) ~ (,p ` ,q) is equivalent to (p ↔ q)",
-             "vars": q5_vars, "rows": _tt_rows(q5_vars), "columns": q5_cols},
-
-            # 6) XOR table + one sentence (text graded by GPT or fallback)
-            {"id": "L3Q6", "kind": "truth_table_plus_text",
-             "title": "6) XOR: (p ` ,q) ~ (,p ` q)",
-             "vars": q6_vars, "rows": _tt_rows(q6_vars), "columns": q6_cols,
-             "text_prompt_en": "In one sentence: when is XOR true?",
-             "text_prompt_hu": "Egy mondatban: mikor igaz a kizáró VAGY?"},
-
-            # 7) De Morgan — tautology checks
-            {"id": "L3Q7a", "kind": "yesno",
-             "title": "7a) ,(p ~ q) ↔ (,p ` ,q) — tautology?", "expected_yes": True},
-            {"id": "L3Q7b", "kind": "yesno",
-             "title": "7b) ,(p ` q) ↔ (,p ~ ,q) — tautology?", "expected_yes": True},
-
-            # 8) NAND table + yes/no
-            {"id": "L3Q8", "kind": "truth_table_plus_yesno",
-             "title": "8) NAND: ,(p ` q)",
-             "vars": q8_vars, "rows": _tt_rows(q8_vars), "columns": q8_cols,
-             "yesno_prompt": "Is NAND true in all cases except when both p and q are true?",
-             "expected_yes": True},
-
-            # 9) NOR table + text
-            {"id": "L3Q9", "kind": "truth_table_plus_text",
-             "title": "9) NOR: ,(p ~ q)",
-             "vars": q9_vars, "rows": _tt_rows(q9_vars), "columns": q9_cols,
-             "text_prompt_en": "In which single row(s) is NOR true? (e.g., 'p=F, q=F')",
-             "text_prompt_hu": "Mely egyetlen sor(ok)ban igaz a NOR? (pl. „p=F, q=F”)"},
-            
-            # 10) Applied reasoning
-            {"id": "L3Q10a", "kind": "formula", "vars": ["o", "y", "i"],
-             "title": "10a) Field rule: If (olivine or pyroxene) then igneous.",
-             "en": "Use o: olivine, y: pyroxene, i: igneous.",
-             "hu": "o: olivin, y: piroxén, i: magmás.",
-             "expected": ",(o ~ y) ~ i"},
-            {"id": "L3Q10c", "kind": "yesno_plus_text",
-             "title": "10c) Is 'Porosity > 0.25 ` Porosity < 0.10' contradictory?",
-             "expected_yes": True,
-             "text_prompt_en": "Briefly explain why.",
-             "text_prompt_hu": "Röviden indokold meg miért."},
-
-            # Text‑Entry 1–5 (symbols only)
-            {"id": "L3T1", "kind": "formula", "vars": ["p"], "title": "Text‑Entry 1 (¬p)", "expected": ",p"},
-            {"id": "L3T2", "kind": "formula", "vars": ["q"], "title": "Text‑Entry 2 (¬q)", "expected": ",q"},
-            {"id": "L3T3", "kind": "formula", "vars": ["p", "q"], "title": "Text‑Entry 3 (p ∧ ¬q)", "expected": "p ` ,q"},
-            {"id": "L3T4", "kind": "formula", "vars": ["p", "q"], "title": "Text‑Entry 4 (¬p ∧ q)", "expected": ",p ` q"},
-            {"id": "L3T5", "kind": "formula", "vars": ["p", "q"], "title": "Text‑Entry 5 (XOR disjunction)",
-             "expected": "(p ` ,q) ~ (,p ` q)"},
+            # ---------- Keep a compact Geology block (examples; you can keep all your prior items) ----------
+            {
+                "id": "FQ1",
+                "kind": "mcq",
+                "title": "2) Which best describes a relation A→B? / 2) Mi írja le legjobban az A→B relációt?",
+                "options": [
+                    {"id": "A", "label": "EN) All imaginable pairs (A×B). • HU) Minden elképzelhető pár (A×B)."},
+                    {"id": "B", "label": "EN) The TRUE pairs selected from A×B. • HU) Az A×B-ből kiválasztott IGAZ párok."},
+                    {"id": "C", "label": "EN) Only one-to-one pairings. • HU) Csak kölcsönösen egyértelmű párosítások."},
+                    {"id": "D", "label": "EN) Just the list of B-values. • HU) Csak a B-értékek listája."},
+                ],
+                "expected": "B",
+            },
+            {
+                "id": "FQ2",
+                "kind": "mcq",
+                "title": "3) When is “depth → porosity” a function? / 3) Mikor függvény a „mélység → porozitás”?",
+                "options": [
+                    {"id": "A", "label": "EN) Every depth has exactly one porosity. • HU) Minden mélységhez pontosan egy porozitás tartozik."},
+                    {"id": "B", "label": "EN) A depth may have two porosities. • HU) Egy mélységhez két porozitás is tartozhat."},
+                    {"id": "C", "label": "EN) Only when porosity > 0.20. • HU) Csak ha a porozitás > 0,20."},
+                    {"id": "D", "label": "EN) Only if all wells use the same tool. • HU) Csak ha minden kút azonos műszert használ."},
+                ],
+                "expected": "A",
+            },
+            {
+                "id": "FQ4",
+                "kind": "short_number",
+                "title": "4) If F(1198)=0.19, F(1200)=0.24, F(1203)=0.21, what is F(1200)? / "
+                         "4) Ha F(1198)=0,19, F(1200)=0,24, F(1203)=0,21, mennyi F(1200)?",
+                "expected": 0.24,
+            },
+            {
+                "id": "FQ6",
+                "kind": "yesno",
+                "title": "5) Is R_close (|φ1 − φ2| ≤ 0.02) necessarily transitive? / "
+                         "5) A R_close (|φ1 − φ2| ≤ 0,02) szükségképpen tranzitív?",
+                "expected_yes": False,
+            },
+            {
+                "id": "FQ9",
+                "kind": "integer",
+                "title": "6) If |A|=3 and |B|=4, how many pairs in A×B? / "
+                         "6) Ha |A|=3 és |B|=4, hány pár van A×B-ben?",
+                "expected": 12,
+            },
         ],
     }
 
-# ======================================================
-# OpenAI grader (text answers) — *gentle*
-# ======================================================
 
-def _gpt_grade_text(task_id: str, prompt_en: str, prompt_hu: str,
-                    student_text: str, expected_summary_en: str, expected_summary_hu: str) -> Tuple[int, str]:
-    """
-    Score a short EN/HU answer on 0–10. Always gentle:
-    - Empty -> 0 with a nudge
-    - Offline/error -> 7/10 fallback
-    - Online -> clamp to [6,10] (mercy floor)
-    """
-    if not student_text or not student_text.strip():
-        return 0, "Please add a short explanation. / Kérlek írj egy rövid magyarázatot."
+# ======================
+# Public manifest (sanitize: remove all keys revealing answers)
+# ======================
+def _public_manifest(full: Dict[str, Any]) -> Dict[str, Any]:
+    m = copy.deepcopy(full)
+    SENSITIVE = {"expected", "expected_pairs", "expected_yes", "llm_rubric", "expected_forms"}
+    for item in m.get("items", []):
+        for key in list(item.keys()):
+            if key in SENSITIVE:
+                item.pop(key, None)
+    return m
 
-    if not _OPENAI_CLIENT:
-        return 7, "(Offline) Provisional score. Be concise and include the key idea. / Ideiglenes pontszám; a lényeget írd le röviden."
 
-    schema = {
-        "name": "grade_payload",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "score": {"type": "integer", "minimum": 0, "maximum": 10},
-                "feedback_en": {"type": "string"},
-                "feedback_hu": {"type": "string"},
-            },
-            "required": ["score", "feedback_en", "feedback_hu"],
-            "additionalProperties": False,
-        }
-    }
-
-    system_instructions = (
-        "You are a bilingual (EN/HU) logic TA. Grade gently on a 0–10 scale. "
-        "Accept either English or Hungarian. Reward core idea over wording. "
-        "Return JSON only per the provided schema."
-    )
-
-    context_en = f"Expected essence: {expected_summary_en}"
-    context_hu = f"Elvárt lényeg: {expected_summary_hu}"
-    user_block = (
-        f"Task (EN): {prompt_en}\n"
-        f"Feladat (HU): {prompt_hu}\n\n"
-        f"Student answer / Hallgatói válasz:\n{student_text}"
-    )
-
-    try:
-        resp = _OPENAI_CLIENT.responses.create(
-            model=os.environ.get("OPENAI_GPT_MODEL", "gpt-4o-mini"),
-            instructions=system_instructions,
-            input=f"{context_en}\n{context_hu}\n\n{user_block}",
-            response_format={"type": "json_schema", "json_schema": schema},
-        )
-        payload = json.loads(resp.output_text)
-        raw = int(payload.get("score", 7))
-        # Gentle clamp
-        score = max(6, min(10, raw))
-        feedback_en = payload.get("feedback_en", "").strip() or "OK."
-        feedback_hu = payload.get("feedback_hu", "").strip()
-        feedback = feedback_en + ((" / " + feedback_hu) if feedback_hu else "")
-        return score, feedback
-    except Exception:
-        return 7, "(Online grader unreachable) Assigned a friendly fallback. / Barátságos tartalék pontszám."
-
-# ======================================================
-# Programmatic grading (non-text)
-# ======================================================
-
-def _norm_tf_cell(x: Any) -> str:
-    """Tolerate T/F/1/0/true/false (case-insensitive)."""
-    s = str(x).strip().upper()
-    if s in ("T", "TRUE", "1"):
-        return "T"
-    if s in ("F", "FALSE", "0"):
-        return "F"
-    return s  # will be compared; empty counts as wrong
-
-def _grade_truth_table(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
-    vars_used: List[str] = item["vars"]
-    rows = item["rows"]; cols = item["columns"]
-    submitted: Dict[str, List[str]] = (answer or {}).get("cols", {})
-    total_cells = len(rows) * len(cols)
-    correct = 0
-    first_err: Optional[str] = None
-
-    for col in cols:
-        label, expr = col["label"], col["expr"]
-        expected_col: List[str] = []
-        for r in rows:
-            env = {v: bool(r[v]) for v in vars_used}
-            truth = eval_expr(expr, env)
-            expected_col.append("T" if truth else "F")
-
-        got_col = [_norm_tf_cell(x) for x in submitted.get(label, [])]
-        while len(got_col) < len(expected_col):
-            got_col.append("")
-        for i, (g, e) in enumerate(zip(got_col, expected_col)):
-            if g == e:
-                correct += 1
-            else:
-                if not first_err:
-                    env = {v: rows[i][v] for v in vars_used}
-                    env_str = ", ".join(f"{k}={'T' if v else 'F'}" for k, v in env.items())
-                    first_err = f'Column “{label}”, row {i+1} ({env_str}): expected {e}.'
-    score = round(10 * (correct / total_cells)) if total_cells else 0
-    feedback = "All table cells correct." if correct == total_cells else (first_err or "Fill each cell with T or F.")
-    return score, feedback
-
-def _grade_yesno(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
-    yn = (answer or {}).get("yes", "")
-    correct = item.get("expected_yes", False)
-    ok = yn.lower() in ("yes", "y", "true", "t", "igen", "i") if correct else yn.lower() in ("no", "n", "false", "f", "nem")
-    return (10 if ok else 0), ("Correct." if ok else "Not correct.")
-
-def _grade_formula(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
-    expr = (answer or {}).get("expr", "")
-    expected = item["expected"]; vars_used = item.get("vars", [])
-    if not expr:
-        return 0, "Enter a symbolic formula using , ` ~ (or ¬ ∧ ∨) and parentheses. →, ↔ also accepted."
-    try:
-        eq, counter = equivalent(expr, expected, vars_used)
-    except ValueError as e:
-        return 0, f"{e}"
-    if eq:
-        return 10, "Correct symbolic form."
-    env_str = ", ".join(f"{k}={'T' if v else 'F'}" for k, v in (counter or {}).items())
-    return 5, f"Not equivalent; differs for: {env_str}. Try rewriting (e.g., p→q ≡ ,p ~ q; p↔q ≡ (p ` q) ~ (,p ` ,q))."
-
-def _grade_formula_plus_text(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
-    fs, ff = _grade_formula(item, answer)
-    text_en = (answer or {}).get("en", "")
-    text_hu = (answer or {}).get("hu", "")
-    combined_text = (text_en + "\n" + text_hu).strip()
-    ts, tf = _gpt_grade_text(
-        item["id"],
-        "Write the contrapositive in words.",
-        "Írd le a kontrapozíciót szavakkal.",
-        combined_text,
-        expected_summary_en="If it is not igneous, then it contains neither olivine nor pyroxene.",
-        expected_summary_hu="Ha nem magmás, akkor sem olivint, sem piroxént nem tartalmaz.",
-    )
-    score = round((fs + ts) / 2)
-    feedback = f"Formula: {ff}  |  Text: {tf}"
-    return score, feedback
-
-def _grade_truth_table_plus_text(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
-    s, f = _grade_truth_table(item, answer)
-    text = (answer or {}).get("text", "")
-    if item["id"] == "L3Q6":
-        ts, tf = _gpt_grade_text(
-            item["id"],
-            "In one sentence: when is XOR true?",
-            "Egy mondatban: mikor igaz a kizáró VAGY?",
-            text,
-            expected_summary_en="Exactly one of p, q is true (one but not both).",
-            expected_summary_hu="Pontosan az egyik igaz (egyik, de nem mindkettő).",
-        )
-    else:  # L3Q9 NOR text
-        ts, tf = _gpt_grade_text(
-            item["id"],
-            "In which single row(s) is NOR true?",
-            "Mely egyetlen sor(ok)ban igaz a NOR?",
-            text,
-            expected_summary_en="Only when both p and q are false (p=F, q=F).",
-            expected_summary_hu="Csak akkor, ha p és q is hamis (p=F, q=F).",
-        )
-    score = min(10, s + round(ts / 5))  # +0..+2 bonus
-    feedback = f"{f}  |  Text: {tf}"
-    return score, feedback
-
-def _grade_truth_table_plus_yesno(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
-    """Table + a single yes/no (e.g., NAND)."""
-    s, f = _grade_truth_table(item, answer)
-    ys, yf = _grade_yesno(item, answer)  # expects 'yes' in payload
-    # yes/no contributes at most +2
-    score = min(10, s + (2 if ys == 10 else 0))
-    feedback = f"{f}  |  Yes/No: {yf}"
-    return score, feedback
-
-def _grade_yesno_plus_text(item: Dict[str, Any], answer: Dict[str, Any]) -> Tuple[int, str]:
-    s, f = _grade_yesno(item, answer)
-    txt = (answer or {}).get("text", "")
-    ts, tf = _gpt_grade_text(
-        item["id"],
-        "Is the condition contradictory? Briefly explain why.",
-        "Ellentmondásos‑e a feltétel? Röviden indokold meg miért.",
-        txt,
-        expected_summary_en="Yes; a single porosity value cannot be simultaneously >0.25 and <0.10.",
-        expected_summary_hu="Igen; ugyanaz a porozitás nem lehet egyszerre >0,25 és <0,10.",
-    )
-    score = min(10, s + round(ts / 5))
-    feedback = f"{f}  |  Text: {tf}"
-    return score, feedback
-
-# ======================================================
+# ======================
 # Routes
-# ======================================================
+# ======================
+@functions_assignment_bp.route("/")
+def functions_assignment_home():
+    return render_template("assignment_functions.html")
 
-@logic_assignment_bp.route("/logic-assignment")
-def logic_assignment_home():
-    return render_template("assignment_logic.html")
-
-@logic_assignment_bp.route("/logic-assignment/api/generate", methods=["POST"])
-def logic_assignment_generate():
+@functions_assignment_bp.route("/api/generate", methods=["POST"])
+def functions_assignment_generate():
     data = request.get_json(force=True, silent=True) or {}
     name = (data.get("name") or "").strip()
     neptun = (data.get("neptun") or "").strip().upper()
-    manifest = _manifest_lecture3()
-    manifest["student"] = {"name": name, "neptun": neptun}
-    return jsonify(manifest)
+    manifest = _manifest_functions()
+    public = _public_manifest(manifest)
+    public["student"] = {"name": name, "neptun": neptun}
+    return jsonify(public)
 
-@logic_assignment_bp.route("/logic-assignment/api/grade", methods=["POST"])
-def logic_assignment_grade():
+@functions_assignment_bp.route("/api/grade", methods=["POST"])
+def functions_assignment_grade():
     data = request.get_json(force=True, silent=True) or {}
-    answers_in: List[Dict[str, Any]] = data.get("answers", [])
-
-    # --- De-duplicate by id (keep last) ---
-    uniq: Dict[str, Dict[str, Any]] = {}
-    for a in answers_in:
-        qid = a.get("id")
-        if qid:
-            uniq[qid] = a
-    answers: List[Dict[str, Any]] = list(uniq.values())
-
-    manifest = _manifest_lecture3()
+    answers: List[Dict[str, Any]] = data.get("answers", [])
+    manifest = _manifest_functions()  # internal copy WITH expected values
     item_by_id = {it["id"]: it for it in manifest["items"]}
 
     per_item: List[Dict[str, Any]] = []
-    total_score = 0
-    counted = 0
+    total = 0
+    count = 0
 
     for a in answers:
         qid = a.get("id")
         item = item_by_id.get(qid)
         if not item:
             continue
-        kind = item["kind"]
+        kind = item.get("kind")
         try:
-            if kind == "formula":
-                score, feedback = _grade_formula(item, a)
-            elif kind == "truth_table":
-                score, feedback = _grade_truth_table(item, a)
-            elif kind == "truth_table_plus_text":
-                score, feedback = _grade_truth_table_plus_text(item, a)
-            elif kind == "truth_table_plus_yesno":
-                score, feedback = _grade_truth_table_plus_yesno(item, a)
-            elif kind == "formula_plus_text":
-                score, feedback = _grade_formula_plus_text(item, a)
+            if kind == "symbol_builder":
+                score, fb = _grade_symbol_builder(item, a)
+            elif kind == "mcq":
+                score, fb = _grade_mcq(item, a)
             elif kind == "yesno":
-                score, feedback = _grade_yesno(item, a)
+                score, fb = _grade_yesno(item, a)
             elif kind == "yesno_plus_text":
-                score, feedback = _grade_yesno_plus_text(item, a)
+                score, fb = _grade_yesno_plus_text_llm(item, a)
+            elif kind == "short_number":
+                score, fb = _grade_short_number(item, a)
+            elif kind == "csv_float_set":
+                score, fb = _grade_csv_float_set(item, a)
+            elif kind == "integer":
+                score, fb = _grade_integer(item, a)
+            elif kind == "long_text":
+                score, fb = _grade_text_llm(item.get("llm_rubric", ""), (a or {}).get("text", ""), max_points=10)
             else:
-                score, feedback = 0, "Unknown item type."
+                score, fb = 0, BIL("Unknown item type.", "Ismeretlen feladattípus.")
         except Exception as e:
-            score, feedback = 0, f"Grading error: {e}"
+            score, fb = 0, BIL(f"Grading error: {e}", f"Értékelési hiba: {e}")
 
-        per_item.append({"id": qid, "score": int(score), "feedback": feedback})
-        total_score += int(score)
-        counted += 1
+        per_item.append({"id": qid, "score": int(score), "feedback": fb})
+        total += int(score); count += 1
 
-    overall_pct = round(total_score / (max(1, counted) * 10) * 100)
-    summary = (
-        "Outstanding — Lecture 3 concepts look solid."
-        if overall_pct >= 90 else
-        "Great progress — tighten any truth‑table cells flagged in feedback."
-        if overall_pct >= 75 else
-        "Keep going — revise symbolic forms and the operator rewrites (p→q, p↔q)."
-        if overall_pct >= 60 else
-        "Revisit the operator rules (, ` ~) and rebuild the tables row by row."
-    )
+    overall_pct = round(total / (max(1, count) * 10) * 100)
+    if overall_pct >= 90:
+        summary = BIL("Excellent — precise and well‑applied symbols.", "Kiváló — pontos és helyes szimbólumhasználat.")
+    elif overall_pct >= 75:
+        summary = BIL("Good — tighten symbol placement and definitions.", "Jó — pontosíts a szimbólumokon és a definíciókon.")
+    elif overall_pct >= 60:
+        summary = BIL("Progressing — review connectors (¬, ∧, ∨, →, ↔) and parentheses.", "Fejlődő — ismételd át a kötőjeleket és a zárójeleket.")
+    else:
+        summary = BIL("Revisit the basics of translation and function/relational rules.", "Térj vissza a fordítási alapokhoz és a relációs szabályokhoz.")
 
     return jsonify({
         "per_item": per_item,
