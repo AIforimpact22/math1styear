@@ -97,6 +97,11 @@
       display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;
     }
     .nav-head h3{ margin:0; font-size:13px; color:#cbd7ea; letter-spacing:.2px; text-transform: uppercase; }
+    .nav-section + .nav-section{
+      margin-top:16px;
+      padding-top:12px;
+      border-top:1px dashed #2a394e;
+    }
     .nav-group{ display:flex; flex-direction:column; gap:6px; }
     .nav-link{
       display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px;
@@ -241,32 +246,40 @@
 <div class="app">
   <!-- LEFT SIDEBAR NAV -->
   <nav class="sidenav" aria-label="Main navigation">
-    <div class="nav-head">
-      <h3>Pages</h3>
+    <div class="nav-section">
+      <div class="nav-head">
+        <h3>Pages</h3>
+      </div>
+      <div class="nav-group" role="list">
+        <a class="nav-link" href="/" data-match="^/$">
+          <span class="nav-ico">🏠</span><span>Home</span>
+        </a>
+        <a class="nav-link" href="/sets" data-match="^/sets(/.*)?$">
+          <span class="nav-ico">⭕</span><span>Set Theory</span>
+        </a>
+        <a class="nav-link" href="/relations" data-match="^/relations(/.*)?$">
+          <span class="nav-ico">🧭</span><span>Relations &amp; Functions</span>
+        </a>
+        <a class="nav-link" href="/logic-playground" data-match="^/logic-playground(/.*)?$">
+          <span class="nav-ico">🧩</span><span>Logic Playground</span>
+        </a>
+      </div>
     </div>
-    <div class="nav-group" role="list">
-      <a class="nav-link" href="/" data-match="^/$">
-        <span class="nav-ico">🏠</span><span>Home</span>
-      </a>
-      <a class="nav-link" href="/sets" data-match="^/sets(/.*)?$">
-        <span class="nav-ico">⭕</span><span>Set Theory</span>
-      </a>
-      <!-- NEW: Relations link -->
-      <a class="nav-link" href="/relations" data-match="^/relations(/.*)?$">
-        <span class="nav-ico">🧭</span><span>Relations & Functions</span>
-      </a>
-      <a class="nav-link" href="/assignment" data-match="^/assignment(/.*)?$">
-        <span class="nav-ico">📝</span><span>Assignment 1</span>
-      </a>
-      <a class="nav-link" href="/logic-assignment" data-match="^/logic-assignment(/.*)?$">
-        <span class="nav-ico">🧠</span><span>Assignment 2</span>
-      </a>
-      <a class="nav-link" href="/logic-playground" data-match="^/logic-playground(/.*)?$">
-        <span class="nav-ico">🧩</span><span>Logic Playground</span>
-      </a>
-      <a class="nav-link" href="/assignment-3" data-match="^/assignment-3(/.*)?$">
-        <span class="nav-ico">📐</span><span>Assignment 3</span>
-      </a>
+    <div class="nav-section">
+      <div class="nav-head">
+        <h3>Assignments</h3>
+      </div>
+      <div class="nav-group" role="list">
+        <a class="nav-link" href="/assignment" data-match="^/assignment(/.*)?$">
+          <span class="nav-ico">📝</span><span>Assignment 1</span>
+        </a>
+        <a class="nav-link" href="/logic-assignment" data-match="^/logic-assignment(/.*)?$">
+          <span class="nav-ico">📝</span><span>Assignment 2</span>
+        </a>
+        <a class="nav-link" href="/assignment-3" data-match="^/assignment-3(/.*)?$">
+          <span class="nav-ico">📝</span><span>Assignment 3</span>
+        </a>
+      </div>
     </div>
 
     <div class="nav-sub">
