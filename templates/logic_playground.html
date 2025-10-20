@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Geology Logic Playground — EN / HU</title>
+  <style>
+    :root { --radius: 12px; --gap: 12px; --pad: 14px; --bg:#0b1220; --card:#121a2e; --ink:#e7eefc; --muted:#9fb0d4; --accent:#86b7ff; }
+    html, body { height:100%; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; }
+    .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 1.6rem; margin: 0 0 12px; }
+    .sub { color:var(--muted); margin-bottom:20px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+    .card { background: var(--card); border: 1px solid #1d2744; border-radius: var(--radius); padding: var(--pad); }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+    .btn { padding: 8px 12px; border-radius: 10px; background:#1a2441; color:var(--ink); border:1px solid #2a3968; cursor:pointer; }
+    .btn:hover { background:#223059; }
+    .btn.small { padding:6px 8px; font-size:0.9rem; }
+    .pill { padding: 6px 10px; border-radius:999px; background:#16203a; border:1px solid #273658; cursor:pointer; }
+    .pill.active { background:#223059; }
+    .muted { color:var(--muted); font-size: 0.95rem; }
+    .field { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #2a3968; background:#0e1528; color:var(--ink); }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; padding: 6px 8px; border-radius:8px; background:#0f1832; border:1px dashed #2a3968; }
+    .panel { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #223059; padding:6px 8px; text-align:center; }
+    .chip { background:#0f1832; border:1px solid #2a3968; padding: 6px 10px; border-radius:999px; cursor:pointer; }
+    .chip:hover{ background:#15224a; }
+    .sep { height:1px; background:#223059; margin:12px 0; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    .hint { font-size:.9rem; color:#9fb0d4; }
+    .ok { color:#8ee59b; }
+    .err { color:#ff9b9b; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <div>
+        <h1>Geology Logic Playground</h1>
+        <div class="sub">Symbols ⇄ Sentences • <span id="langLabel">English</span> / Magyar</div>
+      </div>
+      <div class="row" role="group" aria-label="Language toggle">
+        <button class="pill" id="langEn" aria-pressed="true">EN</button>
+        <button class="pill" id="langHu" aria-pressed="false">HU</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="row">
+        <div><strong>Variables</strong> &nbsp;<span class="muted">(edit meanings)</span></div>
+      </div>
+      <div class="grid" style="grid-template-columns: repeat(3, 1fr); margin-top:8px">
+        <div><div class="muted mono">p</div><input class="field" id="vp" value="the rock is sandstone"></div>
+        <div><div class="muted mono">q</div><input class="field" id="vq" value="it contains fossils"></div>
+        <div><div class="muted mono">r</div><input class="field" id="vr" value="it formed in a shallow marine environment"></div>
+        <div><div class="muted mono">o</div><input class="field" id="vo" value="the sample contains olivine"></div>
+        <div><div class="muted mono">y</div><input class="field" id="vy" value="the sample contains pyroxene"></div>
+        <div><div class="muted mono">i</div><input class="field" id="vi" value="the rock is igneous"></div>
+      </div>
+      <div class="hint" id="varHint" style="margin-top:6px">
+        Tip: add your own meanings (e.g., <span class="mono">p: the mountain is volcanic</span>).
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Left: Build with symbols -->
+      <div class="card">
+        <div class="panel">
+          <div><strong>Build with symbols</strong></div>
+          <div class="row">
+            <button class="btn small" id="clearBtn" title="Clear">Clear</button>
+            <button class="btn small" id="backBtn" title="Backspace">⌫</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px; flex-wrap:wrap">
+          <button class="btn mono" data-insert="p">p</button>
+          <button class="btn mono" data-insert="q">q</button>
+          <button class="btn mono" data-insert="r">r</button>
+          <button class="btn mono" data-insert="o">o</button>
+          <button class="btn mono" data-insert="y">y</button>
+          <button class="btn mono" data-insert="i">i</button>
+          <span style="width:16px"></span>
+          <button class="btn mono" data-insert=",">¬</button>
+          <button class="btn mono" data-insert="`">∧</button>
+          <button class="btn mono" data-insert="~">∨</button>
+          <button class="btn mono" data-insert="→">→</button>
+          <button class="btn mono" data-insert="↔">↔</button>
+          <button class="btn mono" data-insert="(">(</button>
+          <button class="btn mono" data-insert=")">)</button>
+        </div>
+        <div class="sep"></div>
+        <div><div class="muted">Expression</div>
+          <input class="field mono" id="exprBox" placeholder="Type or click buttons…" aria-label="Symbolic expression">
+        </div>
+        <div style="margin-top:10px">
+          <div class="muted">Meaning</div>
+          <div id="explainOut" class="hint">—</div>
+        </div>
+        <div style="margin-top:10px">
+          <div class="muted">Truth table</div>
+          <div id="ttOut" class="hint">—</div>
+        </div>
+      </div>
+
+      <!-- Right: Write a sentence -->
+      <div class="card">
+        <div class="panel">
+          <div><strong>Write a sentence</strong></div>
+          <div class="row">
+            <button class="btn small" id="ex1">Example 1</button>
+            <button class="btn small" id="ex2">Example 2</button>
+            <button class="btn small" id="ex3">Example 3</button>
+          </div>
+        </div>
+        <textarea class="field" id="sentBox" rows="6" placeholder="Type a sentence… (EN or HU)"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="toSymbolsBtn">Symbols ← Sentence</button>
+        </div>
+        <div style="margin-top:10px">
+          <div class="muted">Symbols</div>
+          <div id="symbolsOut" class="hint mono">—</div>
+        </div>
+        <div style="margin-top:10px">
+          <div class="muted">Meaning (check)</div>
+          <div id="explainOut2" class="hint">—</div>
+        </div>
+        <div style="margin-top:10px">
+          <div class="muted">Truth table</div>
+          <div id="ttOut2" class="hint">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let lang = "en";
+const taps = document.querySelectorAll("[data-insert]");
+taps.forEach(btn => btn.addEventListener("click", () => {
+  const s = btn.getAttribute("data-insert");
+  const box = $("exprBox");
+  const start = box.selectionStart || box.value.length;
+  const end = box.selectionEnd || box.value.length;
+  box.value = box.value.slice(0, start) + s + box.value.slice(end);
+  box.focus();
+  box.selectionStart = box.selectionEnd = start + s.length;
+  refreshExplainAndTable();
+}));
+
+$("clearBtn").onclick = () => { $("exprBox").value=""; $("explainOut").textContent="—"; $("ttOut").textContent="—"; };
+$("backBtn").onclick = () => {
+  const b = $("exprBox"); const pos = b.selectionStart || b.value.length;
+  if (pos>0) { b.value = b.value.slice(0,pos-1) + b.value.slice(pos); b.selectionStart=b.selectionEnd=pos-1; refreshExplainAndTable(); }
+};
+
+// Lang toggle
+$("langEn").onclick = () => setLang("en");
+$("langHu").onclick = () => setLang("hu");
+function setLang(l){
+  lang=l;
+  $("langEn").classList.toggle("active", l==="en");
+  $("langHu").classList.toggle("active", l==="hu");
+  $("langEn").setAttribute("aria-pressed", l==="en");
+  $("langHu").setAttribute("aria-pressed", l==="hu");
+  $("langLabel").textContent = l==="en" ? "English" : "Magyar";
+  // update placeholders
+  if (l==="en") {
+    $("vp").value = "the rock is sandstone";
+    $("vq").value = "it contains fossils";
+    $("vr").value = "it formed in a shallow marine environment";
+    $("vo").value = "the sample contains olivine";
+    $("vy").value = "the sample contains pyroxene";
+    $("vi").value = "the rock is igneous";
+    $("sentBox").placeholder = "Type a sentence… (EN or HU)";
+  } else {
+    $("vp").value = "a kőzet homokkő";
+    $("vq").value = "fossziliákat tartalmaz";
+    $("vr").value = "sekély tengeri környezetben képződött";
+    $("vo").value = "a minta olivint tartalmaz";
+    $("vy").value = "a minta piroxént tartalmaz";
+    $("vi").value = "a kőzet magmás";
+    $("sentBox").placeholder = "Írj egy mondatot… (EN vagy HU)";
+  }
+  refreshExplainAndTable();
+}
+
+// Build vars payload
+function collectVars(){
+  return { p:$("vp").value, q:$("vq").value, r:$("vr").value, o:$("vo").value, y:$("vy").value, i:$("vi").value };
+}
+
+// Debounce helper
+let debTimer=null;
+function debounce(fn, ms){ if(debTimer) clearTimeout(debTimer); debTimer=setTimeout(fn, ms); }
+
+$("exprBox").addEventListener("input", ()=> debounce(refreshExplainAndTable, 250));
+
+async function refreshExplainAndTable(){
+  const expr = $("exprBox").value;
+  if (!expr.trim()){ $("explainOut").textContent="—"; $("ttOut").textContent="—"; return; }
+  const vars = collectVars();
+  // Explain
+  try{
+    const res = await fetch("/logic-playground/api/explain", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ expr, lang, vars })
+    });
+    const j = await res.json();
+    if (j.ok){
+      $("explainOut").innerHTML = `<span class="${j.origin==='gpt'?'ok':'muted'}">${j.text}</span>`;
+    } else {
+      $("explainOut").innerHTML = `<span class="err">${j.error||'Error'}</span>`;
+    }
+  }catch(e){ $("explainOut").innerHTML = `<span class="err">${e}</span>`; }
+
+  // Truth table
+  try{
+    const varKeys = Object.keys(vars).filter(k => expr.includes(k));
+    const res = await fetch("/logic-playground/api/truth-table", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ expr, vars: varKeys })
+    });
+    const j = await res.json();
+    if (j.ok){
+      $("ttOut").innerHTML = renderTable(j.table);
+    } else{
+      $("ttOut").innerHTML = `<span class="err">${j.error||'Error'}</span>`;
+    }
+  }catch(e){ $("ttOut").innerHTML = `<span class="err">${e}</span>`; }
+}
+
+function renderTable(tt){
+  const vars = tt.vars;
+  let html = `<table><thead><tr>${vars.map(v=>`<th class="mono">${v.toUpperCase()}</th>`).join("")}<th class="mono">Expr</th></tr></thead><tbody>`;
+  for (let i=0; i<tt.rows.length; i++){
+    const r = tt.rows[i];
+    html += "<tr>";
+    for (const v of vars){ html += `<td>${r[v] ? "T":"F"}</td>`; }
+    html += `<td>${tt.values[i]}</td>`;
+    html += "</tr>";
+  }
+  html += "</tbody></table>";
+  return html;
+}
+
+// Sentence → symbols flow
+async function loadExamples(){
+  try{
+    const res = await fetch("/logic-playground/api/examples");
+    const j = await res.json();
+    window.examples = j;
+  }catch(e){ window.examples = {en:[],hu:[]}; }
+}
+loadExamples();
+
+$("ex1").onclick = ()=> fillExample(0);
+$("ex2").onclick = ()=> fillExample(1);
+$("ex3").onclick = ()=> fillExample(2);
+function fillExample(idx){
+  const exs = (lang==="en" ? (window.examples?.en||[]) : (window.examples?.hu||[]));
+  const ex = exs[idx]; if (!ex) return;
+  $("sentBox").value = ex.text;
+  $("symbolsOut").textContent = "—"; $("explainOut2").textContent="—"; $("ttOut2").textContent="—";
+}
+
+$("toSymbolsBtn").onclick = async () => {
+  const text = $("sentBox").value;
+  if (!text.trim()){ return; }
+  const vars = collectVars();
+  try{
+    const res = await fetch("/logic-playground/api/parse", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ text, lang, vars })
+    });
+    const j = await res.json();
+    if (j.ok){
+      $("symbolsOut").innerHTML = `<span class="${j.origin==='gpt'?'ok':'muted'}">${j.expr}</span>`;
+      $("exprBox").value = j.expr;
+      refreshExplainAndTable();
+      // Explain the result on the right too
+      const ex2 = await fetch("/logic-playground/api/explain", {
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ expr: j.expr, lang, vars })
+      });
+      const j2 = await ex2.json();
+      $("explainOut2").innerHTML = j2.ok ? `<span class="${j2.origin==='gpt'?'ok':'muted'}">${j2.text}</span>` : `<span class="err">${j2.error||'Error'}</span>`;
+      // Truth table
+      const varKeys = Object.keys(vars).filter(k => j.expr.includes(k));
+      const ttRes = await fetch("/logic-playground/api/truth-table", {
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ expr: j.expr, vars: varKeys })
+      });
+      const ttj = await ttRes.json();
+      $("ttOut2").innerHTML = ttj.ok ? renderTable(ttj.table) : `<span class="err">${ttj.error||'Error'}</span>`;
+    } else {
+      $("symbolsOut").innerHTML = `<span class="err">${j.error||'Error'}</span>`;
+    }
+  }catch(e){ $("symbolsOut").innerHTML = `<span class="err">${e}</span>`; }
+};
+
+// initial
+setLang("en");
+</script>
+</body>
+</html>
