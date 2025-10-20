@@ -115,7 +115,7 @@
 <script>
 // ---------- Config (fetched once) ----------
 let CFG = null;
-fetch("/logic-text/api/config").then(r=>r.json()).then(cfg => {
+fetch("/logic-playground/api/config").then(r=>r.json()).then(cfg => {
   CFG = cfg;
   setLang("en");
   // examples
