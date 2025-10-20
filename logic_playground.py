@@ -1,7 +1,7 @@
 from __future__ import annotations
 from flask import Blueprint, Flask, jsonify, render_template
 
-logic_text_bp = Blueprint("logic_text", __name__)
+logic_playground_bp = Blueprint("logic_playground", __name__)
 
 def _build_config() -> dict:
     """Return UI configuration (EN/HU defaults, connectors, examples)."""
@@ -60,17 +60,17 @@ def _build_config() -> dict:
         }
     }
 
-@logic_text_bp.route("/logic-text")
-def logic_text_page():
-    return render_template("logic_text.html")
+@logic_playground_bp.route("/logic-playground")
+def logic_playground_page():
+    return render_template("logic_playground.html")
 
-@logic_text_bp.route("/logic-text/api/config")
-def logic_text_config():
+@logic_playground_bp.route("/logic-playground/api/config")
+def logic_playground_config():
     return jsonify(_build_config())
 
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder=None)
-    app.register_blueprint(logic_text_bp)
+    app.register_blueprint(logic_playground_bp)
     return app
 
 if __name__ == "__main__":
