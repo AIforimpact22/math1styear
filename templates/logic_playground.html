@@ -3,43 +3,39 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Geology Logic Playground — One Stage (EN / HU)</title>
+  <title>Logic → Text — Geology (EN/HU)</title>
   <style>
-    :root { --radius: 12px; --gap: 12px; --pad: 14px; --bg:#0b1220; --card:#121a2e; --ink:#e7eefc; --muted:#9fb0d4; --accent:#86b7ff; --good:#8ee59b; --bad:#ff9b9b;}
+    :root { --radius: 12px; --gap: 12px; --pad: 14px; --bg:#0b1220; --card:#121a2e; --ink:#e7eefc; --muted:#9fb0d4; --accent:#86b7ff; --err:#ff9b9b; --ok:#9be3ac; }
     html, body { height:100%; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans"; }
-    .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-    h1 { font-size: 1.6rem; margin: 0 0 12px; }
-    .sub { color:var(--muted); margin-bottom:20px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+    .wrap { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 1.5rem; margin: 0 0 6px; }
+    .sub { color:var(--muted); margin-bottom:16px; }
     .card { background: var(--card); border: 1px solid #1d2744; border-radius: var(--radius); padding: var(--pad); }
-    .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
-    .btn { padding: 8px 12px; border-radius: 10px; background:#1a2441; color:var(--ink); border:1px solid #2a3968; cursor:pointer; }
-    .btn:hover { background:#223059; }
-    .btn.small { padding:6px 8px; font-size:0.9rem; }
+    .grid { display:grid; gap:var(--gap); }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .pill { padding: 6px 10px; border-radius:999px; background:#16203a; border:1px solid #273658; cursor:pointer; }
     .pill.active { background:#223059; }
-    .muted { color:var(--muted); font-size: 0.95rem; }
-    .field { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #2a3968; background:#0e1528; color: var(--ink); }
+    .btn { padding: 8px 12px; border-radius: 10px; background:#1a2441; color:var(--ink); border:1px solid #2a3968; cursor:pointer; }
+    .btn:hover { background:#223059; }
+    .btn.small { padding: 6px 8px; font-size: .9rem; }
+    .field { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #2a3968; background:#0e1528; color:var(--ink); }
+    .field.err { border-color: #5a1b1b; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
-    .sep { height:1px; background:#223059; margin:12px 0; }
-    .hint { font-size:.9rem; color:#9fb0d4; }
-    .ok { color: var(--good); }
-    .err { color: var(--bad); }
-    .badge { padding: 6px 10px; border-radius:999px; border:1px solid #2a3968; background:#0f1832; }
-    details { border:1px solid #223059; border-radius:10px; padding:8px 10px; }
-    summary { cursor: pointer; color:var(--muted); }
-    select { background:#0e1528; color:var(--ink); border:1px solid #2a3968; border-radius:8px; padding:8px 10px; }
-    .led { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; background:#5a647f; }
-    .led.ok { background: #22d39a; }
-    .led.no { background: #ff6f6f; }
+    .muted { color:var(--muted); }
+    .hint { color:var(--muted); font-size:.92rem; }
+    .ok { color: var(--ok); }
+    .err { color: var(--err); }
+    table { width:100%; border-collapse:collapse; }
+    th,td { border-bottom:1px solid #223059; padding:6px 8px; text-align:left; }
+    .kbd { padding: 4px 8px; background:#0f1832; border:1px dashed #2a3968; border-radius:8px; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="row" style="justify-content: space-between">
+  <div class="wrap grid">
+    <div class="row" style="justify-content:space-between;">
       <div>
-        <h1>Geology Logic Playground</h1>
-        <div class="sub" id="subtitle">One-stage: pick symbols → see the meaning (EN/HU)</div>
+        <h1>Logic → Text</h1>
+        <div class="sub">Geology domain • <span id="langLabel">English</span> / Magyar</div>
       </div>
       <div class="row" role="group" aria-label="Language toggle">
         <button class="pill" id="langEn" aria-pressed="true">EN</button>
@@ -47,45 +43,28 @@
       </div>
     </div>
 
-    <!-- Variables card -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="row" style="justify-content:space-between">
-        <div><strong id="labVars">Variables</strong> &nbsp;<span class="muted" id="labEdit">(edit meanings)</span></div>
-        <div class="row">
-          <button class="btn small" id="clearBtn" title="Clear">Clear</button>
-          <button class="btn small" id="backBtn" title="Backspace">⌫</button>
-        </div>
+    <div class="card grid">
+      <div class="row"><strong>Variables</strong><span class="muted">&nbsp;(edit meanings)</span></div>
+      <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div><div class="muted mono">p</div><input class="field" id="vp"></div>
+        <div><div class="muted mono">q</div><input class="field" id="vq"></div>
+        <div><div class="muted mono">r</div><input class="field" id="vr"></div>
+        <div><div class="muted mono">o</div><input class="field" id="vo"></div>
+        <div><div class="muted mono">y</div><input class="field" id="vy"></div>
+        <div><div class="muted mono">i</div><input class="field" id="vi"></div>
       </div>
-      <div class="grid" style="grid-template-columns: repeat(3, 1fr); margin-top:8px">
-        <div><div class="muted mono">p</div><input class="field" id="vp" value="the rock is sandstone"></div>
-        <div><div class="muted mono">q</div><input class="field" id="vq" value="it contains fossils"></div>
-        <div><div class="muted mono">r</div><input class="field" id="vr" value="it formed in a shallow marine environment"></div>
-        <div><div class="muted mono">o</div><input class="field" id="vo" value="the sample contains olivine"></div>
-        <div><div class="muted mono">y</div><input class="field" id="vy" value="the sample contains pyroxene"></div>
-        <div><div class="muted mono">i</div><input class="field" id="vi" value="the rock is igneous"></div>
-      </div>
-      <div class="hint" id="varHint" style="margin-top:6px">
-        Tip: add your own meanings (e.g., <span class="mono">p: the mountain is volcanic</span>).
-      </div>
+      <div class="hint" id="hintTxt"></div>
     </div>
 
-    <!-- Single-stage builder -->
-    <div class="card">
-      <div class="row" style="justify-content:space-between">
-        <strong id="labBuild">Build with symbols</strong>
+    <div class="card grid">
+      <div class="row" style="justify-content:space-between;">
+        <strong>Build with symbols</strong>
         <div class="row">
-          <span class="muted" id="labChallenge">Challenge:</span>
-          <select id="challenge">
-            <option value="">— None —</option>
-            <option value="(p ` q) → r">If sandstone ∧ fossils → shallow marine</option>
-            <option value="p ↔ q">Sandstone iff fossils</option>
-            <option value=",i → (,(o ~ y))">If not igneous → neither olivine nor pyroxene</option>
-          </select>
-          <span class="badge"><span class="led" id="led"></span><span id="eqLabel">No target selected</span></span>
+          <button class="btn small" id="clearBtn">Clear</button>
+          <button class="btn small" id="copyBtn">Copy text</button>
         </div>
       </div>
-
-      <div class="row" style="margin-top:8px; flex-wrap:wrap">
+      <div class="row">
         <button class="btn mono" data-insert="p">p</button>
         <button class="btn mono" data-insert="q">q</button>
         <button class="btn mono" data-insert="r">r</button>
@@ -102,188 +81,240 @@
         <button class="btn mono" data-insert=")">)</button>
       </div>
 
-      <div class="sep"></div>
+      <div>
+        <div class="muted">Expression</div>
+        <input id="expr" class="field mono" placeholder="Type or click buttons…">
+      </div>
 
       <div>
-        <div class="muted" id="labExpr">Expression</div>
-        <input class="field mono" id="exprBox" placeholder="Type or click buttons…" aria-label="Symbolic expression">
+        <div class="muted">Reading</div>
+        <div id="reading" class="hint">—</div>
       </div>
 
-      <div style="margin-top:10px">
-        <div class="muted" id="labMeaning">Meaning</div>
-        <div id="explainOut" class="hint">—</div>
+      <div>
+        <div class="muted">Examples (click to load)</div>
+        <div id="examples" class="row"></div>
       </div>
+    </div>
 
-      <div style="margin-top:10px">
-        <details id="ttToggle">
-          <summary id="labTT">Peek truth table</summary>
-          <div id="ttOut" class="hint" style="margin-top:8px">—</div>
-        </details>
-      </div>
+    <div class="card">
+      <details>
+        <summary class="muted">Legend</summary>
+        <div class="grid" style="margin-top:8px">
+          <div><span class="kbd mono">¬</span> NOT (ASCII <span class="mono">,</span>)</div>
+          <div><span class="kbd mono">∧</span> AND (ASCII <span class="mono">`</span>)</div>
+          <div><span class="kbd mono">∨</span> OR (ASCII <span class="mono">~</span>)</div>
+          <div><span class="kbd mono">→</span> implies (ASCII <span class="mono">-></span>)</div>
+          <div><span class="kbd mono">↔</span> iff (ASCII <span class="mono"><-></span>)</div>
+          <div>Parentheses group as usual.</div>
+        </div>
+      </details>
     </div>
   </div>
 
 <script>
-const $ = (id) => document.getElementById(id);
-let lang = "en";
+// ---------- Config (fetched once) ----------
+let CFG = null;
+fetch("/logic-text/api/config").then(r=>r.json()).then(cfg => {
+  CFG = cfg;
+  setLang("en");
+  // examples
+  const exWrap = document.getElementById("examples");
+  cfg.examples.forEach((ex, idx) => {
+    const b = document.createElement("button");
+    b.className = "btn small mono";
+    b.textContent = ex.expr;
+    b.title = ex.en;
+    b.onclick = () => { setExpr(ex.expr); };
+    exWrap.appendChild(b);
+  });
+});
 
-// keypad
-document.querySelectorAll("[data-insert]").forEach(btn => btn.addEventListener("click", () => {
-  const s = btn.getAttribute("data-insert");
-  const box = $("exprBox");
-  const start = box.selectionStart ?? box.value.length;
-  const end = box.selectionEnd ?? box.value.length;
-  box.value = box.value.slice(0, start) + s + box.value.slice(end);
-  box.focus();
-  box.selectionStart = box.selectionEnd = start + s.length;
-  refreshAll();
-}));
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+function setExpr(s){ $("expr").value = s; onExprInput(); }
 
-$("clearBtn").onclick = () => { $("exprBox").value=""; $("explainOut").textContent="—"; $("ttOut").textContent="—"; updateChallengeLight(); };
-$("backBtn").onclick = () => {
-  const b = $("exprBox"); const pos = b.selectionStart || b.value.length;
-  if (pos>0) { b.value = b.value.slice(0,pos-1) + b.value.slice(pos); b.selectionStart=b.selectionEnd=pos-1; refreshAll(); }
-};
-
-// Lang toggle
+// Language toggle
 $("langEn").onclick = () => setLang("en");
 $("langHu").onclick = () => setLang("hu");
 function setLang(l){
-  lang=l;
-  $("langEn").classList.toggle("active", l==="en");
-  $("langHu").classList.toggle("active", l==="hu");
-  $("langEn").setAttribute("aria-pressed", l==="en");
-  $("langHu").setAttribute("aria-pressed", l==="hu");
-  $("subtitle").textContent = l==="en" ? "One-stage: pick symbols → see the meaning (EN/HU)" : "Egy szint: válaszd a szimbólumokat → azonnali magyarázat";
-  if (l==="en") {
-    $("vp").value = "the rock is sandstone";
-    $("vq").value = "it contains fossils";
-    $("vr").value = "it formed in a shallow marine environment";
-    $("vo").value = "the sample contains olivine";
-    $("vy").value = "the sample contains pyroxene";
-    $("vi").value = "the rock is igneous";
-    $("labVars").textContent = "Variables";
-    $("labEdit").textContent = "(edit meanings)";
-    $("labBuild").textContent = "Build with symbols";
-    $("labExpr").textContent = "Expression";
-    $("labMeaning").textContent = "Meaning";
-    $("labTT").textContent = "Peek truth table";
-    $("labChallenge").textContent = "Challenge:";
-  } else {
-    $("vp").value = "a kőzet homokkő";
-    $("vq").value = "fossziliákat tartalmaz";
-    $("vr").value = "sekély tengeri környezetben képződött";
-    $("vo").value = "a minta olivint tartalmaz";
-    $("vy").value = "a minta piroxént tartalmaz";
-    $("vi").value = "a kőzet magmás";
-    $("labVars").textContent = "Változók";
-    $("labEdit").textContent = "(jelentések szerkesztése)";
-    $("labBuild").textContent = "Építs szimbólumokkal";
-    $("labExpr").textContent = "Kifejezés";
-    $("labMeaning").textContent = "Jelentés";
-    $("labTT").textContent = "Igazságtábla megtekintése";
-    $("labChallenge").textContent = "Kihívás:";
-  }
-  refreshAll();
+  if (!CFG) return;
+  const en = l==="en";
+  $("langEn").classList.toggle("active", en);
+  $("langHu").classList.toggle("active", !en);
+  $("langEn").setAttribute("aria-pressed", en);
+  $("langHu").setAttribute("aria-pressed", !en);
+  $("langLabel").textContent = en ? "English" : "Magyar";
+  const def = en ? CFG.vars.default_en : CFG.vars.default_hu;
+  $("vp").value = def.p; $("vq").value = def.q; $("vr").value = def.r;
+  $("vo").value = def.o; $("vy").value = def.y; $("vi").value = def.i;
+  $("hintTxt").textContent = (en ? CFG.hints.en : CFG.hints.hu);
+  document.documentElement.lang = en ? "en" : "hu";
+  window.APP_LANG = l;
+  onExprInput();
 }
 
-// Vars payload
+// keypad
+document.querySelectorAll("[data-insert]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const ch = btn.getAttribute("data-insert") || "";
+    const input = $("expr");
+    const s = input.selectionStart ?? input.value.length;
+    const e = input.selectionEnd ?? input.value.length;
+    input.value = input.value.slice(0,s) + ch + input.value.slice(e);
+    input.focus();
+    input.selectionStart = input.selectionEnd = s + ch.length;
+    onExprInput();
+  });
+});
+$("clearBtn").onclick = () => { $("expr").value=""; onExprInput(); };
+$("copyBtn").onclick  = async () => {
+  const txt = $("reading").innerText;
+  if (txt && txt !== "—") { try { await navigator.clipboard.writeText(txt); } catch(e){} }
+};
+
+// ---------- Parser (client-side, no server roundtrip) ----------
+// Normalize: strip spaces, lowercase vars, map aliases, convert -> and <->
+function normalize(expr){
+  let s = (expr || "").trim();
+  if (!s) return s;
+  s = s.replace(/<->/g, "↔").replace(/->/g, "→");
+  s = s.replace(/\s+/g, "").toLowerCase();
+  // map unicode aliases to ascii placeholders (consistent with your autograder)
+  s = s.replace(/¬/g, ",");
+  s = s.replace(/∧/g, "`");
+  s = s.replace(/∨/g, "~");
+  // validate allowed characters
+  const allowed = new Set("pqroiy(),`~→↔");
+  for (const ch of s){
+    if (!allowed.has(ch)) throw new Error("Use only p,q,r,o,y,i, parentheses, ¬ ∧ ∨ → ↔ (or ASCII ',', '`', '~', ->, <->).");
+  }
+  return s;
+}
+
+function tokenize(s){
+  const out = [];
+  for (const c0 of s){
+    let c = c0;
+    if ("pqroiy".includes(c)) out.push(["VAR", c]);
+    else if (c === ",") out.push(["NOT", c]);
+    else if (c === "`") out.push(["AND", c]);
+    else if (c === "~") out.push(["OR",  c]);
+    else if (c === "→") out.push(["IMP", c]);
+    else if (c === "↔") out.push(["IFF", c]);
+    else if (c === "(") out.push(["LPAREN", c]);
+    else if (c === ")") out.push(["RPAREN", c]);
+    else throw new Error("Unexpected character: " + c);
+  }
+  return out;
+}
+
+const PREC = { IFF:1, IMP:2, OR:3, AND:4, NOT:5 };
+const ASSOC = { IFF:"R", IMP:"R", OR:"L", AND:"L", NOT:"R" };
+
+function toRPN(tokens){
+  const output = [], ops = [];
+  for (const [tok, val] of tokens){
+    if (tok === "VAR") output.push([tok, val]);
+    else if (tok === "NOT") ops.push([tok, val]);
+    else if (["AND","OR","IMP","IFF"].includes(tok)){
+      while (ops.length && ops[ops.length-1][0] !== "LPAREN"){
+        const top = ops[ops.length-1][0];
+        const condL = (ASSOC[tok]==="L" && PREC[top] >= PREC[tok]);
+        const condR = (ASSOC[tok]==="R" && PREC[top] >  PREC[tok]);
+        if (condL || condR) output.push(ops.pop());
+        else break;
+      }
+      ops.push([tok, val]);
+    } else if (tok === "LPAREN") ops.push([tok, val]);
+    else if (tok === "RPAREN"){
+      while (ops.length && ops[ops.length-1][0] !== "LPAREN"){
+        output.push(ops.pop());
+      }
+      if (!ops.length) throw new Error("Mismatched parentheses.");
+      ops.pop(); // pop LPAREN
+    }
+  }
+  while (ops.length){
+    if (["LPAREN","RPAREN"].includes(ops[ops.length-1][0])) throw new Error("Mismatched parentheses.");
+    output.push(ops.pop());
+  }
+  return output;
+}
+
+function rpnToAst(rpn){
+  const st = [];
+  for (const [tok, sym] of rpn){
+    if (tok === "VAR") st.push({ op:"VAR", val:sym });
+    else if (tok === "NOT"){
+      if (!st.length) throw new Error("Missing operand for NOT.");
+      st.push({ op:"NOT", left: st.pop() });
+    } else { // binary
+      if (st.length < 2) throw new Error("Missing operands for binary operator.");
+      const b = st.pop(); const a = st.pop();
+      st.push({ op:tok, left:a, right:b });
+    }
+  }
+  if (st.length !== 1) throw new Error("Malformed expression.");
+  return st[0];
+}
+
+function prec(op){ return ({ IFF:1, IMP:2, OR:3, AND:4, NOT:5, VAR:6 })[op] || 0; }
+
+function phrase(node, dict, lang){
+  if (node.op === "VAR") return dict[node.val] || node.val;
+  if (node.op === "NOT"){
+    const x = phrase(node.left, dict, lang);
+    const s = (lang==="en" ? "not " + x : "nem " + x);
+    return (node.left.op === "VAR") ? s : "(" + s + ")";
+  }
+  const left  = phrase(node.left,  dict, lang);
+  const right = phrase(node.right, dict, lang);
+  const conn = (lang==="en"
+    ? {AND:"{a} and {b}", OR:"{a} or {b}", IMP:"if {a}, then {b}", IFF:"{a} if and only if {b}"}
+    : {AND:"{a} és {b}",  OR:"{a} vagy {b}", IMP:"ha {a}, akkor {b}", IFF:"{a} akkor és csak akkor, ha {b}"}
+  );
+  function maybeParen(child, frag){
+    if (child.op === "VAR") return frag;
+    return prec(child.op) < prec(node.op) ? "(" + frag + ")" : frag;
+  }
+  const a = maybeParen(node.left, left);
+  const b = maybeParen(node.right, right);
+  return conn[node.op].replace("{a}", a).replace("{b}", b);
+}
+
+// ---------- Live behavior ----------
+$("expr").addEventListener("input", onExprInput);
+
 function collectVars(){
   return { p:$("vp").value, q:$("vq").value, r:$("vr").value, o:$("vo").value, y:$("vy").value, i:$("vi").value };
 }
 
-// Debounce helper
-let debTimer=null;
-function debounce(fn, ms){ if(debTimer) clearTimeout(debTimer); debTimer=setTimeout(fn, ms); }
-
-$("exprBox").addEventListener("input", ()=> debounce(refreshAll, 200));
-$("challenge").addEventListener("change", ()=> refreshAll());
-
-async function refreshAll(){
-  const expr = $("exprBox").value;
-  if (!expr.trim()){ $("explainOut").textContent="—"; $("ttOut").textContent="—"; updateChallengeLight(); return; }
-  const vars = collectVars();
-  // Explain
+function onExprInput(){
+  const expr = $("expr").value;
+  if (!expr.trim()){
+    $("reading").textContent = "—";
+    $("expr").classList.remove("err");
+    return;
+  }
   try{
-    const res = await fetch("/logic-playground/api/explain", {
-      method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ expr, lang, vars })
-    });
-    const j = await res.json();
-    if (j.ok){
-      $("explainOut").innerHTML = `<span class="${j.origin==='gpt'?'ok':'muted'}">${j.text}</span>`;
-    } else {
-      $("explainOut").innerHTML = `<span class="err">${j.error||'Error'}</span>`;
-    }
-  }catch(e){ $("explainOut").innerHTML = `<span class="err">${e}</span>`; }
-
-  // Truth table (only when details is open)
-  if ($("ttToggle").open){
-    try{
-      const varKeys = Object.keys(vars).filter(k => expr.includes(k));
-      const res = await fetch("/logic-playground/api/truth-table", {
-        method:"POST", headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ expr, vars: varKeys })
-      });
-      const j = await res.json();
-      if (j.ok){
-        $("ttOut").innerHTML = renderTable(j.table);
-      } else{
-        $("ttOut").innerHTML = `<span class="err">${j.error||'Error'}</span>`;
-      }
-    }catch(e){ $("ttOut").innerHTML = `<span class="err">${e}</span>`; }
-  }
-  // Challenge equivalence light
-  await updateChallengeLight();
-}
-
-function renderTable(tt){
-  const vars = tt.vars;
-  let html = `<table><thead><tr>${vars.map(v=>`<th class="mono">${v.toUpperCase()}</th>`).join("")}<th class="mono">Expr</th></tr></thead><tbody>`;
-  for (let i=0; i<tt.rows.length; i++){
-    const r = tt.rows[i];
-    html += "<tr>";
-    for (const v of vars){ html += `<td>${r[v] ? "T":"F"}</td>`; }
-    html += `<td>${tt.values[i]}</td>`;
-    html += "</tr>";
-  }
-  html += "</tbody></table>";
-  return html;
-}
-
-async function updateChallengeLight(){
-  const target = $("challenge").value;
-  const led = $("led");
-  const lab = $("eqLabel");
-  const expr = $("exprBox").value.trim();
-  if (!target){
-    led.classList.remove("ok","no"); lab.textContent = (lang==="en" ? "No target selected" : "Nincs cél kiválasztva"); return;
-  }
-  if (!expr){ led.classList.remove("ok"); led.classList.add("no"); lab.textContent = (lang==="en" ? "Build the target" : "Építsd fel a célt"); return; }
-  // Compare truth tables with the same var order (union of used vars)
-  const vars = ["p","q","r","o","y","i"];
-  const used = vars.filter(v => target.includes(v) || expr.includes(v));
-  try{
-    const [aRes, bRes] = await Promise.all([
-      fetch("/logic-playground/api/truth-table", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ expr: target, vars: used }) }),
-      fetch("/logic-playground/api/truth-table", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ expr: expr, vars: used }) }),
-    ]);
-    const [a, b] = [await aRes.json(), await bRes.json()];
-    if (a.ok && b.ok && a.table.values.length===b.table.values.length){
-      let same = true;
-      for (let i=0;i<a.table.values.length;i++){ if (a.table.values[i] !== b.table.values[i]) { same=false; break; } }
-      if (same){ led.classList.remove("no"); led.classList.add("ok"); lab.textContent = (lang==="en" ? "Equivalent ✔" : "Ekvivalens ✔"); }
-      else { led.classList.remove("ok"); led.classList.add("no"); lab.textContent = (lang==="en" ? "Not equivalent" : "Nem ekvivalens"); }
-    } else {
-      led.classList.remove("ok"); led.classList.add("no"); lab.textContent = (lang==="en" ? "Error" : "Hiba");
-    }
+    const norm = normalize(expr);
+    const tokens = tokenize(norm);
+    const rpn = toRPN(tokens);
+    const ast = rpnToAst(rpn);
+    const vars = collectVars();
+    const lang = (window.APP_LANG || "en");
+    const text = phrase(ast, vars, lang);
+    $("reading").innerText = text;
+    $("expr").classList.remove("err");
   }catch(e){
-    led.classList.remove("ok"); led.classList.add("no"); lab.textContent = "Error";
+    $("reading").innerHTML = '<span class="err">' + e.message + '</span>';
+    $("expr").classList.add("err");
   }
 }
 
-// init
-setLang("en");
+// bootstrap
+window.APP_LANG = "en";
 </script>
 </body>
 </html>
