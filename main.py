@@ -18,6 +18,7 @@ from set_theory import (
 from assignment import assignment_bp
 from logic_assignment import logic_assignment_bp
 from functions_assignment import functions_assignment_bp
+from logic_playground import logic_playground_bp
 
 # NEW: Relations & Functions (Fossils) interactive page
 from relations import relations_bp
@@ -65,6 +66,9 @@ def create_app():
 
     # Assignment 3 (Functions collaboration) at /assignment-3
     app.register_blueprint(functions_assignment_bp)
+
+    # Logic Playground (symbols ⇄ sentences tools) at /logic-playground
+    app.register_blueprint(logic_playground_bp)
 
     # NEW: Relations & Functions (Fossils) at /relations
     # - Page route:            GET /relations
