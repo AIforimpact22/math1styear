@@ -1,0 +1,123 @@
+{# templates/transport.html #}
+{% extends "index.html" %}
+{% block page_title %}Sediment Transport — Power‑Law Model{% endblock %}
+
+{% block controls %}
+<div class="controls" aria-label="Page shortcuts">
+  <a class="btn" href="/function-examples">← Function Examples</a>
+  <a class="btn" href="/relations">Relations &amp; Functions</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="canvas-card" aria-label="Sediment transport plot">
+  <div class="geo-plot">
+    <figure>
+      <img
+        src="{{ url_for('transport.plot_png', k=k, n=n, vmax=vmax, v=vpoint, cb=ts) }}"
+        alt="Sediment transport (Qₛ) vs flow velocity (v), with Qₛ = k·vⁿ"
+      >
+      <figcaption>
+        Flow velocity on the x-axis (m/s). Sediment transport on the y-axis (arbitrary units).
+        Plot shown for 0&nbsp;≤&nbsp;v&nbsp;≤&nbsp;{{ vmax|round(3) }}.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<aside>
+  <style>
+    .geo-plot{ padding:16px; }
+    .geo-plot figure{ margin:0; }
+    .geo-plot img{ width:100%; height:auto; display:block; border-radius:12px; border:1px solid #233040; background:#0f141c; }
+    .geo-plot figcaption{ margin-top:8px; font-size:13px; color:#a9b8cc; }
+
+    .geo-panel{ display:grid; gap:12px; }
+    .geo-panel section{ background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px; }
+    .geo-panel h2{ margin:0 0 8px; font-size:14px; color:#cbd7ea; }
+
+    .geo-form{ display:grid; gap:10px; }
+    .geo-form label{ display:flex; flex-direction:column; gap:4px; font-size:13px; color:#cbd7ea; }
+    .geo-form input{
+      background:#0d1320;
+      border:1px solid #263243;
+      color:#e8f0ff;
+      border-radius:8px;
+      padding:8px 10px;
+    }
+    .geo-form button{ align-self:start; }
+
+    .geo-result{
+      display:grid;
+      gap:6px;
+      background:#0d1320;
+      border:1px solid #263243;
+      border-radius:10px;
+      padding:10px;
+      color:#d7e6ff;
+    }
+    .geo-result strong{ color:#fef9c3; }
+
+    .geo-note{ font-size:12px; color:#9fb2c7; line-height:1.5; }
+  </style>
+
+  <div class="geo-panel">
+    <section>
+      <h2>Model inputs</h2>
+      <form class="geo-form" method="get">
+        <label>Coefficient k
+          <input type="number" step="any" name="k" value="{{ k }}">
+        </label>
+        <label>Exponent n (typ. 2–5)
+          <input type="number" step="any" name="n" value="{{ n }}">
+        </label>
+        <label>Plot velocity range v<sub>max</sub> (m/s)
+          <input type="number" step="any" min="0" name="vmax" value="{{ vmax }}">
+        </label>
+        <label>Evaluate at velocity v (m/s)
+          <input type="number" step="any" min="0" name="v" value="{{ vpoint }}">
+        </label>
+        <label>Inverse: target transport Qₛ (arb. units)
+          <input type="number" step="any" name="Q" value="{{ Qtarget }}">
+        </label>
+        <button type="submit" class="btn">Update graph &amp; values</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Calculated values</h2>
+      <div class="geo-result">
+        <div>
+          <strong>Forward:</strong>
+          at velocity v = {{ vpoint|round(3) }} m/s → Qₛ = {{ Q_at_v|round(6) }} (arb. units).
+        </div>
+        <div>
+          <strong>Inverse:</strong>
+          {% if v_for_Q is not none %}
+            for Qₛ = {{ Qtarget|round(6) }} → v = {{ v_for_Q|round(6) }} m/s.
+          {% else %}
+            {{ inv_error }}
+          {% endif %}
+        </div>
+      </div>
+      <p class="geo-note">
+        Power‑law model: <strong>Qₛ = k · vⁿ</strong>.
+        Strong nonlinearity: doubling v multiplies Qₛ by <strong>2ⁿ</strong>.
+        With your n = {{ n }}, doubling v multiplies Qₛ by ≈ <strong>{{ doubling_factor|round(3) }}</strong>.
+      </p>
+    </section>
+  </div>
+</aside>
+
+<section class="explain-card" aria-label="How to interpret the sediment transport function">
+  <div class="explain-head">
+    <span class="badge">Classroom tip</span>
+    <code>Qₛ = k · vⁿ</code>
+  </div>
+  <div class="explain-body">
+    This power‑law captures that small increases in flow velocity can cause large increases in transport when
+    <em>n</em> is between 2 and 5. Each velocity <em>v</em> maps to a single transport value <em>Qₛ</em>, so it passes the vertical‑line test.
+    Compare rivers or channels by adjusting <strong>k</strong> (material/geometry) and <strong>n</strong> (nonlinearity).
+  </div>
+</section>
+{% endblock %}
