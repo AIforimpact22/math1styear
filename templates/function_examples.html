@@ -1,168 +1,36 @@
 {% extends "index.html" %}
 {% block page_title %}Function Examples — Geologic Context{% endblock %}
 
-{% block controls %}
-<div class="controls" aria-label="Quick links">
-  <a class="btn" href="/geothermal">Open Geothermal Gradient →</a>
-  <a class="btn" href="/relations">Relations &amp; Functions</a>
-</div>
-{% endblock %}
+{% block controls %}{% endblock %}
 
 {% block content %}
-<section class="canvas-card" aria-label="Function examples">
-  <div class="fn-examples">
-    <style>
-      .fn-examples{ padding:16px; display:grid; gap:16px; }
-      .fn-intro{ color:#d7e6ff; line-height:1.6; }
-      .fn-grid{ display:grid; gap:12px; }
-      @media (min-width: 960px){ .fn-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-      .fn-card{ background:#0f141c; border:1px solid #233040; border-radius:12px; padding:14px; display:grid; gap:10px; }
-      .fn-card h3{ margin:0; font-size:15px; color:#cbd7ea; }
-      .fn-card p{ margin:0; color:#a9b8cc; }
-      .fn-card table{ width:100%; border-collapse:collapse; border:1px solid #233040; border-radius:10px; overflow:hidden; }
-      .fn-card thead{ background:#0d1320; color:#9fb2c7; font-size:12px; }
-      .fn-card th, .fn-card td{ padding:6px 8px; border-bottom:1px solid #1f2a36; font-size:13px; }
-      .fn-card tbody tr:last-child td{ border-bottom:none; }
-      .fn-note{ font-size:12px; color:#9fb2c7; }
-      .fn-bilingual{ font-size:12px; color:#a9b8cc; line-height:1.5; }
-      .fn-bilingual strong{ color:#fef9c3; }
-    </style>
-
-    <div class="fn-intro">
-      <p>
-        These curated mappings demonstrate what it means to be a function in the geology-themed coursework.
-        Each source value is paired with exactly one output, making the vertical-line test succeed.
-      </p>
-      <p>
-        Use the tables in lectures or assignments to highlight vocabulary (English ↔ Hungarian) and to motivate why the
-        geothermal gradient is our go-to linear example.
-      </p>
-    </div>
-
-    <div class="fn-grid">
-      <div class="fn-card">
-        <h3>Depth → Temperature (Geothermal Gradient)</h3>
-        <p class="fn-note">Linear function: T(z) = T₀ + G·z with T₀ = 15&nbsp;°C and G = 25&nbsp;°C/km.</p>
-        <table aria-label="Depth to temperature sample values">
-          <thead>
-            <tr>
-              <th scope="col">Depth z (km)</th>
-              <th scope="col">Temperature T (°C)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>0.0</td><td>15</td></tr>
-            <tr><td>1.0</td><td>40</td></tr>
-            <tr><td>2.0</td><td>65</td></tr>
-            <tr><td>3.0</td><td>90</td></tr>
-            <tr><td>4.0</td><td>115</td></tr>
-          </tbody>
-        </table>
-        <p class="fn-bilingual"><strong>EN:</strong> each depth has exactly one temperature reading.<br><strong>HU:</strong> minden mélységhez pontosan egy hőmérséklet tartozik.</p>
-        <p class="fn-note">Try the interactive version via the button above to alter T₀ or G.</p>
-      </div>
-
-      <div class="fn-card">
-        <h3>Well ID → Lithology Code</h3>
-        <p class="fn-note">Categorical function summarising the dominant rock type in a clean interval.</p>
-        <table aria-label="Well to lithology mapping">
-          <thead>
-            <tr>
-              <th scope="col">Well ID</th>
-              <th scope="col">Lithology</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>A-12</td><td>Sandstone</td></tr>
-            <tr><td>B-07</td><td>Limestone</td></tr>
-            <tr><td>C-03</td><td>Dolomite</td></tr>
-            <tr><td>D-14</td><td>Shale</td></tr>
-          </tbody>
-        </table>
-        <p class="fn-bilingual"><strong>EN:</strong> one lithology per well keeps the relation a function.<br><strong>HU:</strong> kútonként pontosan egy litológia szerepel, ezért ez függvény.</p>
-        <p class="fn-note">If a well had two lithologies listed simultaneously, it would fail the function test.</p>
-      </div>
-
-      <div class="fn-card">
-        <h3>Porosity Class → Recommended Processing</h3>
-        <p class="fn-note">Piecewise function used in Assignment&nbsp;3 planning discussions.</p>
-        <table aria-label="Porosity class to processing recommendation">
-          <thead>
-            <tr>
-              <th scope="col">Porosity φ range</th>
-              <th scope="col">Processing workflow</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>φ &lt; 0.10</td><td>Baseline QC only</td></tr>
-            <tr><td>0.10 ≤ φ &lt; 0.18</td><td>QC + clay volume correction</td></tr>
-            <tr><td>0.18 ≤ φ &lt; 0.24</td><td>QC + saturation modelling</td></tr>
-            <tr><td>φ ≥ 0.24</td><td>Full petrophysical workflow</td></tr>
-          </tbody>
-        </table>
-        <p class="fn-bilingual"><strong>EN:</strong> each porosity class maps to one workflow.<br><strong>HU:</strong> minden porozitás-osztályhoz egy feldolgozási lépés tartozik.</p>
-        <p class="fn-note">Discuss how decision trees encode functions when each branch ends in a single action.</p>
-      </div>
-
-      <div class="fn-card">
-        <h3>Sample ID → Mineral Fraction Pair</h3>
-        <p class="fn-note">Numerical function used for scatter plots; values come from a balanced core plug dataset.</p>
-        <table aria-label="Sample ID to mineral fractions">
-          <thead>
-            <tr>
-              <th scope="col">Sample ID</th>
-              <th scope="col">(Quartz %, Feldspar %)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>S-101</td><td>(62, 18)</td></tr>
-            <tr><td>S-118</td><td>(55, 22)</td></tr>
-            <tr><td>S-143</td><td>(48, 30)</td></tr>
-            <tr><td>S-177</td><td>(70, 12)</td></tr>
-          </tbody>
-        </table>
-        <p class="fn-bilingual"><strong>EN:</strong> one ordered pair per sample keeps plotting deterministic.<br><strong>HU:</strong> mintánként egy rendezett pár biztosítja az egyértelmű ábrázolást.</p>
-        <p class="fn-note">Pairs are convenient reminders that functions can output vectors, not just scalars.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<aside>
-  <div class="fn-side">
-    <style>
-      .fn-side{ display:grid; gap:12px; }
-      .fn-side section{ background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px; }
-      .fn-side h2{ margin:0 0 8px; font-size:14px; color:#cbd7ea; }
-      .fn-side p{ margin:0; font-size:13px; color:#a9b8cc; line-height:1.6; }
-      .fn-side ul{ margin:6px 0 0 18px; color:#d7e6ff; line-height:1.5; }
-    </style>
-
-    <section>
-      <h2>Checklist for a function</h2>
-      <ul>
-        <li>Every input appears at most once in the left column.</li>
-        <li>No input is paired with two different outputs.</li>
-        <li>Outputs may repeat — surjective/injective tests come later.</li>
-        <li>Visual: every vertical line intersects the graph at most once.</li>
-      </ul>
-    </section>
-
-    <section>
-      <h2>Classroom use</h2>
-      <p>Start with the geothermal mapping, then contrast with a non-function (e.g., two lithologies for one well) before returning here to reinforce the rule.</p>
-      <p style="margin-top:6px;">Encourage students to build their own tables using local data, keeping the one-output rule in mind.</p>
-    </section>
-  </div>
-</aside>
-
-<section class="explain-card" aria-label="Why functions matter">
-  <div class="explain-head">
-    <span class="badge">Key idea</span>
-    <code>Function = deterministic mapping</code>
-  </div>
-  <div class="explain-body">
-    Functions let us predict or model outcomes consistently. Whether we map depth to temperature, porosity to workflows, or samples to mineral fractions, the determinism is what powers analysis, automation, and grading rubrics in this course.
+<section class="canvas-card" aria-label="Function examples quick links">
+  <style>
+    .fn-links {
+      display: grid;
+      gap: 16px;
+      padding: 24px;
+    }
+    .fn-links__btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      border-radius: 10px;
+      background: #12324a;
+      color: #f1f5f9;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s ease;
+    }
+    .fn-links__btn:hover,
+    .fn-links__btn:focus {
+      background: #1b4766;
+    }
+  </style>
+  <div class="fn-links">
+    <a class="fn-links__btn" href="/geothermal">Geothermal Gradient</a>
+    <a class="fn-links__btn" href="/sedimentation">Sedimentation Accumulation</a>
   </div>
 </section>
 {% endblock %}
