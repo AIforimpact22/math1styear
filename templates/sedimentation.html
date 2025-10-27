@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% set title = tr.title %}
+{% set h1 = tr.h1 %}
+{% set subtitle = tr.subtitle %}
+
+{% block content %}
+
+<style>
+  .lang-toggle { display:flex; gap:.5rem; align-items:center; margin-bottom:1rem; }
+  .lang-toggle .btn { padding:.45rem .7rem; border-radius:8px; border:1px solid #233040; background:#0f141c; color:#cbd7ea; cursor:pointer; }
+  .lang-toggle .btn.active { background:#1b2636; font-weight:700; }
+  .lang-toggle label { color:#9fb2c7; font-size:14px; margin-right:.25rem; }
+</style>
+
+<div class="lang-toggle">
+  <label>{{ tr.lang_label }}:</label>
+  <!-- Keep current inputs when switching language -->
+  <form method="get" style="display:inline;">
+    <input type="hidden" name="h0" value="{{ h0 }}">
+    <input type="hidden" name="r" value="{{ r }}">
+    <input type="hidden" name="tmax" value="{{ tmax }}">
+    <input type="hidden" name="t" value="{{ tpoint }}">
+    <input type="hidden" name="H" value="{{ Htarget }}">
+    <button class="btn {% if lang == 'en' %}active{% endif %}" type="submit" name="lang" value="en">{{ tr.lang_en }}</button>
+    <button class="btn {% if lang == 'hu' %}active{% endif %}" type="submit" name="lang" value="hu">{{ tr.lang_hu }}</button>
+  </form>
+</div>
+
+<div class="grid grid-2">
+  <section class="card">
+    <h2>{{ tr.about_h2 }}</h2>
+    <p>
+      {{ tr.about_p1 }}
+      <strong>h(t) = h₀ + r·t</strong>,
+      {{ tr.where }}
+    </p>
+    <ul>
+      <li><strong>h</strong> — {{ tr.bul_h }}</li>
+      <li><strong>h₀</strong> — {{ tr.bul_h0 }}</li>
+      <li><strong>r</strong> — {{ tr.bul_r }}</li>
+      <li><strong>t</strong> — {{ tr.bul_t }}</li>
+    </ul>
+
+    <p class="muted">{{ tr.math_notes }}</p>
+
+    <hr>
+
+    <h2>{{ tr.inputs_h2 }}</h2>
+    <form method="get">
+      <!-- Preserve language on submit -->
+      <input type="hidden" name="lang" value="{{ lang }}">
+      <div class="row">
+        <label>{{ tr.label_h0 }}
+          <input type="number" step="any" name="h0" value="{{ h0 }}">
+        </label>
+        <label>{{ tr.label_r }}
+          <input type="number" step="any" name="r" value="{{ r }}">
+        </label>
+        <label>{{ tr.label_tmax|safe }}
+          <input type="number" step="any" min="0" name="tmax" value="{{ tmax }}">
+        </label>
+        <label>{{ tr.label_t }}
+          <input type="number" step="any" min="0" name="t" value="{{ tpoint }}">
+        </label>
+        <label>{{ tr.label_H }}
+          <input type="number" step="any" name="H" value="{{ Htarget }}">
+        </label>
+      </div>
+      <p style="margin-top: .75rem;">
+        <button type="submit">{{ tr.update_btn }}</button>
+      </p>
+    </form>
+
+    <h2 style="margin-top:1rem;">{{ tr.calc_h2 }}</h2>
+    <div class="grid" style="margin-top: .75rem;">
+      <div class="card" style="background:#fafafa;">
+        <strong>{{ tr.forward_strong }}</strong>
+        <p>{{ forward_line }}</p>
+      </div>
+
+      <div class="card" style="background:#fafafa;">
+        <strong>{{ tr.inverse_strong }}</strong>
+        {% if inverse_line %}
+          <p>{{ inverse_line }}</p>
+        {% else %}
+          <p>{{ inverse_r0_msg }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top:.5rem;">{{ tr.example_p }}</p>
+  </section>
+
+  <section class="card">
+    <figure>
+      <img
+        src="{{ url_for('sedimentation.plot_png', h0=h0, r=r, tmax=tmax, t=tpoint, v=ts, lang=lang) }}"
+        alt="{{ tr.fig_alt }}"
+        style="width:100%; height:auto; display:block; border-radius:8px;"
+      >
+      <figcaption>{{ figcaption_line }}</figcaption>
+    </figure>
+    <p class="muted" style="margin-top:.5rem;">{{ tr.tip_p }}</p>
+  </section>
+</div>
+
+{% endblock %}
