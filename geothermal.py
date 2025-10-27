@@ -142,6 +142,14 @@ def _url_with_lang(endpoint, **params):
     params["lang"] = lang
     return url_for(endpoint, **params)
 
+
+def _current_page_with_lang(target_lang: str) -> str:
+    """Return the current page URL but with the language switched."""
+    params = request.args.to_dict(flat=True)
+    params["lang"] = target_lang
+    view_args = request.view_args or {}
+    return url_for(request.endpoint, **view_args, **params)
+
 # --------------- routes ---------------
 @bp.route("/", methods=["GET"])
 def index():
@@ -172,6 +180,10 @@ def index():
         T0=T0, G=G, zmax=zmax, zpoint=zpoint, Ttarget=Ttarget,
         T_at_z=T_at_z, z_for_T=z_for_T,
         ts=int(time.time()),
+        lang_links={
+            "en": _current_page_with_lang("en"),
+            "hu": _current_page_with_lang("hu"),
+        },
         # i18n
         t=text, lang=lang,
         # helpers for links that keep ?lang
