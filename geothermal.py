@@ -6,7 +6,7 @@ matplotlib.use("Agg")  # headless backend for servers
 import matplotlib.pyplot as plt
 import numpy as np
 
-bp = Blueprint("geothermal", __name__, template_folder="templates")
+bp = Blueprint("geothermal", __name__)
 
 # --- helpers ---------------------------------------------------------------
 def _get_float(args, name, default):
@@ -41,7 +41,7 @@ def index():
         z_for_T = (Ttarget - T0) / G
 
     return render_template(
-        "geothermal/index.html",
+        "geothermal.html",
         T0=T0, G=G, zmax=zmax, zpoint=zpoint, Ttarget=Ttarget,
         T_at_z=T_at_z, z_for_T=z_for_T,
         ts=int(time.time())  # cache-buster for the plot image
