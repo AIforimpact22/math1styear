@@ -1,12 +1,14 @@
 import io
 import time
-from flask import Blueprint, render_template, request, Response
+
 import matplotlib
 matplotlib.use("Agg")  # headless backend for servers
 import matplotlib.pyplot as plt
 import numpy as np
+from flask import Blueprint, Response, render_template, request
 
-bp = Blueprint("sedimentation", __name__, template_folder="templates")
+
+bp = Blueprint("sedimentation", __name__)
 
 # ------------------------ translations ------------------------
 TR = {
@@ -172,7 +174,7 @@ def index():
             inverse_line = tr["inverse_text_neg"].format(t=round(t_for_H, 3))
 
     return render_template(
-        "sedimentation/index.html",
+        "sedimentation.html",
         # numeric/state
         h0=h0, r=r, tmax=tmax, tpoint=tpoint, Htarget=Htarget,
         h_at_t=h_at_t, t_for_H=t_for_H,

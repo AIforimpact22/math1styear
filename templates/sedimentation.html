@@ -1,33 +1,48 @@
-{% extends "base.html" %}
-{% set title = tr.title %}
-{% set h1 = tr.h1 %}
-{% set subtitle = tr.subtitle %}
+{% extends "index.html" %}
+
+{% block head_title %}{{ tr.title }}{% endblock %}
+{% block page_title %}{{ tr.h1 }}{% endblock %}
+
+{% block controls %}
+<div class="controls" aria-label="Page shortcuts">
+  <a class="btn" href="/function-examples">Function Examples</a>
+  <a class="btn" href="/geothermal">Geothermal Gradient</a>
+  <span class="btn" style="margin-left:auto;">
+    {{ tr.lang_label }}:
+    {% if lang == 'hu' %}
+      <a class="btn" href="{{ url_for('sedimentation.index', lang='en', h0=h0, r=r, tmax=tmax, t=tpoint, H=Htarget) }}">EN</a>
+      <strong>HU</strong>
+    {% else %}
+      <strong>EN</strong>
+      <a class="btn" href="{{ url_for('sedimentation.index', lang='hu', h0=h0, r=r, tmax=tmax, t=tpoint, H=Htarget) }}">HU</a>
+    {% endif %}
+  </span>
+</div>
+{% endblock %}
 
 {% block content %}
-
 <style>
-  .lang-toggle { display:flex; gap:.5rem; align-items:center; margin-bottom:1rem; }
-  .lang-toggle .btn { padding:.45rem .7rem; border-radius:8px; border:1px solid #233040; background:#0f141c; color:#cbd7ea; cursor:pointer; }
-  .lang-toggle .btn.active { background:#1b2636; font-weight:700; }
-  .lang-toggle label { color:#9fb2c7; font-size:14px; margin-right:.25rem; }
+  .sed-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .sed-card { background: #0f141c; border: 1px solid #233040; border-radius: 12px; padding: 16px; }
+  .sed-card h2 { margin: 0 0 10px; font-size: 18px; color: #dbe6ff; }
+  .sed-card p { margin: 0 0 10px; color: #a9b8cc; }
+  .sed-card ul { margin: 0 0 12px 18px; padding: 0; color: #a9b8cc; }
+  .sed-card li { margin: 4px 0; }
+  .sed-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .sed-form label { display: flex; flex-direction: column; gap: 6px; color: #cbd7ea; font-weight: 600; }
+  .sed-form input { padding: 8px; border-radius: 8px; border: 1px solid #233040; background: #101821; color: #e8f0ff; }
+  .sed-form button { padding: 10px 14px; border-radius: 10px; border: 1px solid #27405e; background: #17273b; color: #e4ecff; cursor: pointer; }
+  .sed-form button:hover { background: #1f314a; }
+  .sed-results { display: grid; gap: 12px; margin-top: 12px; }
+  .sed-result-card { background: #121a25; border: 1px solid #233040; border-radius: 10px; padding: 12px; color: #dbe6ff; }
+  .sed-tip { color: #94a9c2; margin-top: 10px; font-size: 13px; }
+  figure { margin: 0; }
+  figure img { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid #233040; }
+  figure figcaption { margin-top: 8px; color: #94a9c2; font-size: 13px; }
 </style>
 
-<div class="lang-toggle">
-  <label>{{ tr.lang_label }}:</label>
-  <!-- Keep current inputs when switching language -->
-  <form method="get" style="display:inline;">
-    <input type="hidden" name="h0" value="{{ h0 }}">
-    <input type="hidden" name="r" value="{{ r }}">
-    <input type="hidden" name="tmax" value="{{ tmax }}">
-    <input type="hidden" name="t" value="{{ tpoint }}">
-    <input type="hidden" name="H" value="{{ Htarget }}">
-    <button class="btn {% if lang == 'en' %}active{% endif %}" type="submit" name="lang" value="en">{{ tr.lang_en }}</button>
-    <button class="btn {% if lang == 'hu' %}active{% endif %}" type="submit" name="lang" value="hu">{{ tr.lang_hu }}</button>
-  </form>
-</div>
-
-<div class="grid grid-2">
-  <section class="card">
+<div class="sed-grid">
+  <section class="sed-card">
     <h2>{{ tr.about_h2 }}</h2>
     <p>
       {{ tr.about_p1 }}
@@ -40,45 +55,40 @@
       <li><strong>r</strong> — {{ tr.bul_r }}</li>
       <li><strong>t</strong> — {{ tr.bul_t }}</li>
     </ul>
+    <p class="sed-tip">{{ tr.math_notes }}</p>
 
-    <p class="muted">{{ tr.math_notes }}</p>
-
-    <hr>
+    <hr style="border: none; border-top: 1px solid #1f2a36; margin: 18px 0;">
 
     <h2>{{ tr.inputs_h2 }}</h2>
-    <form method="get">
-      <!-- Preserve language on submit -->
+    <form class="sed-form" method="get">
       <input type="hidden" name="lang" value="{{ lang }}">
-      <div class="row">
-        <label>{{ tr.label_h0 }}
-          <input type="number" step="any" name="h0" value="{{ h0 }}">
-        </label>
-        <label>{{ tr.label_r }}
-          <input type="number" step="any" name="r" value="{{ r }}">
-        </label>
-        <label>{{ tr.label_tmax|safe }}
-          <input type="number" step="any" min="0" name="tmax" value="{{ tmax }}">
-        </label>
-        <label>{{ tr.label_t }}
-          <input type="number" step="any" min="0" name="t" value="{{ tpoint }}">
-        </label>
-        <label>{{ tr.label_H }}
-          <input type="number" step="any" name="H" value="{{ Htarget }}">
-        </label>
-      </div>
-      <p style="margin-top: .75rem;">
+      <label>{{ tr.label_h0 }}
+        <input type="number" step="any" name="h0" value="{{ h0 }}">
+      </label>
+      <label>{{ tr.label_r }}
+        <input type="number" step="any" name="r" value="{{ r }}">
+      </label>
+      <label>{{ tr.label_tmax|safe }}
+        <input type="number" step="any" min="0" name="tmax" value="{{ tmax }}">
+      </label>
+      <label>{{ tr.label_t }}
+        <input type="number" step="any" min="0" name="t" value="{{ tpoint }}">
+      </label>
+      <label>{{ tr.label_H }}
+        <input type="number" step="any" name="H" value="{{ Htarget }}">
+      </label>
+      <div style="align-self: end;">
         <button type="submit">{{ tr.update_btn }}</button>
-      </p>
+      </div>
     </form>
 
-    <h2 style="margin-top:1rem;">{{ tr.calc_h2 }}</h2>
-    <div class="grid" style="margin-top: .75rem;">
-      <div class="card" style="background:#fafafa;">
+    <h2 style="margin-top: 18px;">{{ tr.calc_h2 }}</h2>
+    <div class="sed-results">
+      <div class="sed-result-card">
         <strong>{{ tr.forward_strong }}</strong>
         <p>{{ forward_line }}</p>
       </div>
-
-      <div class="card" style="background:#fafafa;">
+      <div class="sed-result-card">
         <strong>{{ tr.inverse_strong }}</strong>
         {% if inverse_line %}
           <p>{{ inverse_line }}</p>
@@ -88,20 +98,18 @@
       </div>
     </div>
 
-    <p class="muted" style="margin-top:.5rem;">{{ tr.example_p }}</p>
+    <p class="sed-tip">{{ tr.example_p }}</p>
   </section>
 
-  <section class="card">
+  <section class="sed-card">
     <figure>
       <img
         src="{{ url_for('sedimentation.plot_png', h0=h0, r=r, tmax=tmax, t=tpoint, v=ts, lang=lang) }}"
         alt="{{ tr.fig_alt }}"
-        style="width:100%; height:auto; display:block; border-radius:8px;"
       >
       <figcaption>{{ figcaption_line }}</figcaption>
     </figure>
-    <p class="muted" style="margin-top:.5rem;">{{ tr.tip_p }}</p>
+    <p class="sed-tip">{{ tr.tip_p }}</p>
   </section>
 </div>
-
 {% endblock %}

@@ -20,6 +20,7 @@ from logic_assignment import logic_assignment_bp
 from functions_assignment import functions_assignment_bp
 from logic_playground import logic_playground_bp
 from geothermal import bp as geothermal_bp
+from sedimentation import bp as sedimentation_bp
 from function_examples import function_examples_bp
 
 # NEW: Relations & Functions (Fossils) interactive page
@@ -77,6 +78,9 @@ def create_app():
 
     # Geothermal gradient function visualiser at /geothermal
     app.register_blueprint(geothermal_bp, url_prefix="/geothermal")
+
+    # Sediment accumulation linear model at /sedimentation
+    app.register_blueprint(sedimentation_bp, url_prefix="/sedimentation")
 
     # NEW: Relations & Functions (Fossils) at /relations
     # - Page route:            GET /relations
