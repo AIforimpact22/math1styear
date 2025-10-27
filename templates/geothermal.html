@@ -5,10 +5,10 @@
 
 {% block controls %}
 <div class="controls" aria-label="Page shortcuts">
-  <a class="btn" href="{{ url_with_lang('function_examples') if url_with_lang else '/function-examples?lang=' ~ lang }}">
+  <a class="btn" href="{{ url_with_lang('function_examples.function_examples_index') if url_with_lang else '/function-examples?lang=' ~ lang }}">
     {{ t.back_functions }}
   </a>
-  <a class="btn" href="{{ url_with_lang('relations') if url_with_lang else '/relations?lang=' ~ lang }}">
+  <a class="btn" href="{{ url_with_lang('relations.relations_page') if url_with_lang else '/relations?lang=' ~ lang }}">
     {{ t.relations }}
   </a>
 
