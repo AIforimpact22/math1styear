@@ -15,11 +15,11 @@
   <span class="btn" style="margin-left:auto;">
     {{ t.language }}:
     {% if lang == 'hu' %}
-      <a class="btn" href="{{ request.path }}?{{ request.query_string|tojson|safe and request.query_string.decode().replace('lang=hu','lang=en') or 'lang=en' }}">EN</a>
+      <a class="btn" href="{{ lang_links.en }}">EN</a>
       <strong>HU</strong>
     {% else %}
       <strong>EN</strong>
-      <a class="btn" href="{{ request.path }}?{{ request.query_string|tojson|safe and request.query_string.decode().replace('lang=en','lang=hu') or 'lang=hu' }}">HU</a>
+      <a class="btn" href="{{ lang_links.hu }}">HU</a>
     {% endif %}
   </span>
 </div>
