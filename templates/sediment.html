@@ -1,4 +1,4 @@
-{# templates/transport.html #}
+{# templates/sediment.html #}
 {% extends "index.html" %}
 {% block page_title %}Sediment Transport — Power‑Law Model{% endblock %}
 
@@ -14,7 +14,7 @@
   <div class="geo-plot">
     <figure>
       <img
-        src="{{ url_for('transport.plot_png', k=k, n=n, vmax=vmax, v=vpoint, cb=ts) }}"
+        src="{{ url_for('sediment.plot_png', k=k, n=n, vmax=vmax, v=vpoint, cb=ts) }}"
         alt="Sediment transport (Qₛ) vs flow velocity (v), with Qₛ = k·vⁿ"
       >
       <figcaption>

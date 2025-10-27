@@ -21,6 +21,7 @@ from functions_assignment import functions_assignment_bp
 from logic_playground import logic_playground_bp
 from geothermal import bp as geothermal_bp
 from sedimentation import bp as sedimentation_bp
+from sediment import sediment_bp
 from function_examples import function_examples_bp
 
 # NEW: Relations & Functions (Fossils) interactive page
@@ -81,6 +82,9 @@ def create_app():
 
     # Sediment accumulation linear model at /sedimentation
     app.register_blueprint(sedimentation_bp, url_prefix="/sedimentation")
+
+    # Sediment transport power-law model at /sediment
+    app.register_blueprint(sediment_bp, url_prefix="/sediment")
 
     # NEW: Relations & Functions (Fossils) at /relations
     # - Page route:            GET /relations

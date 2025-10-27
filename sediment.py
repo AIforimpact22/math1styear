@@ -1,13 +1,14 @@
-# transport_bp.py
+# sediment.py
 import io
 import time
 from flask import Blueprint, render_template, request, Response
 import matplotlib
+
 matplotlib.use("Agg")  # headless backend for servers
 import matplotlib.pyplot as plt
 import numpy as np
 
-bp = Blueprint("transport", __name__)
+sediment_bp = Blueprint("sediment", __name__)
 
 # ------------------------ helpers ------------------------
 def _get_float(args, name, default):
@@ -21,7 +22,7 @@ def _get_float(args, name, default):
         return float(default)
 
 # ------------------------ routes -------------------------
-@bp.route("/", methods=["GET"])
+@sediment_bp.route("/", methods=["GET"])
 def index():
     """
     Sediment transport (power-law) page:
@@ -53,14 +54,14 @@ def index():
     doubling_factor = 2.0 ** n
 
     return render_template(
-        "transport.html",
+        "sediment.html",
         k=k, n=n, vmax=vmax, vpoint=vpoint, Qtarget=Qtarget,
         Q_at_v=Q_at_v, v_for_Q=v_for_Q, inv_error=inv_error,
         doubling_factor=doubling_factor,
         ts=int(time.time())  # cache-buster for the plot image
     )
 
-@bp.route("/plot.png", methods=["GET"])
+@sediment_bp.route("/plot.png", methods=["GET"])
 def plot_png():
     """
     Plot sediment transport vs flow velocity:
