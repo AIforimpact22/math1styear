@@ -1,39 +1,69 @@
-{% extends "base.html" %}
-{% set title = "Geothermal Gradient — Linear Model" %}
-{% set h1 = "Geothermal Gradient: T(z) = T₀ + G·z" %}
-{% set subtitle = "Depth on Y (0 at top, increasing downward) • Temperature on X (left→right)" %}
+{% extends "index.html" %}
+{% block page_title %}Geothermal Gradient — Linear Function Model{% endblock %}
+
+{% block controls %}
+<div class="controls" aria-label="Page shortcuts">
+  <a class="btn" href="/function-examples">← Function Examples</a>
+  <a class="btn" href="/relations">Relations &amp; Functions</a>
+</div>
+{% endblock %}
 
 {% block content %}
+<section class="canvas-card" aria-label="Geothermal gradient plot">
+  <div class="geo-plot">
+    <figure>
+      <img
+        src="{{ url_for('geothermal.plot_png', T0=T0, G=G, zmax=zmax, v=ts) }}"
+        alt="Temperature (x) vs Depth (y, 0 at top) for T(z) = T0 + G·z"
+      >
+      <figcaption>
+        Temperature on the x-axis; depth on the y-axis (0 at the surface, increasing downward).
+        Plot shown for 0&nbsp;≤&nbsp;z&nbsp;≤&nbsp;{{ zmax|round(3) }} km.
+      </figcaption>
+    </figure>
+  </div>
+</section>
 
-<div class="grid grid-2">
-  <section class="card">
-    <h2>About the model</h2>
-    <p>
-      This classroom model assumes temperature increases approximately
-      <em>linearly</em> with depth:
-      <strong>T(z) = T₀ + G·z</strong>, where:
-    </p>
-    <ul>
-      <li><strong>T₀</strong> is the surface temperature (°C),</li>
-      <li><strong>G</strong> is the geothermal gradient (°C per kilometer),</li>
-      <li><strong>z</strong> is depth (kilometers, positive downward).</li>
-    </ul>
+<aside>
+  <style>
+    .geo-plot{ padding:16px; }
+    .geo-plot figure{ margin:0; }
+    .geo-plot img{ width:100%; height:auto; display:block; border-radius:12px; border:1px solid #233040; background:#0f141c; }
+    .geo-plot figcaption{ margin-top:8px; font-size:13px; color:#a9b8cc; }
 
-    <p class="muted">
-      Plot convention used here: <strong>Depth</strong> is on the <strong>y‑axis</strong>
-      with 0 at the top and increases downward; <strong>Temperature</strong> is on the
-      <strong>x‑axis</strong> increasing to the right.
-    </p>
+    .geo-panel{ display:grid; gap:12px; }
+    .geo-panel section{ background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px; }
+    .geo-panel h2{ margin:0 0 8px; font-size:14px; color:#cbd7ea; }
 
-    <p class="muted">
-      Math notes: This is a linear function with slope <strong>G</strong> (°C per km) and intercept <strong>T₀</strong>.
-      The inverse (when G ≠ 0) is <strong>z = (T − T₀) / G</strong>.
-    </p>
+    .geo-form{ display:grid; gap:10px; }
+    .geo-form label{ display:flex; flex-direction:column; gap:4px; font-size:13px; color:#cbd7ea; }
+    .geo-form input{
+      background:#0d1320;
+      border:1px solid #263243;
+      color:#e8f0ff;
+      border-radius:8px;
+      padding:8px 10px;
+    }
+    .geo-form button{ align-self:start; }
 
-    <hr>
+    .geo-result{
+      display:grid;
+      gap:6px;
+      background:#0d1320;
+      border:1px solid #263243;
+      border-radius:10px;
+      padding:10px;
+      color:#d7e6ff;
+    }
+    .geo-result strong{ color:#fef9c3; }
 
-    <form method="get">
-      <div class="row">
+    .geo-note{ font-size:12px; color:#9fb2c7; line-height:1.5; }
+  </style>
+
+  <div class="geo-panel">
+    <section>
+      <h2>Model inputs</h2>
+      <form class="geo-form" method="get">
         <label>Surface temperature T₀ (°C)
           <input type="number" step="any" name="T0" value="{{ T0 }}">
         </label>
@@ -49,52 +79,37 @@
         <label>Inverse: target temperature T (°C)
           <input type="number" step="any" name="T" value="{{ Ttarget }}">
         </label>
+        <button type="submit" class="btn">Update graph &amp; values</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Calculated values</h2>
+      <div class="geo-result">
+        <div><strong>Forward:</strong> at depth z = {{ zpoint|round(3) }} km → T = {{ T_at_z|round(3) }} °C.</div>
+        <div>
+          <strong>Inverse:</strong>
+          {% if z_for_T is not none %}
+            for T = {{ Ttarget|round(3) }} °C → z = {{ z_for_T|round(3) }} km.
+          {% else %}
+            cannot compute the inverse when G = 0 (no temperature change with depth).
+          {% endif %}
+        </div>
       </div>
-      <p style="margin-top: .75rem;">
-        <button type="submit">Update graph &amp; values</button>
+      <p class="geo-note">
+        Linear model: <strong>T(z) = T₀ + G·z</strong>. When G ≠ 0, the inverse is <strong>z = (T − T₀)/G</strong>.
       </p>
-    </form>
+    </section>
+  </div>
+</aside>
 
-    <div class="grid" style="margin-top: .75rem;">
-      <div class="card" style="background:#fafafa;">
-        <strong>Forward (T at depth):</strong>
-        <p>
-          At depth <strong>z = {{ zpoint|round(3) }} km</strong>,
-          <strong>T = {{ T_at_z|round(3) }} °C</strong>.
-        </p>
-      </div>
-
-      <div class="card" style="background:#fafafa;">
-        <strong>Inverse (depth for a temperature):</strong>
-        {% if z_for_T is not none %}
-          <p>
-            For <strong>T = {{ Ttarget|round(3) }} °C</strong>,
-            the depth is
-            <strong>z = {{ z_for_T|round(3) }} km</strong>.
-          </p>
-        {% else %}
-          <p>Cannot compute inverse when G = 0 (no change with depth).</p>
-        {% endif %}
-      </div>
-    </div>
-  </section>
-
-  <section class="card">
-    <figure>
-      <img
-        src="{{ url_for('geothermal.plot_png', T0=T0, G=G, zmax=zmax, v=ts) }}"
-        alt="Temperature (x) vs Depth (y, 0 at top) for T(z) = T0 + G·z"
-        style="width:100%; height:auto; display:block; border-radius:8px;"
-      >
-      <figcaption>
-        Temperature on x‑axis; depth on y‑axis (0 at the top, increasing downward).
-        Plot shown for 0 ≤ z ≤ {{ zmax|round(3) }} km.
-      </figcaption>
-    </figure>
-    <p class="muted" style="margin-top:.5rem;">
-      Tip: A larger <strong>G</strong> shifts the line further to the right with depth (stronger heating per km).
-    </p>
-  </section>
-</div>
-
+<section class="explain-card" aria-label="How to interpret the geothermal gradient function">
+  <div class="explain-head">
+    <span class="badge">Classroom tip</span>
+    <code>T(z) = T₀ + G·z</code>
+  </div>
+  <div class="explain-body">
+    This is a linear function from depth to temperature. Each depth z has exactly one temperature value, so it passes the vertical-line test. Try changing G to compare hotter basins versus cooler geothermal regimes, or adjust T₀ to simulate seasonal surface swings.
+  </div>
+</section>
 {% endblock %}

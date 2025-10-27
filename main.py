@@ -19,6 +19,8 @@ from assignment import assignment_bp
 from logic_assignment import logic_assignment_bp
 from functions_assignment import functions_assignment_bp
 from logic_playground import logic_playground_bp
+from geothermal import bp as geothermal_bp
+from function_examples import function_examples_bp
 
 # NEW: Relations & Functions (Fossils) interactive page
 from relations import relations_bp
@@ -69,6 +71,12 @@ def create_app():
 
     # Logic Playground (symbols ⇄ sentences tools) at /logic-playground
     app.register_blueprint(logic_playground_bp)
+
+    # Function examples gallery at /function-examples
+    app.register_blueprint(function_examples_bp)
+
+    # Geothermal gradient function visualiser at /geothermal
+    app.register_blueprint(geothermal_bp, url_prefix="/geothermal")
 
     # NEW: Relations & Functions (Fossils) at /relations
     # - Page route:            GET /relations
