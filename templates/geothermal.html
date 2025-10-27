@@ -1,24 +1,40 @@
+{# geothermal.html #}
 {% extends "index.html" %}
-{% block page_title %}Geothermal Gradient — Linear Function Model{% endblock %}
+
+{% block page_title %}{{ t.page_title }}{% endblock %}
 
 {% block controls %}
 <div class="controls" aria-label="Page shortcuts">
-  <a class="btn" href="/function-examples">← Function Examples</a>
-  <a class="btn" href="/relations">Relations &amp; Functions</a>
+  <a class="btn" href="{{ url_with_lang('function_examples') if url_with_lang else '/function-examples?lang=' ~ lang }}">
+    {{ t.back_functions }}
+  </a>
+  <a class="btn" href="{{ url_with_lang('relations') if url_with_lang else '/relations?lang=' ~ lang }}">
+    {{ t.relations }}
+  </a>
+
+  <span class="btn" style="margin-left:auto;">
+    {{ t.language }}:
+    {% if lang == 'hu' %}
+      <a class="btn" href="{{ request.path }}?{{ request.query_string|tojson|safe and request.query_string.decode().replace('lang=hu','lang=en') or 'lang=en' }}">EN</a>
+      <strong>HU</strong>
+    {% else %}
+      <strong>EN</strong>
+      <a class="btn" href="{{ request.path }}?{{ request.query_string|tojson|safe and request.query_string.decode().replace('lang=en','lang=hu') or 'lang=hu' }}">HU</a>
+    {% endif %}
+  </span>
 </div>
 {% endblock %}
 
 {% block content %}
-<section class="canvas-card" aria-label="Geothermal gradient plot">
+<section class="canvas-card" aria-label="{{ t.section_plot_aria }}">
   <div class="geo-plot">
     <figure>
       <img
-        src="{{ url_for('geothermal.plot_png', T0=T0, G=G, zmax=zmax, v=ts) }}"
-        alt="Temperature (x) vs Depth (y, 0 at top) for T(z) = T0 + G·z"
+        src="{{ url_for('geothermal.plot_png', T0=T0, G=G, zmax=zmax, lang=lang, v=ts) }}"
+        alt="{{ t.fig_alt }}"
       >
       <figcaption>
-        Temperature on the x-axis; depth on the y-axis (0 at the surface, increasing downward).
-        Plot shown for 0&nbsp;≤&nbsp;z&nbsp;≤&nbsp;{{ zmax|round(3) }} km.
+        {{ t.fig_caption.format(zmax=(zmax|round(3))) }}
       </figcaption>
     </figure>
   </div>
@@ -62,42 +78,45 @@
 
   <div class="geo-panel">
     <section>
-      <h2>Model inputs</h2>
+      <h2>{{ t.inputs }}</h2>
       <form class="geo-form" method="get">
-        <label>Surface temperature T₀ (°C)
+        <input type="hidden" name="lang" value="{{ lang }}">
+        <label>{{ t.label_T0 }}
           <input type="number" step="any" name="T0" value="{{ T0 }}">
         </label>
-        <label>Gradient G (°C/km)
+        <label>{{ t.label_G }}
           <input type="number" step="any" name="G" value="{{ G }}">
         </label>
-        <label>Plot depth range z<sub>max</sub> (km)
+        <label>{{ t.label_zmax|safe }}
           <input type="number" step="any" min="0" name="zmax" value="{{ zmax }}">
         </label>
-        <label>Evaluate at depth z (km)
+        <label>{{ t.label_z }}
           <input type="number" step="any" min="0" name="z" value="{{ zpoint }}">
         </label>
-        <label>Inverse: target temperature T (°C)
+        <label>{{ t.label_T }}
           <input type="number" step="any" name="T" value="{{ Ttarget }}">
         </label>
-        <button type="submit" class="btn">Update graph &amp; values</button>
+        <button type="submit" class="btn">{{ t.update_btn }}</button>
       </form>
     </section>
 
     <section>
-      <h2>Calculated values</h2>
+      <h2>{{ t.results }}</h2>
       <div class="geo-result">
-        <div><strong>Forward:</strong> at depth z = {{ zpoint|round(3) }} km → T = {{ T_at_z|round(3) }} °C.</div>
+        <div><strong>{{ t.forward }}</strong>
+          {{ t.forward_text.format(z=(zpoint|round(3)), T=(T_at_z|round(3))) }}
+        </div>
         <div>
-          <strong>Inverse:</strong>
+          <strong>{{ t.inverse }}</strong>
           {% if z_for_T is not none %}
-            for T = {{ Ttarget|round(3) }} °C → z = {{ z_for_T|round(3) }} km.
+            {{ t.inverse_ok.format(T=(Ttarget|round(3)), z=(z_for_T|round(3))) }}
           {% else %}
-            cannot compute the inverse when G = 0 (no temperature change with depth).
+            {{ t.inverse_fail }}
           {% endif %}
         </div>
       </div>
       <p class="geo-note">
-        Linear model: <strong>T(z) = T₀ + G·z</strong>. When G ≠ 0, the inverse is <strong>z = (T − T₀)/G</strong>.
+        {{ t.note }}
       </p>
     </section>
   </div>
@@ -105,11 +124,11 @@
 
 <section class="explain-card" aria-label="How to interpret the geothermal gradient function">
   <div class="explain-head">
-    <span class="badge">Classroom tip</span>
-    <code>T(z) = T₀ + G·z</code>
+    <span class="badge">{{ t.tip_badge }}</span>
+    <code>{{ t.tip_code }}</code>
   </div>
   <div class="explain-body">
-    This is a linear function from depth to temperature. Each depth z has exactly one temperature value, so it passes the vertical-line test. Try changing G to compare hotter basins versus cooler geothermal regimes, or adjust T₀ to simulate seasonal surface swings.
+    {{ t.tip_text }}
   </div>
 </section>
 {% endblock %}
