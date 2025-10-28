@@ -1,11 +1,11 @@
-{# templates/sediment.html #}
+{# templates/sediment.html  (bilingual EN/HU) #}
 {% extends "index.html" %}
-{% block page_title %}Sediment Transport — Power‑Law Model{% endblock %}
+{% block page_title %}{{ tr.page_title }}{% endblock %}
 
 {% block controls %}
 <div class="controls" aria-label="Page shortcuts">
-  <a class="btn" href="/function-examples">← Function Examples</a>
-  <a class="btn" href="/relations">Relations &amp; Functions</a>
+  <a class="btn" href="/function-examples">{{ tr.nav_examples }}</a>
+  <a class="btn" href="/relations">{{ tr.nav_relations }}</a>
 </div>
 {% endblock %}
 
@@ -14,13 +14,10 @@
   <div class="geo-plot">
     <figure>
       <img
-        src="{{ url_for('sediment.plot_png', k=k, n=n, vmax=vmax, v=vpoint, cb=ts) }}"
-        alt="Sediment transport (Qₛ) vs flow velocity (v), with Qₛ = k·vⁿ"
+        src="{{ url_for('sediment.plot_png', k=k, n=n, vmax=vmax, v=vpoint, lang=lang, cb=ts) }}"
+        alt="{{ tr.fig_alt }}"
       >
-      <figcaption>
-        Flow velocity on the x-axis (m/s). Sediment transport on the y-axis (arbitrary units).
-        Plot shown for 0&nbsp;≤&nbsp;v&nbsp;≤&nbsp;{{ vmax|round(3) }}.
-      </figcaption>
+      <figcaption>{{ figcaption_line|safe }}</figcaption>
     </figure>
   </div>
 </section>
@@ -59,52 +56,80 @@
     .geo-result strong{ color:#fef9c3; }
 
     .geo-note{ font-size:12px; color:#9fb2c7; line-height:1.5; }
+
+    .lang-toggle { display:flex; gap:.5rem; align-items:center; margin-bottom:1rem; }
+    .lang-toggle .btn { padding:.45rem .7rem; border-radius:8px; border:1px solid #233040; background:#0f141c; color:#cbd7ea; cursor:pointer; }
+    .lang-toggle .btn.active { background:#1b2636; font-weight:700; }
+    .lang-toggle label { color:#9fb2c7; font-size:14px; margin-right:.25rem; }
   </style>
 
   <div class="geo-panel">
+    <!-- Language toggle (preserves current inputs) -->
+    <div class="lang-toggle">
+      <label>{{ tr.lang_label }}:</label>
+      <form method="get" style="display:inline;">
+        <input type="hidden" name="k" value="{{ k }}">
+        <input type="hidden" name="n" value="{{ n }}">
+        <input type="hidden" name="vmax" value="{{ vmax }}">
+        <input type="hidden" name="v" value="{{ vpoint }}">
+        <input type="hidden" name="Q" value="{{ Qtarget }}">
+        <button class="btn {% if lang == 'en' %}active{% endif %}" type="submit" name="lang" value="en">{{ tr.lang_en }}</button>
+        <button class="btn {% if lang == 'hu' %}active{% endif %}" type="submit" name="lang" value="hu">{{ tr.lang_hu }}</button>
+      </form>
+    </div>
+
     <section>
-      <h2>Model inputs</h2>
+      <h2>{{ tr.about_h2 }}</h2>
+      <p>{{ tr.about_p1 }} <strong>Qₛ = k · vⁿ</strong>, {{ tr.where }}</p>
+      <ul>
+        <li><strong>Qₛ</strong> — {{ tr.bul_Qs }}</li>
+        <li><strong>k</strong> — {{ tr.bul_k }}</li>
+        <li><strong>v</strong> — {{ tr.bul_v }}</li>
+        <li><strong>n</strong> — {{ tr.bul_n }}</li>
+      </ul>
+      <p class="muted">{{ tr.math_notes }}</p>
+      <hr>
+
+      <h2>{{ tr.inputs_h2 }}</h2>
       <form class="geo-form" method="get">
-        <label>Coefficient k
+        <!-- Preserve language on submit -->
+        <input type="hidden" name="lang" value="{{ lang }}">
+        <label>{{ tr.label_k }}
           <input type="number" step="any" name="k" value="{{ k }}">
         </label>
-        <label>Exponent n (typ. 2–5)
+        <label>{{ tr.label_n }}
           <input type="number" step="any" name="n" value="{{ n }}">
         </label>
-        <label>Plot velocity range v<sub>max</sub> (m/s)
+        <label>{{ tr.label_vmax|safe }}
           <input type="number" step="any" min="0" name="vmax" value="{{ vmax }}">
         </label>
-        <label>Evaluate at velocity v (m/s)
+        <label>{{ tr.label_v }}
           <input type="number" step="any" min="0" name="v" value="{{ vpoint }}">
         </label>
-        <label>Inverse: target transport Qₛ (arb. units)
+        <label>{{ tr.label_Q }}
           <input type="number" step="any" name="Q" value="{{ Qtarget }}">
         </label>
-        <button type="submit" class="btn">Update graph &amp; values</button>
+        <button type="submit" class="btn">{{ tr.btn_update }}</button>
       </form>
     </section>
 
     <section>
-      <h2>Calculated values</h2>
+      <h2>{{ tr.calc_h2 }}</h2>
       <div class="geo-result">
         <div>
-          <strong>Forward:</strong>
-          at velocity v = {{ vpoint|round(3) }} m/s → Qₛ = {{ Q_at_v|round(6) }} (arb. units).
+          <strong>{{ tr.forward_strong }}</strong>
+          {{ forward_line }}
         </div>
         <div>
-          <strong>Inverse:</strong>
-          {% if v_for_Q is not none %}
-            for Qₛ = {{ Qtarget|round(6) }} → v = {{ v_for_Q|round(6) }} m/s.
+          <strong>{{ tr.inverse_strong }}</strong>
+          {% if inverse_line %}
+            {{ inverse_line }}
           {% else %}
             {{ inv_error }}
           {% endif %}
         </div>
       </div>
-      <p class="geo-note">
-        Power‑law model: <strong>Qₛ = k · vⁿ</strong>.
-        Strong nonlinearity: doubling v multiplies Qₛ by <strong>2ⁿ</strong>.
-        With your n = {{ n }}, doubling v multiplies Qₛ by ≈ <strong>{{ doubling_factor|round(3) }}</strong>.
-      </p>
+      <p class="geo-note">{{ tip_line }}</p>
     </section>
   </div>
 </aside>
@@ -115,9 +140,17 @@
     <code>Qₛ = k · vⁿ</code>
   </div>
   <div class="explain-body">
-    This power‑law captures that small increases in flow velocity can cause large increases in transport when
-    <em>n</em> is between 2 and 5. Each velocity <em>v</em> maps to a single transport value <em>Qₛ</em>, so it passes the vertical‑line test.
-    Compare rivers or channels by adjusting <strong>k</strong> (material/geometry) and <strong>n</strong> (nonlinearity).
+    {% if lang == 'hu' %}
+      Ez a hatványfüggvény azt fejezi ki, hogy a kis sebességnövekedés is jelentős szállítás‑növekedést okozhat,
+      ha <em>n</em> 2 és 5 közé esik. Minden <em>v</em> sebességhez egyetlen <em>Qₛ</em> érték tartozik (függvény),
+      ezért a „függőleges egyenes próba” sikeres. Az <strong>k</strong> (anyag/geometria) és <strong>n</strong>
+      (nemlinearitás) állításával különböző medrek csatornák hasonlíthatók össze.
+    {% else %}
+      This power‑law captures that small increases in flow velocity can cause large increases in transport
+      when <em>n</em> is between 2 and 5. Each velocity <em>v</em> maps to a single transport value <em>Qₛ</em>,
+      so it passes the vertical‑line test. Compare rivers/channels by adjusting <strong>k</strong> (material/geometry)
+      and <strong>n</strong> (nonlinearity).
+    {% endif %}
   </div>
 </section>
 {% endblock %}
