@@ -77,15 +77,15 @@
       </div>
 
       <div class="card question" aria-label="Symmetric difference question">
-        <h3 class="part-title">Feladat: Mit fejez ki az I Δ M szimmetrikus különbség? Adj meg egy beletartoz és egy kimaradó ásványt.</h3>
-        <p class="part-note">Válassz egy példát, amely <strong>benne van</strong> az I Δ M halmazban, és egyet, amely <strong>kimarad</strong>.</p>
+        <h3 class="part-title">Feladat: Mit fejez ki az I Δ M szimmetrikus különbség? Adj meg egy beletartozó és egy kimaradó ásványt.</h3>
+        <p class="part-note">Válassz <strong>egy vagy több</strong> példát, amely <strong>benne van</strong> az I Δ M halmazban, és <strong>egy vagy több</strong> olyat, amely <strong>kimarad</strong>.</p>
         <div class="dual-grid">
           <div>
             <h4>Benne van az I Δ M halmazban</h4>
             <div class="choices">
               {% for opt in options %}
               <label class="pill-choice">
-                <input type="radio" name="idm_included" value="{{ opt }}" />
+                <input type="checkbox" name="idm_included" value="{{ opt }}" />
                 <span>{{ opt }}</span>
               </label>
               {% endfor %}
@@ -96,7 +96,7 @@
             <div class="choices">
               {% for opt in options %}
               <label class="pill-choice">
-                <input type="radio" name="idm_excluded" value="{{ opt }}" />
+                <input type="checkbox" name="idm_excluded" value="{{ opt }}" />
                 <span>{{ opt }}</span>
               </label>
               {% endfor %}
