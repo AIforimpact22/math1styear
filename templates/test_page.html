@@ -57,6 +57,30 @@
         <img class="exam-img" src="https://raw.githubusercontent.com/AIforimpact22/math1styear/main/content/Exam.png" alt="Halmazelmélet vizuális feladat" />
       </div>
 
+        <div class="card question" aria-label="S minus M question">
+          <h3 class="part-title">Feladat: Add meg az S és M halmazok különbségét (S \ M), az elemek felsorolásával.</h3>
+          <label class="id-field" for="s-minus-m-answer">
+            <span>Válasz</span>
+            <textarea id="s-minus-m-answer" name="s_minus_m_answer" rows="4" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
+          </label>
+        </div>
+
+        <div class="card question" aria-label="Symmetric difference question">
+          <h3 class="part-title">Feladat: Mit fejez ki az I Δ M szimmetrikus különbség? Adj meg egy beletartozó és egy kimaradó ásványt.</h3>
+          <label class="id-field" for="idm-answer">
+            <span>Válasz</span>
+            <textarea id="idm-answer" name="idm_answer" rows="4" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
+          </label>
+        </div>
+
+      <div class="card question" aria-label="Union of intersection and symmetric difference question">
+        <h3 class="part-title">Feladat: Hogyan írnád fel az alábbi művelet (I ∩ M) U (I Δ M) eredményét egyszerűbben?</h3>
+        <label class="id-field" for="intersection-union-answer">
+          <span>Válasz</span>
+          <textarea id="intersection-union-answer" name="intersection_union_answer" rows="4" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
+        </label>
+      </div>
+
       <div class="card" aria-label="Logikai műveletek áttekintés">
         <h3 class="part-title">2. rész — Logikai műveletek</h3>
         <p class="part-note">Az alábbi táblázatban a legfontosabb logikai jeleket és jelentésüket találod.</p>
@@ -116,28 +140,100 @@
         </div>
       </div>
 
-        <div class="card question" aria-label="S minus M question">
-          <h3 class="part-title">Feladat: Add meg az S és M halmazok különbségét (S \ M), az elemek felsorolásával.</h3>
-          <label class="id-field" for="s-minus-m-answer">
-            <span>Válasz</span>
-            <textarea id="s-minus-m-answer" name="s_minus_m_answer" rows="4" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
-          </label>
-        </div>
-
-        <div class="card question" aria-label="Symmetric difference question">
-          <h3 class="part-title">Feladat: Mit fejez ki az I Δ M szimmetrikus különbség? Adj meg egy beletartozó és egy kimaradó ásványt.</h3>
-          <label class="id-field" for="idm-answer">
-            <span>Válasz</span>
-            <textarea id="idm-answer" name="idm_answer" rows="4" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
-          </label>
-        </div>
-
-      <div class="card question" aria-label="Union of intersection and symmetric difference question">
-        <h3 class="part-title">Feladat: Hogyan írnád fel az alábbi művelet (I ∩ M) U (I Δ M) eredményét egyszerűbben?</h3>
-        <label class="id-field" for="intersection-union-answer">
+      <div class="card question" aria-label="Logical notation fossil question">
+        <h3 class="part-title">Feladat : Írd fel szimbólumokkal: A kőzet nem homokkő, de fosszíliákat tartalmaz.</h3>
+        <label class="id-field" for="fossil-notation-answer">
           <span>Válasz</span>
-          <textarea id="intersection-union-answer" name="intersection_union_answer" rows="4" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
+          <textarea id="fossil-notation-answer" name="fossil_notation_answer" rows="4" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
         </label>
+      </div>
+
+      <div class="card question" aria-label="Truth table fill question">
+        <h3 class="part-title">Feladat: Töltsd ki az alábbi táblázatot, igaz (T) vagy hamis (F)?</h3>
+        <div class="table-container" style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; color:#e8f0ff;">
+            <thead>
+              <tr style="background:#0d1320; border-bottom:1px solid #263243;">
+                <th scope="col" style="padding:8px; text-align:left;">p</th>
+                <th scope="col" style="padding:8px; text-align:left;">q</th>
+                <th scope="col" style="padding:8px; text-align:left;">r</th>
+                <th scope="col" style="padding:8px; text-align:left;">p ∨ q</th>
+                <th scope="col" style="padding:8px; text-align:left;">¬r</th>
+                <th scope="col" style="padding:8px; text-align:left;">(p ∨ q) ∧ ¬r</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set truth_rows = [
+                ('T','T','T'),
+                ('T','T','F'),
+                ('T','F','T'),
+                ('T','F','F'),
+                ('F','T','T'),
+                ('F','T','F'),
+                ('F','F','T'),
+                ('F','F','F'),
+              ] %}
+              {% for p_val, q_val, r_val in truth_rows %}
+              <tr style="border-bottom:1px solid #263243;">
+                <td style="padding:8px;">{{ p_val }}</td>
+                <td style="padding:8px;">{{ q_val }}</td>
+                <td style="padding:8px;">{{ r_val }}</td>
+                <td style="padding:8px;"><input aria-label="p vagy q (sor {{ loop.index }})" type="text" name="pq_answer_{{ loop.index }}" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:6px; padding:6px;" placeholder="T/F" /></td>
+                <td style="padding:8px;"><input aria-label="nem r (sor {{ loop.index }})" type="text" name="not_r_answer_{{ loop.index }}" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:6px; padding:6px;" placeholder="T/F" /></td>
+                <td style="padding:8px;"><input aria-label="(p vagy q) és nem r (sor {{ loop.index }})" type="text" name="pq_and_not_r_answer_{{ loop.index }}" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:6px; padding:6px;" placeholder="T/F" /></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card question" aria-label="Porosity contradiction question">
+        <h3 class="part-title">Feladat: Porozitás &gt; 0.25 és Porozitás &lt; 0.10. Ellentmondásos állítás? Igen/Nem</h3>
+        <label class="id-field" for="porosity-contradiction-answer">
+          <span>Válasz</span>
+          <textarea id="porosity-contradiction-answer" name="porosity_contradiction_answer" rows="4" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
+        </label>
+      </div>
+
+      <div class="card" aria-label="Relations and functions section">
+        <h3 class="part-title">3. rész — Relációk és függvények</h3>
+        <p class="part-note">Feladat háttere</p>
+        <p class="part-note">
+          Egy kútban a 1195–1208 m közötti mélységtartomány porozitását (φ) sűrűség/neutron szondával határozták meg, melynek pontossága ±0,02.
+          Duplikált mérések előfordulhatnak. Ahol A = {mélységek méterben}, B = {porozitásértékek} halmaza. Képezzük A×B (mélység, φ) párokat.
+        </p>
+      </div>
+
+      <div class="card question" aria-label="Function check question">
+        <h3 class="part-title">Feladat: Tekintsük az alábbi pontpárok halmazát M = {(1198, 0,19), (1200, 0,24), (1203, 0,21)}. Függvény-e M a mélység→φ leképezés? Indokold!</h3>
+        <label class="id-field" for="relation-function-answer">
+          <span>Válasz</span>
+          <textarea id="relation-function-answer" name="relation_function_answer" rows="4" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
+        </label>
+      </div>
+
+      <div class="card question" aria-label="Total porosity formula question">
+        <h3 class="part-title">Feladat: Ha a hatékony porozitást az x+1 összefüggés írja le, míg a kötött víz mennyiségét a 0,5X+1 összefüggés adja meg, és a teljes porozitás a kettő összege, akkor milyen összefüggés írja le a teljes porozitást?</h3>
+        <label class="id-field" for="total-porosity-answer">
+          <span>Válasz</span>
+          <textarea id="total-porosity-answer" name="total_porosity_answer" rows="4" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
+        </label>
+      </div>
+
+      <div class="card question" aria-label="Cartesian product count question">
+        <h3 class="part-title">Feladat: Ha |A|=3 és |B|=4, hány pár van az A×B-ben?</h3>
+        <label class="id-field" for="cartesian-count-answer">
+          <span>Válasz</span>
+          <textarea id="cartesian-count-answer" name="cartesian_count_answer" rows="4" style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
+        </label>
+      </div>
+
+      <div class="card" aria-label="Export answers">
+        <h3 class="part-title">Válaszok letöltése (PDF)</h3>
+        <p class="part-note">A dokumentum tartalmazza a nevet, a Neptun-kódot, a kérdéseket és az aktuális válaszaidat.</p>
+        <button id="generate-doc-btn" class="btn">PDF generálása és letöltése</button>
+        <p id="generate-doc-status" class="unlock-hint" role="status" aria-live="polite"></p>
       </div>
     </div>
   </div>
@@ -148,6 +244,10 @@
     const passwordInput = document.getElementById("password");
     const protectedContent = document.getElementById("protected-content");
     const status = document.getElementById("unlock-status");
+    const nameInput = document.getElementById("name");
+    const neptunInput = document.getElementById("neptun");
+    const docBtn = document.getElementById("generate-doc-btn");
+    const docStatus = document.getElementById("generate-doc-status");
 
     const updateVisibility = () => {
       const provided = passwordInput.value.trim();
@@ -166,7 +266,145 @@
 
     passwordInput.addEventListener("input", updateVisibility);
     updateVisibility();
+
+    const escapeHtml = (str) => str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+    const sanitizePdfText = (str) => {
+      return str
+        .replace(/[\\()]/g, "\\$&")
+        .split("")
+        .map((ch) => {
+          const code = ch.charCodeAt(0);
+          return code >= 32 && code <= 126 ? ch : "?";
+        })
+        .join("");
+    };
+
+    const collectTruthTable = (card) => {
+      const rows = [];
+      card.querySelectorAll("tbody tr").forEach((tr, idx) => {
+        const cells = tr.querySelectorAll("td");
+        if (cells.length < 6) return;
+        const pVal = cells[0].textContent.trim();
+        const qVal = cells[1].textContent.trim();
+        const rVal = cells[2].textContent.trim();
+        const pq = (cells[3].querySelector("input")?.value || "").trim();
+        const notR = (cells[4].querySelector("input")?.value || "").trim();
+        const pqAndNotR = (cells[5].querySelector("input")?.value || "").trim();
+        rows.push(`Sor ${idx + 1}: p=${pVal}, q=${qVal}, r=${rVal}, p∨q=${pq}, ¬r=${notR}, (p∨q)∧¬r=${pqAndNotR}`);
+      });
+      return rows.join("\n");
+    };
+
+    const collectAnswers = () => {
+      const sections = [];
+      document.querySelectorAll("#protected-content .card.question").forEach((card) => {
+        const question = (card.querySelector("h3")?.textContent || "").trim();
+        const textarea = card.querySelector("textarea");
+        const inputs = card.querySelectorAll("input[type='text']");
+        let answer = "";
+        if (textarea) {
+          answer = textarea.value.trim();
+        } else if (inputs.length) {
+          answer = collectTruthTable(card);
+        }
+        sections.push({ question, answer });
+      });
+      return sections;
+    };
+
+    const buildPdf = () => {
+      const answers = collectAnswers();
+      const name = (nameInput?.value || "").trim() || "-";
+      const neptun = (neptunInput?.value || "").trim() || "-";
+
+      const sanitizeLine = (s) => sanitizePdfText(s || "");
+      const ops = [];
+      ops.push("BT");
+      ops.push("/F1 18 Tf");
+      ops.push("60 780 Td");
+      ops.push("18 TL");
+      ops.push(`(${sanitizeLine("Test Page — Válaszok")}) Tj`);
+      ops.push("T*");
+      ops.push("/F1 12 Tf");
+      ops.push("14 TL");
+
+      const addLine = (text, indent = 0) => {
+        const prefix = indent > 0 ? " ".repeat(indent) : "";
+        ops.push(`(${sanitizeLine(prefix + (text || ""))}) Tj`);
+        ops.push("T*");
+      };
+
+      addLine("");
+      addLine(`Név: ${name}`);
+      addLine(`Neptun-kód: ${neptun}`);
+      addLine("----------------------------------------");
+
+      answers.forEach((item, idx) => {
+        addLine(`${idx + 1}. ${item.question || ""}`);
+        if (item.answer) {
+          item.answer.split(/\n/).forEach((sub) => addLine(sub, 2));
+        } else {
+          addLine("—", 2);
+        }
+        addLine("");
+      });
+
+      ops.pop(); // remove last T* for trailing blank
+      ops.push("ET");
+
+      const textStream = ops.join("\n");
+
+      const encoder = new TextEncoder();
+      const textBytes = encoder.encode(textStream);
+      const obj1 = "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n";
+      const obj2 = "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n";
+      const obj3 = "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n";
+      const obj5 = "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n";
+      const obj4 = `4 0 obj\n<< /Length ${textBytes.length} >>\nstream\n${textStream}\nendstream\nendobj\n`;
+
+      const parts = ["%PDF-1.4\n", obj1, obj2, obj3, obj4, obj5];
+      const encodedParts = parts.map((p) => encoder.encode(p));
+      const offsets = [0];
+      let offset = encodedParts[0].length;
+      for (let i = 1; i < encodedParts.length; i += 1) {
+        offsets.push(offset);
+        offset += encodedParts[i].length;
+      }
+
+      const startXref = offset;
+      let xref = `xref\n0 ${parts.length}\n0000000000 65535 f \n`;
+      for (let i = 1; i < offsets.length; i += 1) {
+        xref += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+      }
+      const trailer = `trailer\n<< /Size ${parts.length} /Root 1 0 R >>\nstartxref\n${startXref}\n%%EOF`;
+      const pdfBytes = parts.join("") + xref + trailer;
+      return pdfBytes;
+    };
+
+    const downloadPdf = () => {
+      const pdfString = buildPdf();
+      const blob = new Blob([pdfString], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const neptun = (neptunInput?.value || "").trim() || "neptun";
+      a.href = url;
+      a.download = `test-valaszok-${neptun}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      if (docStatus) docStatus.textContent = "A PDF fájl letöltése elindult.";
+    };
+
+    if (docBtn) {
+      docBtn.addEventListener("click", downloadPdf);
+    }
   })();
 </script>
 {% endblock %}
-
