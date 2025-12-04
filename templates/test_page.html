@@ -24,6 +24,7 @@
 
     .dual-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:10px; }
     .dual-grid h4{ margin:0 0 6px; color:#cbd7ea; }
+    .unlock-hint{ margin:6px 0 0; color:#9fb2c7; font-size:14px; }
   </style>
 
   <div class="test-wrap">
@@ -41,64 +42,96 @@
         </div>
         <div class="id-field">
           <label for="password">Jelszó</label>
-          <input id="password" name="password" type="password" value="Szeged2025" autocomplete="off" />
+          <input id="password" name="password" type="password" autocomplete="off" />
         </div>
       </div>
+      <p id="unlock-status" class="unlock-hint" role="status" aria-live="polite">
+        Írd be a jelszót a feladatok megnyitásához.
+      </p>
     </div>
 
-    <div class="card" aria-label="Halmazelmélet Section">
-      <h3 class="part-title">1. rész — Halmazelmélet</h3>
-      <p class="part-note">Használd az ábrát és a megadott elemeket a feladatok megoldásához.</p>
-      <img class="exam-img" src="https://raw.githubusercontent.com/AIforimpact22/math1styear/main/content/Exam.png" alt="Halmazelmélet vizuális feladat" />
-    </div>
-
-    <div class="card question" aria-label="S minus M question">
-      <h3 class="part-title">Feladat: Add meg az S és M halmazok különbségét (S \ M), az elemek felsorolásával.</h3>
-      <p class="part-note">Jelöld be azokat az ásványokat, amelyek az S halmazban vannak, de az M halmazból hiányoznak.</p>
-      <div class="choices">
-        {% set options = [
-          "Szillimanit", "Sztaurolit", "Kianit", "Klorit", "Gránát", "Talk", "Kalcit", "Dolomit",
-          "Kaolinit", "Galena", "Hematit", "Gipsz", "Opál", "Halit", "Grafit", "Kvarc",
-          "Muszkovit", "Szerpentin", "Hornblende", "Piroxén", "Zeolit", "Biotit", "Amfibol",
-          "Olivin", "Ilmenit", "Plagioklász földpát"
-        ] %}
-        {% for opt in options %}
-        <label class="pill-choice">
-          <input type="checkbox" name="s_minus_m" value="{{ opt }}" />
-          <span>{{ opt }}</span>
-        </label>
-        {% endfor %}
+    <div id="protected-content" hidden>
+      <div class="card" aria-label="Halmazelmélet Section">
+        <h3 class="part-title">1. rész — Halmazelmélet</h3>
+        <p class="part-note">Használd az ábrát és a megadott elemeket a feladatok megoldásához.</p>
+        <img class="exam-img" src="https://raw.githubusercontent.com/AIforimpact22/math1styear/main/content/Exam.png" alt="Halmazelmélet vizuális feladat" />
       </div>
-    </div>
 
-    <div class="card question" aria-label="Symmetric difference question">
-      <h3 class="part-title">Feladat: Mit fejez ki az I Δ M szimmetrikus különbség? Adj meg egy beletartozó és egy kimaradó ásványt.</h3>
-      <p class="part-note">Válassz egy példát, amely <strong>benne van</strong> az I Δ M halmazban, és egyet, amely <strong>kimarad</strong>.</p>
-      <div class="dual-grid">
-        <div>
-          <h4>Benne van az I Δ M halmazban</h4>
-          <div class="choices">
-            {% for opt in options %}
-            <label class="pill-choice">
-              <input type="radio" name="idm_included" value="{{ opt }}" />
-              <span>{{ opt }}</span>
-            </label>
-            {% endfor %}
+      <div class="card question" aria-label="S minus M question">
+        <h3 class="part-title">Feladat: Add meg az S és M halmazok különbségét (S \ M), az elemek felsorolásával.</h3>
+        <p class="part-note">Jelöld be azokat az ásványokat, amelyek az S halmazban vannak, de az M halmazból hiányoznak.</p>
+        <div class="choices">
+          {% set options = [
+            "Szillimanit", "Sztaurolit", "Kianit", "Klorit", "Gránát", "Talk", "Kalcit", "Dolomit",
+            "Kaolinit", "Galena", "Hematit", "Gipsz", "Opál", "Halit", "Grafit", "Kvarc",
+            "Muszkovit", "Szerpentin", "Hornblende", "Piroxén", "Zeolit", "Biotit", "Amfibol",
+            "Olivin", "Ilmenit", "Plagioklász földpát"
+          ] %}
+          {% for opt in options %}
+          <label class="pill-choice">
+            <input type="checkbox" name="s_minus_m" value="{{ opt }}" />
+            <span>{{ opt }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card question" aria-label="Symmetric difference question">
+        <h3 class="part-title">Feladat: Mit fejez ki az I Δ M szimmetrikus különbség? Adj meg egy beletartoz és egy kimaradó ásványt.</h3>
+        <p class="part-note">Válassz egy példát, amely <strong>benne van</strong> az I Δ M halmazban, és egyet, amely <strong>kimarad</strong>.</p>
+        <div class="dual-grid">
+          <div>
+            <h4>Benne van az I Δ M halmazban</h4>
+            <div class="choices">
+              {% for opt in options %}
+              <label class="pill-choice">
+                <input type="radio" name="idm_included" value="{{ opt }}" />
+                <span>{{ opt }}</span>
+              </label>
+              {% endfor %}
+            </div>
           </div>
-        </div>
-        <div>
-          <h4>Kimarad az I Δ M halmazból</h4>
-          <div class="choices">
-            {% for opt in options %}
-            <label class="pill-choice">
-              <input type="radio" name="idm_excluded" value="{{ opt }}" />
-              <span>{{ opt }}</span>
-            </label>
-            {% endfor %}
+          <div>
+            <h4>Kimarad az I Δ M halmazból</h4>
+            <div class="choices">
+              {% for opt in options %}
+              <label class="pill-choice">
+                <input type="radio" name="idm_excluded" value="{{ opt }}" />
+                <span>{{ opt }}</span>
+              </label>
+              {% endfor %}
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
 </section>
+<script>
+  (() => {
+    const REQUIRED_PASSWORD = "Szeged2025";
+    const passwordInput = document.getElementById("password");
+    const protectedContent = document.getElementById("protected-content");
+    const status = document.getElementById("unlock-status");
+
+    const updateVisibility = () => {
+      const provided = passwordInput.value.trim();
+      const unlocked = provided === REQUIRED_PASSWORD;
+      protectedContent.hidden = !unlocked;
+      if (status) {
+        if (!provided) {
+          status.textContent = "Írd be a jelszót a feladatok megnyitásához.";
+        } else if (unlocked) {
+          status.textContent = "Hozzáférés engedélyezve. A feladatok láthatók.";
+        } else {
+          status.textContent = "Hibás jelszó. Próbáld újra.";
+        }
+      }
+    };
+
+    passwordInput.addEventListener("input", updateVisibility);
+    updateVisibility();
+  })();
+</script>
 {% endblock %}
+
