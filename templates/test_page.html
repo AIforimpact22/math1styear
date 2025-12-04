@@ -1,0 +1,104 @@
+{% extends "index.html" %}
+{% block page_title %}Test Page — Halmazelmélet{% endblock %}
+
+{% block content %}
+<section class="canvas-card" aria-label="Test page form">
+  <style>
+    .test-wrap{ padding:14px; display:flex; flex-direction:column; gap:14px; }
+    .card{ background:#0f141c; border:1px solid #233040; border-radius:12px; padding:12px; }
+    .id-grid{ display:grid; gap:10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .id-field{ display:flex; flex-direction:column; gap:6px; }
+    .id-field label{ color:#cbd7ea; font-weight:600; }
+    .id-field input{ background:#0d1320; border:1px solid #263243; color:#e8f0ff; padding:10px; border-radius:8px; }
+    .id-field input:focus{ outline:1px solid #7aa2ff; border-color:#7aa2ff; }
+
+    .part-title{ margin:0 0 6px; color:#e4ecff; font-size:16px; }
+    .part-note{ margin:0; color:#9fb2c7; }
+
+    .exam-img{ width:100%; max-width:880px; border-radius:12px; border:1px solid #233040; background:#0d1320; padding:10px; }
+    .question{ display:flex; flex-direction:column; gap:10px; }
+    .choices{ display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:8px; }
+    .pill-choice{ display:flex; align-items:center; gap:8px; background:#0d1320; border:1px solid #263243; padding:8px 10px; border-radius:10px; }
+    .pill-choice input{ accent-color:#7aa2ff; }
+    .pill-choice label{ color:#dbe6ff; }
+
+    .dual-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:10px; }
+    .dual-grid h4{ margin:0 0 6px; color:#cbd7ea; }
+  </style>
+
+  <div class="test-wrap">
+    <div class="card" aria-label="Student identification">
+      <h3 class="part-title">Írd be az adataidat</h3>
+      <p class="part-note">A teszt azonosításához add meg a Neptun-kódodat, a nevedet és a megadott jelszót.</p>
+      <div class="id-grid">
+        <div class="id-field">
+          <label for="neptun">Neptun-kód</label>
+          <input id="neptun" name="neptun" type="text" placeholder="pl. ABC123" autocomplete="off" />
+        </div>
+        <div class="id-field">
+          <label for="name">Név</label>
+          <input id="name" name="name" type="text" placeholder="Vezetéknév Keresztnév" autocomplete="name" />
+        </div>
+        <div class="id-field">
+          <label for="password">Jelszó</label>
+          <input id="password" name="password" type="password" value="Szeged2025" autocomplete="off" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card" aria-label="Halmazelmélet Section">
+      <h3 class="part-title">1. rész — Halmazelmélet</h3>
+      <p class="part-note">Használd az ábrát és a megadott elemeket a feladatok megoldásához.</p>
+      <img class="exam-img" src="https://raw.githubusercontent.com/AIforimpact22/math1styear/main/content/Exam.png" alt="Halmazelmélet vizuális feladat" />
+    </div>
+
+    <div class="card question" aria-label="S minus M question">
+      <h3 class="part-title">Feladat: Add meg az S és M halmazok különbségét (S \ M), az elemek felsorolásával.</h3>
+      <p class="part-note">Jelöld be azokat az ásványokat, amelyek az S halmazban vannak, de az M halmazból hiányoznak.</p>
+      <div class="choices">
+        {% set options = [
+          "Szillimanit", "Sztaurolit", "Kianit", "Klorit", "Gránát", "Talk", "Kalcit", "Dolomit",
+          "Kaolinit", "Galena", "Hematit", "Gipsz", "Opál", "Halit", "Grafit", "Kvarc",
+          "Muszkovit", "Szerpentin", "Hornblende", "Piroxén", "Zeolit", "Biotit", "Amfibol",
+          "Olivin", "Ilmenit", "Plagioklász földpát"
+        ] %}
+        {% for opt in options %}
+        <label class="pill-choice">
+          <input type="checkbox" name="s_minus_m" value="{{ opt }}" />
+          <span>{{ opt }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card question" aria-label="Symmetric difference question">
+      <h3 class="part-title">Feladat: Mit fejez ki az I Δ M szimmetrikus különbség? Adj meg egy beletartozó és egy kimaradó ásványt.</h3>
+      <p class="part-note">Válassz egy példát, amely <strong>benne van</strong> az I Δ M halmazban, és egyet, amely <strong>kimarad</strong>.</p>
+      <div class="dual-grid">
+        <div>
+          <h4>Benne van az I Δ M halmazban</h4>
+          <div class="choices">
+            {% for opt in options %}
+            <label class="pill-choice">
+              <input type="radio" name="idm_included" value="{{ opt }}" />
+              <span>{{ opt }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div>
+          <h4>Kimarad az I Δ M halmazból</h4>
+          <div class="choices">
+            {% for opt in options %}
+            <label class="pill-choice">
+              <input type="radio" name="idm_excluded" value="{{ opt }}" />
+              <span>{{ opt }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
