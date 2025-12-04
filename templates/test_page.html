@@ -57,53 +57,27 @@
         <img class="exam-img" src="https://raw.githubusercontent.com/AIforimpact22/math1styear/main/content/Exam.png" alt="Halmazelmélet vizuális feladat" />
       </div>
 
-      <div class="card question" aria-label="S minus M question">
-        <h3 class="part-title">Feladat: Add meg az S és M halmazok különbségét (S \ M), az elemek felsorolásával.</h3>
-        <p class="part-note">Jelöld be azokat az ásványokat, amelyek az S halmazban vannak, de az M halmazból hiányoznak.</p>
-        <div class="choices">
-          {% set options = [
-            "Szillimanit", "Sztaurolit", "Kianit", "Klorit", "Gránát", "Talk", "Kalcit", "Dolomit",
-            "Kaolinit", "Galena", "Hematit", "Gipsz", "Opál", "Halit", "Grafit", "Kvarc",
-            "Muszkovit", "Szerpentin", "Hornblende", "Piroxén", "Zeolit", "Biotit", "Amfibol",
-            "Olivin", "Ilmenit", "Plagioklász földpát"
-          ] %}
-          {% for opt in options %}
-          <label class="pill-choice">
-            <input type="checkbox" name="s_minus_m" value="{{ opt }}" />
-            <span>{{ opt }}</span>
+        <div class="card question" aria-label="S minus M question">
+          <h3 class="part-title">Feladat: Add meg az S és M halmazok különbségét (S \ M), az elemek felsorolásával.</h3>
+          <p class="part-note">Röviden sorold fel vagy írd le, mely ásványok tartoznak az S \ M különbségbe.</p>
+          <label class="id-field" for="s-minus-m-answer">
+            <span>Válasz</span>
+            <textarea id="s-minus-m-answer" name="s_minus_m_answer" rows="4" placeholder="Írd le szövegesen az S \ M elemeit." style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
           </label>
-          {% endfor %}
         </div>
-      </div>
 
-      <div class="card question" aria-label="Symmetric difference question">
-        <h3 class="part-title">Feladat: Mit fejez ki az I Δ M szimmetrikus különbség? Adj meg egy beletartozó és egy kimaradó ásványt.</h3>
-        <p class="part-note">Válassz <strong>egy vagy több</strong> példát, amely <strong>benne van</strong> az I Δ M halmazban, és <strong>egy vagy több</strong> olyat, amely <strong>kimarad</strong>.</p>
-        <div class="dual-grid">
-          <div>
-            <h4>Benne van az I Δ M halmazban</h4>
-            <div class="choices">
-              {% for opt in options %}
-              <label class="pill-choice">
-                <input type="checkbox" name="idm_included" value="{{ opt }}" />
-                <span>{{ opt }}</span>
-              </label>
-              {% endfor %}
-            </div>
-          </div>
-          <div>
-            <h4>Kimarad az I Δ M halmazból</h4>
-            <div class="choices">
-              {% for opt in options %}
-              <label class="pill-choice">
-                <input type="checkbox" name="idm_excluded" value="{{ opt }}" />
-                <span>{{ opt }}</span>
-              </label>
-              {% endfor %}
-            </div>
-          </div>
+        <div class="card question" aria-label="Symmetric difference question">
+          <h3 class="part-title">Feladat: Mit fejez ki az I Δ M szimmetrikus különbség? Adj meg egy beletartozó és egy kimaradó ásványt.</h3>
+          <p class="part-note">Írd le röviden, milyen ásványok kerülnek bele az I Δ M halmazba, és melyek maradnak ki.</p>
+          <label class="id-field" for="idm-included-answer">
+            <span>Benne van az I Δ M halmazban</span>
+            <textarea id="idm-included-answer" name="idm_included_answer" rows="3" placeholder="Írd le, mely ásványok szerepelnek az I Δ M halmazban." style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
+          </label>
+          <label class="id-field" for="idm-excluded-answer">
+            <span>Kimarad az I Δ M halmazból</span>
+            <textarea id="idm-excluded-answer" name="idm_excluded_answer" rows="3" placeholder="Írd le, mely ásványok maradnak ki az I Δ M halmazból." style="width:100%; background:#0d1320; color:#e8f0ff; border:1px solid #263243; border-radius:8px; padding:10px;"></textarea>
+          </label>
         </div>
-      </div>
 
       <div class="card question" aria-label="Union of intersection and symmetric difference question">
         <h3 class="part-title">Feladat: Hogyan írnád fel az alábbi művelet (I ∩ M) U (I Δ M) eredményét egyszerűbben?</h3>
