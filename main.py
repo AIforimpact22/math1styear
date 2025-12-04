@@ -23,6 +23,7 @@ from geothermal import bp as geothermal_bp
 from sedimentation import bp as sedimentation_bp
 from sediment import sediment_bp
 from function_examples import function_examples_bp
+from test_page import bp as test_page_bp
 
 # NEW: Relations & Functions (Fossils) interactive page
 from relations import relations_bp
@@ -90,6 +91,9 @@ def create_app():
     # - Page route:            GET /relations
     # - Assets (JSON) route:   GET /relations/api/assets
     app.register_blueprint(relations_bp)
+
+    # Test page for entering credentials and set theory prompts
+    app.register_blueprint(test_page_bp)
 
     # -------- Friendly error pages (so you see what's wrong locally) --------
     @app.errorhandler(Exception)
